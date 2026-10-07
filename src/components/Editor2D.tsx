@@ -182,7 +182,7 @@ export default function Editor2D() {
   const walls = useMemo(() => computeWalls(level, project.wallThickness), [level, project.wallThickness]);
 
   const openingHover = useMemo(() => {
-    if ((tool !== 'door' && tool !== 'window') || !cursor) return null;
+    if ((tool !== 'door' && tool !== 'dock' && tool !== 'window') || !cursor) return null;
     return nearestEdge(level.rooms.filter((r) => r.hasWalls), cursor, 0.6);
   }, [tool, cursor, level.rooms]);
 
@@ -252,6 +252,7 @@ export default function Editor2D() {
       if (key === 'b') setTool('rect');
       if (key === 'd') setTool('door');
       if (key === 'w') setTool('window');
+      if (key === 'g') setTool('dock');
       if (key === 'h') setTool('pan');
       if (key === 'f') fit();
     };
@@ -327,8 +328,8 @@ export default function Editor2D() {
       return;
     }
 
-    if ((tool === 'door' || tool === 'window') && openingHover) {
-      addOpening(tool, openingHover.roomId, openingHover.edge, openingHover.t, dist(openingHover.a, openingHover.b));
+    if ((tool === 'door' || tool === 'dock' || tool === 'window') && openingHover) {
+      addOpening(tool === 'window' ? 'window' : 'door', openingHover.roomId, openingHover.edge, openingHover.t, dist(openingHover.a, openingHover.b), tool === 'dock');
       return;
     }
 
@@ -594,7 +595,7 @@ export default function Editor2D() {
           })}
 
           {/* muebles */}
-          {level.furniture.map((f) => (
+          {[...level.furniture].sort((a, b) => layer(a) - layer(b)).map((f) => (
             <FurnitureItem key={f.id} f={f} k={k} selected={selection?.id === f.id} hit={tool === 'select'} />
           ))}
 
@@ -625,7 +626,7 @@ export default function Editor2D() {
             <g pointerEvents="none">
               {(() => {
                 const L = dist(openingHover.a, openingHover.b);
-                const w = Math.min(tool === 'door' ? 0.9 : 1.2, L - 0.1);
+                const w = Math.min(tool === 'door' ? 0.9 : tool === 'dock' ? 3 : 1.2, L - 0.1);
                 const dir = norm(sub(openingHover.b, openingHover.a));
                 const half = w / 2 / L;
                 const c = add(openingHover.a, mul(sub(openingHover.b, openingHover.a), Math.min(1 - half, Math.max(half, openingHover.t))));
@@ -702,12 +703,18 @@ function hint(tool: string, n: number) {
       return 'Clic sobre un muro para colocar una puerta';
     case 'window':
       return 'Clic sobre un muro para colocar una ventana';
+    case 'dock':
+      return 'Clic sobre un muro para colocar un portón de andén (3 × 3.6 m)';
     case 'pan':
       return 'Arrastra para desplazar el plano · Rueda para zoom';
     default:
       return 'Arrastra muebles y ambientes · Doble clic en una arista: nuevo vértice · Alt+clic en vértice: borrar · R: girar · Supr: eliminar';
   }
 }
+
+/** Orden de dibujo: zonas y alfombras debajo, letreros colgantes encima. */
+const layer = (f: Furniture) => (f.type === 'zona' ? 0 : f.type === 'alfombra' ? 1 : f.type === 'letrero' ? 3 : 2);
+const OWN_LABEL = new Set(['alfombra', 'zona', 'letrero', 'letrero_pie', 'rack', 'malla', 'bascula']);
 
 const pts = (p: Vec2[]) => p.map((q) => `${q.x},${q.y}`).join(' ');
 const seg = (a: Vec2, b: Vec2) => ({ x1: a.x, y1: a.y, x2: b.x, y2: b.y });
@@ -773,7 +780,7 @@ function RoomHandles({ room, k }: { room: Room; k: number }) {
 }
 
 function FurnitureItem({ f, k, selected, hit }: { f: Furniture; k: number; selected: boolean; hit: boolean }) {
-  const showLabel = f.w / k > 46 && f.d / k > 22 && f.type !== 'alfombra';
+  const showLabel = f.w / k > 46 && f.d / k > 22 && !OWN_LABEL.has(f.type);
   return (
     <g transform={`translate(${f.x} ${f.y}) rotate(${f.rotation})`} data-kind="furniture" data-id={f.id} className={hit ? 'hit grab' : ''}>
       <FurnitureSymbol f={f} k={k} />

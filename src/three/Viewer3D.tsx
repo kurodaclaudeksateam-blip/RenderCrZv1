@@ -1,14 +1,17 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from '../store';
-import { area, bounds, computeWalls, interiorPoint, levelElevations, pointInPolygon, projectOnSegment } from '../geometry';
+import { area, bounds, computeWalls, interiorPoint, levelElevations, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
 import { LevelMesh } from './Building';
 import { WalkControls, walkInput } from './WalkControls';
 import { grassTexture } from './textures';
 
 type Mode = 'orbit' | 'walk';
+
+/** Objetos que no bloquean el recorrido. */
+const NON_BLOCKING = new Set(['zona', 'alfombra', 'letrero', 'escalera', 'planta', 'lampara', 'cono']);
 
 function Ground() {
   const map = useMemo(() => {
@@ -54,6 +57,18 @@ function SunLight({ cx, cz, size }: { cx: number; cz: number; size: number }) {
   );
 }
 
+/** Avisa cuando se dibujó el primer cuadro. */
+function FirstFrame({ onReady }: { onReady: () => void }) {
+  const done = useRef(false);
+  useFrame(() => {
+    if (!done.current) {
+      done.current = true;
+      onReady();
+    }
+  });
+  return null;
+}
+
 /** Expone una función para capturar la imagen del lienzo. */
 function Snapshot({ onReady }: { onReady: (fn: () => string) => void }) {
   const { gl, scene, camera } = useThree();
@@ -80,6 +95,7 @@ export default function Viewer3D() {
   const [xray, setXray] = useState(false);
   const [collisions, setCollisions] = useState(true);
   const [locked, setLocked] = useState(false);
+  const [ready, setReady] = useState(false);
   const snapRef = useRef<() => string>(() => '');
 
   const allPts = levels.flatMap((l) => l.rooms.flatMap((r) => r.points));
@@ -90,7 +106,21 @@ export default function Viewer3D() {
   const totalH = elevations[elevations.length - 1] + levels[levels.length - 1].height;
 
   const walkLvl = levels[Math.min(walkLevel, levels.length - 1)];
-  const walkSegments = useMemo(() => computeWalls(walkLvl, project.wallThickness).segments, [walkLvl, project.wallThickness]);
+  const walkSegments = useMemo(() => {
+    const segs = computeWalls(walkLvl, project.wallThickness).segments;
+    // racks, equipos y objetos altos también bloquean el paso
+    for (const f of walkLvl.furniture) {
+      if (NON_BLOCKING.has(f.type) || f.h < 0.45 || f.elevation > 1.2) continue;
+      const c = [
+        localToWorld(-f.w / 2, -f.d / 2, f.x, f.y, f.rotation),
+        localToWorld(f.w / 2, -f.d / 2, f.x, f.y, f.rotation),
+        localToWorld(f.w / 2, f.d / 2, f.x, f.y, f.rotation),
+        localToWorld(-f.w / 2, f.d / 2, f.x, f.y, f.rotation),
+      ];
+      for (let i = 0; i < 4; i++) segs.push({ a: c[i], b: c[(i + 1) % 4], half: 0.02 });
+    }
+    return segs;
+  }, [walkLvl, project.wallThickness]);
 
   const start = useMemo(() => {
     const rooms = [...walkLvl.rooms].sort((a, c) => area(c.points) - area(a.points));
@@ -110,7 +140,7 @@ export default function Viewer3D() {
           score = Math.min(score, projectOnSegment(p, room.points[i], room.points[(i + 1) % room.points.length]).dist);
         }
         for (const f of walkLvl.furniture) {
-          if (f.type === 'alfombra') continue;
+          if (f.type === 'alfombra' || f.type === 'zona' || f.elevation > 1.2) continue;
           score = Math.min(score, Math.hypot(f.x - x, f.y - y) - Math.hypot(f.w, f.d) / 2);
         }
         if (score > bestScore) {
@@ -137,6 +167,7 @@ export default function Viewer3D() {
   }, [levels.length]);
 
   const onLockChange = useCallback((l: boolean) => setLocked(l), []);
+  const onFirstFrame = useCallback(() => setReady(true), []);
   const onSnapReady = useCallback((fn: () => string) => (snapRef.current = fn), []);
 
   const screenshot = () => {
@@ -195,6 +226,7 @@ export default function Viewer3D() {
             <WalkControls start={start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} collisions={collisions} onLockChange={onLockChange} />
           )}
           <Snapshot onReady={onSnapReady} />
+          <FirstFrame onReady={onFirstFrame} />
         </Suspense>
       </Canvas>
 
@@ -254,6 +286,8 @@ export default function Viewer3D() {
           📷
         </button>
       </header>
+
+      {!ready && !empty && <div className="viewer-loading"><span className="spinner" /> Construyendo la escena 3D…</div>}
 
       {empty && (
         <div className="viewer-empty">

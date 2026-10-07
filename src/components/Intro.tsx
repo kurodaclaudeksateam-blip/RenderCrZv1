@@ -219,7 +219,7 @@ export default function Intro({ onStart }: { onStart: () => void }) {
         <div className="intro-logo">
           Render<span>CrZ</span>
         </div>
-        <p className="intro-tag">Dibuja planos irregulares · amuebla · recorre en 3D</p>
+        <p className="intro-tag">Planos de almacén · racks y zonas · recorrido 3D</p>
         <button className="intro-start" onClick={start} disabled={!done}>
           Iniciar
         </button>

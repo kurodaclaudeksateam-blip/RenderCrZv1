@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { deleteProject, listProjects, loadProject, newProject, sampleProject, saveProject, storageUsageKB, type ProjectMeta } from '../storage';
+import { deleteProject, listProjects, loadProject, newProject, sampleProject, sampleWarehouse, saveProject, storageUsageKB, type ProjectMeta } from '../storage';
 import { useStore } from '../store';
 import { downloadProject, pickProjectFile } from '../io';
 import { bounds, uid } from '../geometry';
@@ -60,15 +60,18 @@ export default function HomeScreen() {
             <h1>
               Render<span>CrZ</span>
             </h1>
-            <p>Dibuja planos irregulares, amuebla cada ambiente, define niveles y recórrelos en 3D.</p>
+            <p>Diseña almacenes y centros logísticos: dibuja naves irregulares, ubica racks, anaqueles, zonas y señalética, define niveles y recórrelos en 3D.</p>
           </div>
         </div>
         <div className="hero-actions">
           <button className="primary big" onClick={() => setCreating(true)}>
             ＋ Nuevo proyecto
           </button>
-          <button className="secondary big" onClick={() => create(sampleProject('Casa de ejemplo'))}>
-            🏡 Abrir ejemplo
+          <button className="secondary big" onClick={() => create(sampleWarehouse('Centro de distribución (ejemplo)'))}>
+            🏭 Almacén de ejemplo
+          </button>
+          <button className="ghost big" onClick={() => create(sampleProject('Casa de ejemplo'))} title="Ejemplo residencial">
+            🏡 Casa
           </button>
           <button className="ghost big" onClick={importFile}>
             📥 Importar
@@ -84,7 +87,7 @@ export default function HomeScreen() {
         {list.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📐</div>
-            <p>Todavía no tienes proyectos. Crea uno nuevo o abre la casa de ejemplo para explorar.</p>
+            <p>Todavía no tienes proyectos. Crea uno nuevo o abre el almacén de ejemplo para explorar.</p>
           </div>
         ) : (
           <div className="cards">
@@ -96,7 +99,7 @@ export default function HomeScreen() {
                 <div className="card-body">
                   <h3 title={m.name}>{m.name}</h3>
                   <p className="muted small">
-                    {m.levels} {m.levels === 1 ? 'nivel' : 'niveles'} · {m.rooms} ambientes · {m.furniture} muebles
+                    {m.levels} {m.levels === 1 ? 'nivel' : 'niveles'} · {m.rooms} ambientes · {m.furniture} objetos
                   </p>
                   <p className="muted tiny">Editado {new Date(m.updatedAt).toLocaleString()}</p>
                 </div>
@@ -143,9 +146,9 @@ export default function HomeScreen() {
 }
 
 function NewProjectDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Project) => void }) {
-  const [name, setName] = useState('Mi casa');
+  const [name, setName] = useState('Mi almacén');
   const [levels, setLevels] = useState(1);
-  const [height, setHeight] = useState(2.6);
+  const [height, setHeight] = useState(7);
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form
@@ -169,7 +172,7 @@ function NewProjectDialog({ onClose, onCreate }: { onClose: () => void; onCreate
           </label>
           <label className="field">
             <span>Altura por nivel (m)</span>
-            <input type="number" min={2} max={8} step={0.05} value={height} onChange={(e) => setHeight(Number(e.target.value) || 2.6)} />
+            <input type="number" min={2} max={30} step={0.05} value={height} onChange={(e) => setHeight(Number(e.target.value) || 2.6)} />
           </label>
         </div>
         <p className="muted small">Podrás cambiar la cantidad de niveles y sus alturas en cualquier momento.</p>

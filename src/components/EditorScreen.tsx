@@ -12,6 +12,7 @@ const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = [
   { id: 'room', icon: '⬠', label: 'Ambiente irregular', key: 'P' },
   { id: 'rect', icon: '▭', label: 'Ambiente rectangular', key: 'B' },
   { id: 'door', icon: '🚪', label: 'Puerta', key: 'D' },
+  { id: 'dock', icon: '🚛', label: 'Portón / andén', key: 'G' },
   { id: 'window', icon: '🪟', label: 'Ventana', key: 'W' },
   { id: 'pan', icon: '✋', label: 'Desplazar', key: 'H' },
 ];
@@ -163,8 +164,8 @@ function CatalogSection({ onAdd }: { onAdd: () => void }) {
   );
   return (
     <section className="catalog">
-      <h3>Muebles</h3>
-      <input className="search" placeholder="Buscar mueble…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <h3>Objetos de almacén</h3>
+      <input className="search" placeholder="Buscar rack, letrero, zona…" value={q} onChange={(e) => setQ(e.target.value)} />
       {!q && (
         <div className="chips">
           {CATEGORIES.map((c) => (

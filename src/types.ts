@@ -6,7 +6,7 @@ export interface Vec2 {
   y: number;
 }
 
-export type FloorMaterial = 'madera' | 'ceramica' | 'alfombra' | 'concreto' | 'marmol';
+export type FloorMaterial = 'madera' | 'ceramica' | 'alfombra' | 'concreto' | 'marmol' | 'epoxi';
 
 export interface Room {
   id: string;
@@ -35,6 +35,28 @@ export interface Opening {
 }
 
 export type FurnitureType =
+  // almacenaje y logística
+  | 'rack'
+  | 'estanteria_metal'
+  | 'cantilever'
+  | 'pallet'
+  | 'pallet_carga'
+  | 'caja_carton'
+  | 'contenedor'
+  | 'montacargas'
+  | 'transpaleta'
+  | 'banda'
+  | 'mesa_embalaje'
+  | 'bascula'
+  | 'malla'
+  // señalización y zonas
+  | 'letrero'
+  | 'letrero_pie'
+  | 'zona'
+  | 'extintor'
+  | 'cono'
+  | 'bolardo'
+  // hogar / oficina
   | 'sofa'
   | 'sillon'
   | 'mesa_centro'
@@ -80,6 +102,10 @@ export interface Furniture {
   /** altura sobre el piso */
   elevation: number;
   color: string;
+  /** texto para letreros y zonas */
+  label?: string;
+  /** niveles de carga en racks y estanterías */
+  shelves?: number;
 }
 
 export interface Level {
@@ -107,4 +133,4 @@ export type Selection =
   | { kind: 'opening'; id: string }
   | null;
 
-export type Tool = 'select' | 'room' | 'rect' | 'door' | 'window' | 'pan';
+export type Tool = 'select' | 'room' | 'rect' | 'door' | 'dock' | 'window' | 'pan';

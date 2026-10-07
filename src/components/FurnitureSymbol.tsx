@@ -12,6 +12,169 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
   );
 
   switch (f.type) {
+    case 'rack': {
+      const bays = Math.max(1, Math.round(w / 2.7));
+      const bw = w / bays;
+      const rows = d > 1.8 ? 2 : 1;
+      const rd = d / rows;
+      const post = Math.min(0.1, bw * 0.1);
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={d} fill={color} fillOpacity={0.18} stroke={line} strokeWidth={sw} />
+          {Array.from({ length: rows }, (_, r) =>
+            Array.from({ length: bays }, (_, b) => {
+              const px = x0 + b * bw;
+              const py = y0 + r * rd;
+              const slots = Math.max(1, Math.floor((bw - post) / 1.25));
+              const sw2 = (bw - post * 2) / slots;
+              return (
+                <g key={`${r}-${b}`}>
+                  {Array.from({ length: slots }, (_, s) => (
+                    <rect key={s} x={px + post + s * sw2 + 0.05} y={py + 0.08} width={sw2 - 0.1} height={rd - 0.16} fill="#c8a26b" fillOpacity={0.55} stroke={line} strokeWidth={sw * 0.6} />
+                  ))}
+                </g>
+              );
+            }),
+          )}
+          {Array.from({ length: bays + 1 }, (_, b) => {
+            const px = Math.min(-x0 - post, x0 + b * bw - post / 2);
+            const xx = Math.max(x0, px);
+            return Array.from({ length: rows + 1 }, (_, r) => {
+              const py = Math.max(y0, Math.min(-y0 - post, y0 + r * rd - post / 2));
+              return <rect key={`p${b}-${r}`} x={xx} y={py} width={post} height={post} fill="#1e3a8a" />;
+            });
+          })}
+          {Array.from({ length: rows + 1 }, (_, r) => (
+            <line key={`b${r}`} x1={x0} x2={-x0} y1={y0 + r * rd} y2={y0 + r * rd} stroke={color} strokeWidth={sw * 2.5} />
+          ))}
+        </g>
+      );
+    }
+    case 'estanteria_metal':
+      return (
+        <g>
+          {base}
+          <path d={`M ${x0} ${y0} L ${-x0} ${-y0} M ${-x0} ${y0} L ${x0} ${-y0}`} stroke={line} strokeWidth={sw * 0.8} opacity={0.5} />
+          {[x0, -x0 - 0.05].flatMap((x) => [y0, -y0 - 0.05].map((y) => <rect key={`${x}${y}`} x={x} y={y} width={0.05} height={0.05} fill={line} />))}
+        </g>
+      );
+    case 'cantilever': {
+      const cols = Math.max(2, Math.round(w / 1.2) + 1);
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={d} fill={color} fillOpacity={0.12} stroke={line} strokeWidth={sw} strokeDasharray={`${4 * k} ${3 * k}`} />
+          <line x1={x0} x2={-x0} y1={0} y2={0} stroke={color} strokeWidth={0.12} />
+          {Array.from({ length: cols }, (_, i) => {
+            const x = x0 + 0.08 + (i * (w - 0.16)) / (cols - 1);
+            return <line key={i} x1={x} x2={x} y1={y0} y2={-y0} stroke={line} strokeWidth={sw * 2} />;
+          })}
+        </g>
+      );
+    }
+    case 'pallet':
+      return (
+        <g>
+          {base}
+          {Array.from({ length: 5 }, (_, i) => (
+            <line key={i} x1={x0 + (w * (i + 0.5)) / 5} x2={x0 + (w * (i + 0.5)) / 5} y1={y0} y2={-y0} stroke={line} strokeWidth={sw} opacity={0.6} />
+          ))}
+        </g>
+      );
+    case 'pallet_carga':
+    case 'caja_carton':
+      return (
+        <g>
+          {base}
+          <line x1={x0} x2={-x0} y1={0} y2={0} stroke="#a16207" strokeWidth={Math.min(0.06, d * 0.12)} opacity={0.8} />
+          {f.type === 'pallet_carga' && <path d={`M ${x0} ${y0} L ${-x0} ${-y0} M ${-x0} ${y0} L ${x0} ${-y0}`} stroke={line} strokeWidth={sw * 0.7} opacity={0.4} />}
+        </g>
+      );
+    case 'contenedor':
+      return (
+        <g>
+          {base}
+          <rect x={x0 + 0.04} y={y0 + 0.04} width={w - 0.08} height={d - 0.08} rx={0.03} fill="none" stroke={line} strokeWidth={sw} opacity={0.6} />
+        </g>
+      );
+    case 'montacargas': {
+      const body = Math.min(d * 0.66, 2.2);
+      const fy = y0 + body;
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={body} rx={0.12} fill={color} stroke={line} strokeWidth={sw} />
+          <rect x={x0 + 0.15} y={y0 + body * 0.35} width={w - 0.3} height={body * 0.4} fill="none" stroke={line} strokeWidth={sw} />
+          <rect x={x0 + 0.05} y={fy} width={w - 0.1} height={0.1} fill="#374151" />
+          <rect x={-0.35} y={fy + 0.1} width={0.12} height={-y0 - fy - 0.1} fill="#6b7280" />
+          <rect x={0.23} y={fy + 0.1} width={0.12} height={-y0 - fy - 0.1} fill="#6b7280" />
+        </g>
+      );
+    }
+    case 'transpaleta': {
+      const body = 0.35;
+      return (
+        <g>
+          <circle cx={0} cy={y0 + 0.12} r={0.12} fill="none" stroke={line} strokeWidth={sw * 1.5} />
+          <rect x={x0} y={y0 + 0.2} width={w} height={body} rx={0.05} fill={color} stroke={line} strokeWidth={sw} />
+          <rect x={x0} y={y0 + 0.2 + body} width={0.16} height={d - 0.2 - body} fill="#6b7280" stroke={line} strokeWidth={sw * 0.6} />
+          <rect x={-x0 - 0.16} y={y0 + 0.2 + body} width={0.16} height={d - 0.2 - body} fill="#6b7280" stroke={line} strokeWidth={sw * 0.6} />
+        </g>
+      );
+    }
+    case 'banda': {
+      const n = Math.max(4, Math.round(w / 0.25));
+      return (
+        <g>
+          {base}
+          {Array.from({ length: n - 1 }, (_, i) => (
+            <line key={i} x1={x0 + (w * (i + 1)) / n} x2={x0 + (w * (i + 1)) / n} y1={y0 + 0.06} y2={-y0 - 0.06} stroke="#9ca3af" strokeWidth={sw} />
+          ))}
+          <path d={`M ${-w * 0.15} 0 H ${w * 0.15} M ${w * 0.08} ${-d * 0.18} L ${w * 0.15} 0 L ${w * 0.08} ${d * 0.18}`} stroke="#fbbf24" strokeWidth={sw * 2} fill="none" />
+        </g>
+      );
+    }
+    case 'bascula':
+      return (
+        <g>
+          {base}
+          <rect x={x0 + 0.1} y={y0 + 0.1} width={w - 0.2} height={d - 0.2} fill="none" stroke={line} strokeWidth={sw} opacity={0.5} />
+          <text y={0.08} fontSize={Math.min(w, d) * 0.22} textAnchor="middle" fill="#e2e8f0" pointerEvents="none">kg</text>
+        </g>
+      );
+    case 'malla':
+      return (
+        <rect x={x0} y={y0} width={w} height={Math.max(d, 0.05)} fill={color} stroke={line} strokeWidth={sw} strokeDasharray={`${3 * k} ${2 * k}`} />
+      );
+    case 'letrero':
+    case 'letrero_pie':
+      return (
+        <g>
+          <rect x={x0} y={y0 - 0.03} width={w} height={Math.max(d, 0.08) + 0.06} rx={0.02} fill={color} stroke={line} strokeWidth={sw} strokeDasharray={f.type === 'letrero' ? `${3 * k} ${2 * k}` : undefined} />
+          <text y={y0 - 0.12} fontSize={Math.max(0.22, Math.min(0.5, w / Math.max(4, (f.label ?? '').length) * 1.3))} textAnchor="middle" fill={color} fontWeight={800} pointerEvents="none" stroke="#fff" strokeWidth={0.04} paintOrder="stroke">
+            {f.label || f.name}
+          </text>
+        </g>
+      );
+    case 'zona': {
+      const fs = Math.min(d * 0.28, (w / Math.max(4, (f.label ?? '').length)) * 1.4, 1.4);
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={d} fill={color} fillOpacity={0.16} stroke={color} strokeWidth={Math.min(0.1, Math.min(w, d) * 0.04)} strokeDasharray="0.4 0.25" />
+          <text y={fs * 0.35} fontSize={fs} textAnchor="middle" fill={color} fontWeight={800} opacity={0.9} pointerEvents="none" letterSpacing={fs * 0.05}>
+            {f.label || f.name}
+          </text>
+        </g>
+      );
+    }
+    case 'extintor':
+    case 'bolardo':
+      return <circle r={Math.min(w, d) / 2} fill={color} stroke={line} strokeWidth={sw} />;
+    case 'cono':
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={d} fill="#111827" opacity={0.8} />
+          <circle r={Math.min(w, d) * 0.38} fill={color} stroke="#fff" strokeWidth={sw * 2} />
+        </g>
+      );
     case 'cama': {
       const pw = w > 1.2 ? (w - 0.3) / 2 : w - 0.2;
       return (

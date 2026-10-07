@@ -70,6 +70,18 @@ export default function PropertiesPanel() {
   return <ProjectProps project={project} level={level} />;
 }
 
+const TEXT_TYPES = new Set(['letrero', 'letrero_pie', 'zona']);
+const SHELF_TYPES = new Set(['rack', 'estanteria_metal', 'cantilever']);
+
+/** Posiciones de pallet de un rack: módulos × filas × (niveles + piso) × huecos por módulo. */
+export function palletPositions(f: Furniture) {
+  if (f.type !== 'rack') return 0;
+  const bays = Math.max(1, Math.round(f.w / 2.7));
+  const rows = f.d > 1.8 ? 2 : 1;
+  const slots = Math.max(1, Math.floor((f.w / bays - 0.08) / 1.25));
+  return bays * rows * slots * (Math.max(1, Math.round(f.shelves ?? 4)) + 1);
+}
+
 function Actions({ rotate = false, duplicate = true }: { rotate?: boolean; duplicate?: boolean }) {
   return (
     <div className="row wrap">
@@ -91,9 +103,14 @@ function FurnitureProps({ f }: { f: Furniture }) {
   return (
     <div className="props">
       <h2>
-        <span className="props-icon">{cat?.icon ?? '⬜'}</span> Mueble
+        <span className="props-icon">{cat?.icon ?? '⬜'}</span> Objeto
       </h2>
       <Text label="Nombre" value={f.name} onChange={(name) => set({ name })} />
+      {TEXT_TYPES.has(f.type) && <Text label="Texto del letrero / zona" value={f.label ?? ''} onChange={(label) => set({ label: label.toUpperCase() })} />}
+      {SHELF_TYPES.has(f.type) && (
+        <Num label="Niveles de carga" value={f.shelves ?? 4} step={1} min={1} max={12} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />
+      )}
+      {f.type === 'rack' && <p className="muted small">Capacidad: <b>{palletPositions(f)}</b> posiciones de pallet</p>}
       <label className="field">
         <span>Tipo (modelo 3D)</span>
         <select value={f.type} onChange={(e) => set({ type: e.target.value as Furniture['type'] })}>
@@ -225,17 +242,22 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
   const autosave = useStore((s) => s.autosave);
   const { setGrid, toggleSnap, toggleGhost, setAutosave } = useStore.getState();
   const totalArea = level.rooms.reduce((a, r) => a + area(r.points), 0);
+  const positions = level.furniture.reduce((n, f) => n + palletPositions(f), 0);
+  const zoneArea = level.furniture.filter((f) => f.type === 'zona').reduce((a, f) => a + f.w * f.d, 0);
   return (
     <div className="props">
       <h2>
         <span className="props-icon">🏠</span> Nivel actual
       </h2>
       <Text label="Nombre del nivel" value={level.name} onChange={(name) => mutate((_, l) => void (l.name = name))} />
-      <Num label="Altura de piso a techo" value={level.height} min={2} max={8} onChange={(height) => mutate((_, l) => void (l.height = height))} />
+      <Num label="Altura de piso a techo" value={level.height} min={2} max={30} onChange={(height) => mutate((_, l) => void (l.height = height))} />
       <div className="stats">
         <div><b>{level.rooms.length}</b><span>ambientes</span></div>
         <div><b>{fmt(totalArea, 1)}</b><span>m² totales</span></div>
-        <div><b>{level.furniture.length}</b><span>muebles</span></div>
+        <div><b>{level.furniture.length}</b><span>objetos</span></div>
+        <div><b>{positions}</b><span>posiciones pallet</span></div>
+        <div><b>{fmt(zoneArea, 0)}</b><span>m² en zonas</span></div>
+        <div><b>{level.furniture.filter((f) => f.type === 'rack' || f.type === 'estanteria_metal' || f.type === 'cantilever').length}</b><span>estructuras</span></div>
       </div>
 
       <h2>
@@ -266,7 +288,7 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
         <h4>Atajos</h4>
         <ul>
           <li><kbd>V</kbd> seleccionar · <kbd>P</kbd> ambiente irregular · <kbd>B</kbd> rectángulo</li>
-          <li><kbd>D</kbd> puerta · <kbd>W</kbd> ventana · <kbd>H</kbd> desplazar · <kbd>F</kbd> encuadrar</li>
+          <li><kbd>D</kbd> puerta · <kbd>G</kbd> portón · <kbd>W</kbd> ventana · <kbd>H</kbd> desplazar · <kbd>F</kbd> encuadrar</li>
           <li><kbd>R</kbd> girar 90° · <kbd>Q</kbd>/<kbd>E</kbd> girar 15° · <kbd>Flechas</kbd> mover</li>
           <li><kbd>Ctrl+Z</kbd> deshacer · <kbd>Ctrl+D</kbd> duplicar · <kbd>Supr</kbd> eliminar</li>
           <li><kbd>Espacio</kbd>+arrastrar o rueda del mouse para navegar</li>

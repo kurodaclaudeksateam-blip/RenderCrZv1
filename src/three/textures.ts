@@ -110,6 +110,12 @@ export function floorTexture(kind: FloorMaterial): THREE.Texture {
         g.fillRect(0, 0, s, s);
         noise(g, s, 14000, 5, 0.2);
       });
+    case 'epoxi':
+      return make('epoxi', 256, 3, (g, s) => {
+        g.fillStyle = '#eeeeee';
+        g.fillRect(0, 0, s, s);
+        noise(g, s, 2500, 29, 0.05);
+      });
     case 'concreto':
     default:
       return make('concreto', 512, 2, (g, s) => {
@@ -139,4 +145,39 @@ export function grassTexture() {
       g.fillRect(r() * s, r() * s, 1, 2 + r() * 4);
     }
   });
+}
+
+/** Textura con texto centrado para letreros y rótulos de piso. */
+export function textTexture(text: string, fg: string, bg: string | null, aspect: number) {
+  const key = `txt:${text}|${fg}|${bg}|${aspect.toFixed(2)}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const W = 1024;
+  const H = Math.max(64, Math.min(1024, Math.round(W / Math.max(0.25, aspect))));
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  if (bg) {
+    g.fillStyle = bg;
+    g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(255,255,255,0.85)';
+    g.lineWidth = Math.max(6, H * 0.05);
+    g.strokeRect(g.lineWidth, g.lineWidth, W - g.lineWidth * 2, H - g.lineWidth * 2);
+  }
+  let size = H * 0.62;
+  g.font = `800 ${size}px Inter, system-ui, sans-serif`;
+  const maxW = W * 0.88;
+  const mw = g.measureText(text).width;
+  if (mw > maxW) size *= maxW / mw;
+  g.font = `800 ${size}px Inter, system-ui, sans-serif`;
+  g.fillStyle = fg;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, W / 2, H / 2 + size * 0.04);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  cache.set(key, t);
+  return t;
 }

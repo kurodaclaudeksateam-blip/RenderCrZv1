@@ -1,5 +1,5 @@
 import { CATALOG, ROOM_COLORS, type CatalogItem } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, type OpeningWorld } from './geometry';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
 import type { Furniture, Level, OpeningKind, Vec2 } from './types';
@@ -24,6 +24,8 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center) {
       h: item.h,
       elevation: item.elevation ?? 0,
       color: item.color,
+      ...(item.text ? { label: item.text } : {}),
+      ...(item.shelves ? { shelves: item.shelves } : {}),
     });
   });
   st().select({ kind: 'furniture', id });
@@ -43,9 +45,9 @@ export function addRoom(points: Vec2[]) {
       id,
       name: `Ambiente ${n + 1}`,
       points,
-      floor: 'madera',
-      floorColor: '#c49a6c',
-      wallColor: '#f5f5f4',
+      floor: 'epoxi',
+      floorColor: '#9aa5b1',
+      wallColor: '#e7e5e4',
       hasWalls: true,
     });
   });
@@ -56,8 +58,11 @@ export function roomTint(index: number) {
   return ROOM_COLORS[index % ROOM_COLORS.length];
 }
 
-export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: number, edgeLen: number) {
-  const def = kind === 'door' ? DOOR_DEFAULT : WINDOW_DEFAULT;
+/** Portón de andén / acceso vehicular. */
+export const DOCK_DEFAULT = { width: 3.0, height: 3.6, sill: 0 };
+
+export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: number, edgeLen: number, dock = false) {
+  const def = dock ? DOCK_DEFAULT : kind === 'door' ? DOOR_DEFAULT : WINDOW_DEFAULT;
   const width = Math.min(def.width, Math.max(0.3, edgeLen - 0.1));
   const half = width / 2 / edgeLen;
   const id = uid();
@@ -196,4 +201,3 @@ export function addLevel(copyFrom?: Level) {
   st().setLevel(lvl.id);
 }
 
-export type { OpeningWorld };

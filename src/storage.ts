@@ -207,3 +207,112 @@ export function sampleProject(name: string): Project {
   ];
   return p;
 }
+
+/** Centro de distribución de ejemplo: nave irregular, racks, zonas, andenes y mezzanine. */
+export function sampleWarehouse(name: string): Project {
+  const p = newProject(name, 2, 7.5);
+  p.wallThickness = 0.2;
+  const [l0, l1] = p.levels;
+  l0.name = 'Nave de almacén';
+  l1.name = 'Mezzanine oficinas';
+  l1.height = 3;
+
+  const nave = room('Nave de almacenaje', [[0, 0], [36, 0], [36, 22], [28, 28], [0, 28]], 'epoxi', '#9aa5b1', '#e5e7eb');
+  const office = room('Oficinas', [[-8, 0], [0, 0], [0, 10], [-8, 10]], 'ceramica', '#e7e2d8', '#f8fafc');
+  const wc = room('Servicios higiénicos', [[-8, 10], [0, 10], [0, 15], [-8, 15]], 'ceramica', '#dbeafe', '#e0f2fe');
+  const yard = room('Patio de maniobras', [[0, 28], [28, 28], [36, 22], [42, 22], [42, 40], [0, 40]], 'concreto', '#a8a29e');
+  yard.hasWalls = false;
+  l0.rooms = [nave, office, wc, yard];
+
+  const op = (roomId: string, edge: number, t: number, width: number, height: number, kind: 'door' | 'window', sill = 0) => ({ id: uid(), roomId, edge, t, width, height, sill, kind });
+  l0.openings = [
+    // andenes de carga (borde inferior de la nave)
+    ...[0.15, 0.35, 0.55, 0.75].map((t) => op(nave.id, 3, t, 3, 3.6, 'door')),
+    op(nave.id, 2, 0.5, 3.5, 4.2, 'door'), // acceso vehicular en el chaflán
+    op(nave.id, 1, 0.75, 1.0, 2.2, 'door'), // puerta de emergencia
+    ...[0.15, 0.35, 0.55, 0.75].map((t) => op(nave.id, 0, t, 3, 1.2, 'window', 5.5)),
+    op(office.id, 1, 0.5, 1.0, 2.2, 'door'),
+    op(office.id, 3, 0.5, 1.0, 2.2, 'door'),
+    op(office.id, 0, 0.5, 4, 1.4, 'window', 1),
+    op(wc.id, 1, 0.5, 0.9, 2.1, 'door'),
+  ];
+
+  const f = (type: string, name: string, x: number, y: number, w: number, d: number, h: number, color: string, rotation = 0, extra: Partial<Furniture> = {}): Furniture => ({
+    id: uid(), type: type as Furniture['type'], name, x, y, w, d, h, color, rotation, elevation: 0, ...extra,
+  });
+
+  const racks: Furniture[] = [];
+  const rows: [number, number, string][] = [
+    [0.85, 1.1, 'A'],
+    [5.75, 2.3, 'B'],
+    [11.25, 2.3, 'C'],
+    [16.75, 2.3, 'D'],
+  ];
+  for (const [y, d, id] of rows) {
+    [7.05, 15.15, 23.25].forEach((x, i) => racks.push(f('rack', `Rack ${id}${i + 1}`, x, y, 8.1, d, 6.5, '#f97316', 0, { shelves: 4 })));
+  }
+
+  l0.furniture = [
+    // zonas de piso
+    f('zona', 'Zona recepción', 7, 23.2, 10, 6.5, 0.01, '#3b82f6', 0, { label: 'RECEPCIÓN' }),
+    f('zona', 'Zona despacho', 20.5, 23.2, 10, 6.5, 0.01, '#22c55e', 0, { label: 'DESPACHO' }),
+    f('zona', 'Zona picking', 32, 5, 6.5, 8.5, 0.01, '#eab308', 0, { label: 'PICKING' }),
+    f('zona', 'Zona cuarentena', 32, 13, 6.5, 4, 0.01, '#ef4444', 0, { label: 'CUARENTENA' }),
+    f('zona', 'Pasillo peatonal', 1.4, 14.3, 1.2, 26, 0.01, '#f97316', 0, { label: 'PEATONAL' }),
+    // estructuras de almacenaje
+    ...racks,
+    ...[2.3, 4.8, 7.3].flatMap((y) => [
+      f('estanteria_metal', 'Anaquel picking', 30.2, y, 2.0, 0.6, 2.4, '#64748b', 90, { shelves: 6 }),
+      f('estanteria_metal', 'Anaquel picking', 33.8, y, 2.0, 0.6, 2.4, '#64748b', 90, { shelves: 6 }),
+    ]),
+    f('cantilever', 'Cantilever perfiles', 32, 18.6, 5, 1.2, 3.5, '#16a34a', 0, { shelves: 3 }),
+    // carga y equipos
+    ...[[4, 21.2], [5.6, 21.2], [7.2, 21.2], [4, 22.8], [5.6, 22.8]].map(([x, y]) => f('pallet_carga', 'Pallet con carga', x, y, 1.2, 1.0, 1.4, '#c69c6d')),
+    ...[[17.5, 21.2], [19.1, 21.2], [17.5, 22.8]].map(([x, y]) => f('pallet_carga', 'Pallet con carga', x, y, 1.2, 1.0, 1.2, '#b88a58')),
+    f('pallet', 'Pallets vacíos', 10.5, 21.2, 1.2, 1.0, 0.15, '#c8a26b'),
+    f('montacargas', 'Montacargas 1', 14, 8.5, 1.2, 3.2, 2.2, '#facc15', 90),
+    f('montacargas', 'Montacargas 2', 13.5, 24, 1.2, 3.2, 2.2, '#facc15', 180),
+    f('transpaleta', 'Transpaleta', 9.5, 25, 0.55, 1.6, 1.2, '#dc2626', 180),
+    f('banda', 'Banda transportadora', 28.4, 13, 6, 0.8, 0.85, '#334155', 90),
+    f('mesa_embalaje', 'Mesa de embalaje', 24.5, 20.3, 1.8, 0.9, 0.9, '#a3a3a3'),
+    f('mesa_embalaje', 'Mesa de embalaje', 27.2, 20.3, 1.8, 0.9, 0.9, '#a3a3a3'),
+    f('bascula', 'Báscula de piso', 24.3, 24.5, 1.5, 1.5, 0.1, '#475569'),
+    f('malla', 'Malla cuarentena', 32, 15.1, 6.5, 0.06, 2.4, '#facc15'),
+    // señalización
+    ...([['PASILLO 1', 3.2], ['PASILLO 2', 8.5], ['PASILLO 3', 14]] as const).map(([t, y]) =>
+      f('letrero', `Letrero ${t}`, 2.6, y, 1.8, 0.05, 0.6, '#1d4ed8', 90, { label: t, elevation: 4.5 }),
+    ),
+    f('letrero', 'Letrero recepción', 7, 19.9, 3, 0.05, 0.8, '#2563eb', 0, { label: 'RECEPCIÓN', elevation: 5 }),
+    f('letrero', 'Letrero despacho', 20.5, 19.9, 3, 0.05, 0.8, '#16a34a', 0, { label: 'DESPACHO', elevation: 5 }),
+    f('letrero', 'Letrero salida', 35.7, 16.5, 1.0, 0.05, 0.35, '#16a34a', 90, { label: 'SALIDA', elevation: 2.4 }),
+    ...[0.15, 0.35, 0.55, 0.75].map((t, i) => f('letrero_pie', `Andén ${4 - i}`, 28 - 28 * t + 2.1, 27.3, 0.8, 0.08, 1.8, '#f59e0b', 0, { label: `ANDÉN ${4 - i}` })),
+    // seguridad
+    f('extintor', 'Extintor', 0.4, 19, 0.25, 0.25, 0.75, '#dc2626'),
+    f('extintor', 'Extintor', 35.6, 10, 0.25, 0.25, 0.75, '#dc2626'),
+    f('extintor', 'Extintor', 12, 27.6, 0.25, 0.25, 0.75, '#dc2626'),
+    ...[3.4, 9, 14.6, 20.2].flatMap((x) => [f('bolardo', 'Bolardo', x, 28.6, 0.2, 0.2, 1, '#facc15'), f('bolardo', 'Bolardo', x + 3.4, 28.6, 0.2, 0.2, 1, '#facc15')]),
+    ...[[30, 32], [32, 32], [34, 32]].map(([x, y]) => f('cono', 'Cono', x, y, 0.35, 0.35, 0.7, '#f97316')),
+    // oficinas y servicios
+    f('escritorio', 'Escritorio', -6, 2.5, 1.4, 0.7, 0.75, '#d6c4a8'),
+    f('escritorio', 'Escritorio', -2.5, 2.5, 1.4, 0.7, 0.75, '#d6c4a8'),
+    f('silla_oficina', 'Silla', -6, 3.3, 0.6, 0.6, 1.1, '#222222', 180),
+    f('silla_oficina', 'Silla', -2.5, 3.3, 0.6, 0.6, 1.1, '#222222', 180),
+    f('mesa', 'Mesa de reuniones', -4, 7, 2.2, 1.0, 0.76, '#7a4e2d'),
+    f('estanteria_metal', 'Archivo', -7.5, 7, 1.2, 0.5, 2.1, '#94a3b8', 90, { shelves: 5 }),
+    f('inodoro', 'Inodoro', -7.4, 11, 0.4, 0.7, 0.75, '#ffffff', -90),
+    f('inodoro', 'Inodoro', -7.4, 12.5, 0.4, 0.7, 0.75, '#ffffff', -90),
+    f('lavamanos', 'Lavamanos', -3, 14.6, 0.6, 0.45, 0.85, '#ffffff', 180),
+    f('lavamanos', 'Lavamanos', -4.5, 14.6, 0.6, 0.45, 0.85, '#ffffff', 180),
+  ];
+
+  const adm = room('Administración', [[-8, 0], [0, 0], [0, 15], [-8, 15]], 'madera', '#c49a6c', '#f1f5f9');
+  l1.rooms = [adm];
+  l1.openings = [op(adm.id, 0, 0.5, 4, 1.4, 'window', 1), op(adm.id, 1, 0.5, 5, 1.6, 'window', 1)];
+  l1.furniture = [
+    f('escritorio', 'Gerencia', -4, 3, 1.6, 0.8, 0.75, '#d6c4a8'),
+    f('silla_oficina', 'Silla', -4, 2.2, 0.6, 0.6, 1.1, '#222222'),
+    f('mesa', 'Sala de control', -4, 9, 2.4, 1.1, 0.76, '#7a4e2d'),
+    f('estanteria_metal', 'Archivo', -7.5, 12, 1.2, 0.5, 2.1, '#94a3b8', 90, { shelves: 5 }),
+  ];
+  return p;
+}
