@@ -1,0 +1,110 @@
+// Todas las medidas están en metros. El plano usa (x, y) con y hacia abajo;
+// en 3D, x → x, y → z.
+
+export interface Vec2 {
+  x: number;
+  y: number;
+}
+
+export type FloorMaterial = 'madera' | 'ceramica' | 'alfombra' | 'concreto' | 'marmol';
+
+export interface Room {
+  id: string;
+  name: string;
+  points: Vec2[];
+  floor: FloorMaterial;
+  floorColor: string;
+  wallColor: string;
+  hasWalls: boolean;
+}
+
+export type OpeningKind = 'door' | 'window';
+
+export interface Opening {
+  id: string;
+  roomId: string;
+  /** índice de la arista del polígono (punto i → punto i+1) */
+  edge: number;
+  /** posición del centro a lo largo de la arista, 0..1 */
+  t: number;
+  width: number;
+  height: number;
+  /** altura del alféizar (solo ventanas) */
+  sill: number;
+  kind: OpeningKind;
+}
+
+export type FurnitureType =
+  | 'sofa'
+  | 'sillon'
+  | 'mesa_centro'
+  | 'mueble_tv'
+  | 'estante'
+  | 'alfombra'
+  | 'cama'
+  | 'mesa_noche'
+  | 'ropero'
+  | 'comoda'
+  | 'mesa'
+  | 'mesa_redonda'
+  | 'silla'
+  | 'cocina'
+  | 'refrigerador'
+  | 'encimera'
+  | 'lavaplatos'
+  | 'inodoro'
+  | 'lavamanos'
+  | 'ducha'
+  | 'tina'
+  | 'escritorio'
+  | 'silla_oficina'
+  | 'planta'
+  | 'lampara'
+  | 'escalera'
+  | 'columna'
+  | 'caja';
+
+export interface Furniture {
+  id: string;
+  type: FurnitureType;
+  name: string;
+  /** centro en el plano */
+  x: number;
+  y: number;
+  /** grados, sentido horario en el plano */
+  rotation: number;
+  /** ancho (x local), profundidad (y local), alto */
+  w: number;
+  d: number;
+  h: number;
+  /** altura sobre el piso */
+  elevation: number;
+  color: string;
+}
+
+export interface Level {
+  id: string;
+  name: string;
+  /** altura de piso a techo */
+  height: number;
+  rooms: Room[];
+  openings: Opening[];
+  furniture: Furniture[];
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  wallThickness: number;
+  levels: Level[];
+}
+
+export type Selection =
+  | { kind: 'room'; id: string }
+  | { kind: 'furniture'; id: string }
+  | { kind: 'opening'; id: string }
+  | null;
+
+export type Tool = 'select' | 'room' | 'rect' | 'door' | 'window' | 'pan';
