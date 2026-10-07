@@ -1,19 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { randomPlan } from '../random';
 
 const DURATION = 5; // segundos
 
-// Plano de una casa irregular (metros) que se "arma" en la animación
-const ROOMS: [number, number][][] = [
-  [[0, 0], [7, 0], [7, 5], [4.5, 5], [4.5, 6.5], [0, 6.5]],
-  [[7, 0], [10.5, 0], [10.5, 3.5], [7, 3.5]],
-  [[7, 3.5], [10.5, 3.5], [10.5, 5], [7, 5]],
-  [[4.5, 5], [10.5, 5], [9, 8], [4.5, 8]],
-  [[0, 6.5], [4.5, 6.5], [4.5, 9.5], [1.5, 9.5], [0, 8]],
-];
-const CX = 5.25;
-const CZ = 4.75;
+// Cada carga genera un plano irregular y una paleta distintos
+interface Plan {
+  rooms: [number, number][][];
+  cx: number;
+  cz: number;
+  hue: number;
+  scale: number;
+}
+
+function makePlan(): Plan {
+  const rooms = randomPlan();
+  const pts = rooms.flat();
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const d = Math.max(...ys) - Math.min(...ys);
+  return {
+    rooms,
+    cx: (Math.max(...xs) + Math.min(...xs)) / 2,
+    cz: (Math.max(...ys) + Math.min(...ys)) / 2,
+    hue: Math.random(),
+    scale: Math.max(w, d) / 11,
+  };
+}
+
 const WALL = 2.6;
 
 interface TubeSpec {
@@ -24,13 +40,13 @@ interface TubeSpec {
   radius: number;
 }
 
-function buildTubes(): TubeSpec[] {
+function buildTubes({ rooms, cx: CX, cz: CZ, hue }: Plan): TubeSpec[] {
   const tubes: TubeSpec[] = [];
   const seen = new Set<string>();
   const verts = new Map<string, THREE.Vector3>();
   let i = 0;
   const edges: [THREE.Vector3, THREE.Vector3][] = [];
-  for (const room of ROOMS) {
+  for (const room of rooms) {
     room.forEach((p, k) => {
       const q = room[(k + 1) % room.length];
       const key = [p.join(','), q.join(',')].sort().join('|');
@@ -48,7 +64,7 @@ function buildTubes(): TubeSpec[] {
   edges.forEach(([a, b]) => {
     tubes.push({
       curve: new THREE.LineCurve3(a, b),
-      color: new THREE.Color().setHSL((i / n) * 0.85, 0.9, 0.58),
+      color: new THREE.Color().setHSL((hue + (i / n) * 0.85) % 1, 0.9, 0.58),
       start: 0.15 + (i / n) * 1.9,
       dur: 0.7,
       radius: 0.09,
@@ -59,7 +75,7 @@ function buildTubes(): TubeSpec[] {
   [...verts.values()].forEach((v, k, arr) => {
     tubes.push({
       curve: new THREE.LineCurve3(v, v.clone().setY(WALL)),
-      color: new THREE.Color().setHSL(0.5 + (k / arr.length) * 0.4, 0.95, 0.62),
+      color: new THREE.Color().setHSL((hue + 0.5 + (k / arr.length) * 0.4) % 1, 0.95, 0.62),
       start: 2.3 + (k / arr.length) * 0.6,
       dur: 0.6,
       radius: 0.06,
@@ -69,7 +85,7 @@ function buildTubes(): TubeSpec[] {
   edges.forEach(([a, b], k) => {
     tubes.push({
       curve: new THREE.LineCurve3(a.clone().setY(WALL), b.clone().setY(WALL)),
-      color: new THREE.Color().setHSL(0.75 + (k / n) * 0.3, 0.9, 0.62),
+      color: new THREE.Color().setHSL((hue + 0.75 + (k / n) * 0.3) % 1, 0.9, 0.62),
       start: 3.0 + (k / n) * 0.9,
       dur: 0.5,
       radius: 0.07,
@@ -82,7 +98,7 @@ function buildTubes(): TubeSpec[] {
     const mid = a.clone().lerp(b, 0.5).setY(3.5 + k * 0.4);
     tubes.push({
       curve: new THREE.QuadraticBezierCurve3(a.clone().setY(0.1), mid, b.clone().setY(0.1)),
-      color: new THREE.Color().setHSL(k / 6, 1, 0.65),
+      color: new THREE.Color().setHSL((hue + k / 6) % 1, 1, 0.65),
       start: 0.6 + k * 0.35,
       dur: 1.2,
       radius: 0.025,
@@ -125,17 +141,17 @@ function Tube({ spec, clock }: { spec: TubeSpec; clock: React.MutableRefObject<n
   );
 }
 
-function FloorGlow({ clock }: { clock: React.MutableRefObject<number> }) {
+function FloorGlow({ clock, plan }: { clock: React.MutableRefObject<number>; plan: Plan }) {
   const mats = useRef<THREE.MeshBasicMaterial[]>([]);
   const geos = useMemo(
     () =>
-      ROOMS.map((r) => {
-        const s = new THREE.Shape(r.map(([x, y]) => new THREE.Vector2(x - CX, -(y - CZ))));
+      plan.rooms.map((r) => {
+        const s = new THREE.Shape(r.map(([x, y]) => new THREE.Vector2(x - plan.cx, -(y - plan.cz))));
         const g = new THREE.ShapeGeometry(s);
         g.rotateX(-Math.PI / 2);
         return g;
       }),
-    [],
+    [plan],
   );
   useFrame(() => {
     mats.current.forEach((m, i) => {
@@ -151,7 +167,7 @@ function FloorGlow({ clock }: { clock: React.MutableRefObject<number> }) {
             ref={(m) => {
               if (m) mats.current[i] = m;
             }}
-            color={new THREE.Color().setHSL(i / ROOMS.length, 0.8, 0.6)}
+            color={new THREE.Color().setHSL((plan.hue + i / plan.rooms.length) % 1, 0.8, 0.6)}
             transparent
             opacity={0}
             side={THREE.DoubleSide}
@@ -163,8 +179,8 @@ function FloorGlow({ clock }: { clock: React.MutableRefObject<number> }) {
   );
 }
 
-function Scene({ clock }: { clock: React.MutableRefObject<number> }) {
-  const tubes = useMemo(buildTubes, []);
+function Scene({ clock, plan }: { clock: React.MutableRefObject<number>; plan: Plan }) {
+  const tubes = useMemo(() => buildTubes(plan), [plan]);
   const group = useRef<THREE.Group>(null);
   useFrame(({ camera }, dt) => {
     clock.current += dt;
@@ -173,15 +189,15 @@ function Scene({ clock }: { clock: React.MutableRefObject<number> }) {
     const k = Math.min(1, t / DURATION);
     const e = k * k * (3 - 2 * k);
     const ang = -0.6 + t * 0.35;
-    const r = 17 - e * 2;
-    const h = 20 - e * 9;
+    const r = (17 - e * 2) * plan.scale;
+    const h = (20 - e * 9) * plan.scale;
     camera.position.set(Math.sin(ang) * r * e + 0.001, h, Math.cos(ang) * r * e + 0.001 + (1 - e) * 0.5);
-    camera.lookAt(0, -2.2 * e, 0);
+    camera.lookAt(0, -2.2 * e * plan.scale, 0);
   });
   return (
     <group ref={group}>
       <gridHelper args={[60, 60, '#1e3a5f', '#13233a']} position={[0, -0.01, 0]} />
-      <FloorGlow clock={clock} />
+      <FloorGlow clock={clock} plan={plan} />
       {tubes.map((s, i) => (
         <Tube key={i} spec={s} clock={clock} />
       ))}
@@ -191,6 +207,7 @@ function Scene({ clock }: { clock: React.MutableRefObject<number> }) {
 
 export default function Intro({ onStart }: { onStart: () => void }) {
   const clock = useRef(0);
+  const plan = useMemo(makePlan, []);
   const [done, setDone] = useState(false);
   const [leaving, setLeaving] = useState(false);
 
@@ -212,7 +229,7 @@ export default function Intro({ onStart }: { onStart: () => void }) {
         <ambientLight intensity={0.4} />
         <pointLight position={[0, 8, 0]} intensity={60} color="#7dd3fc" />
         <pointLight position={[8, 4, 8]} intensity={40} color="#f0abfc" />
-        <Scene clock={clock} />
+        <Scene clock={clock} plan={plan} />
       </Canvas>
 
       <div className={`intro-overlay ${done ? 'show' : ''}`}>

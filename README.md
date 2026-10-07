@@ -4,7 +4,8 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
 
 ## Funciones
 
-- **Intro animada** de 5 s: tubos de colores que trazan un plano y lo levantan en 3D, con botón **Iniciar**.
+- **Intro animada** de 5 s: tubos de colores trazan un plano **aleatorio** (distinto en cada carga) y lo levantan en 3D, con botón **Iniciar**.
+- **Login** con animación de 4 s en la que se construye un almacén aleatorio (losa, columnas, muros con andenes, racks, pallets y cerchas). Solo pide una contraseña, que se verifica en Supabase.
 - **Proyectos con nombre** guardados en `localStorage`: crear, abrir, duplicar, eliminar, exportar/importar JSON. Autoguardado opcional.
 - **Editor 2D**
   - Ambientes irregulares por vértices (clic a clic) o rectangulares (arrastrar).
@@ -36,6 +37,18 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
 npm install
 npm run dev
 ```
+
+## Acceso (Supabase)
+
+La contraseña única se guarda como hash bcrypt en la tabla `public.crz_acceso` del proyecto Supabase *gk-control-operativo-entregas*. La tabla tiene RLS activo sin políticas (no se puede leer desde la API) y la app solo llama a la función `crz_verificar_acceso(p_password)`, que devuelve verdadero o falso. La sesión dura mientras la pestaña esté abierta.
+
+Para cambiar la contraseña, ejecuta en el SQL editor de Supabase:
+
+```sql
+update public.crz_acceso set password_hash = extensions.crypt('NUEVA_CLAVE', extensions.gen_salt('bf', 10)), actualizado_en = now() where id = 1;
+```
+
+Opcionalmente se pueden definir `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` (llave publicable) como variables de entorno.
 
 ## Despliegue en Vercel
 

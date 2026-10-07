@@ -1116,3 +1116,100 @@ details summary {
     transform: rotate(360deg);
   }
 }
+
+/* ---------------- Login ---------------- */
+.login {
+  position: fixed;
+  inset: 0;
+  background: #0a1222;
+  transition: opacity 0.5s, transform 0.5s;
+}
+.login.leaving {
+  opacity: 0;
+  transform: scale(1.03);
+}
+.login-card {
+  position: absolute;
+  left: 50%;
+  bottom: 10vh;
+  width: min(360px, calc(100% - 32px));
+  transform: translate(-50%, 24px);
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 22px 14px;
+  border-radius: 18px;
+  background: rgba(11, 18, 32, 0.78);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55), 0 0 40px rgba(56, 189, 248, 0.15);
+  transition: opacity 0.6s, transform 0.6s;
+  text-align: center;
+}
+.login-card.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+.login-card.show.shake {
+  animation: shake 0.4s;
+}
+@keyframes shake {
+  20%,
+  60% {
+    transform: translate(calc(-50% - 9px), 0);
+  }
+  40%,
+  80% {
+    transform: translate(calc(-50% + 9px), 0);
+  }
+}
+.login-logo {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.login-logo span {
+  background: linear-gradient(90deg, #38bdf8, #a78bfa, #f472b6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.login-sub {
+  margin: -6px 0 4px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.login-input {
+  font-size: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-align: center;
+  letter-spacing: 0.15em;
+}
+.login-btn {
+  height: 46px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  color: white;
+  background: linear-gradient(90deg, #0ea5e9, #8b5cf6, #ec4899);
+  display: grid;
+  place-items: center;
+}
+.login-error {
+  min-height: 18px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+.home-logout {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+}
+.home {
+  position: relative;
+}

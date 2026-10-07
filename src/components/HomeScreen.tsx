@@ -21,7 +21,7 @@ function Thumb({ id }: { id: string }) {
   );
 }
 
-export default function HomeScreen() {
+export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
   const [list, setList] = useState<ProjectMeta[]>(listProjects);
   const [creating, setCreating] = useState(false);
   const openProject = useStore((s) => s.openProject);
@@ -53,6 +53,9 @@ export default function HomeScreen() {
 
   return (
     <div className="home">
+      <button className="ghost small home-logout" onClick={onLogout} title="Cerrar sesión">
+        ⏻ Cerrar sesión
+      </button>
       <header className="home-hero">
         <div className="brand">
           <div className="brand-logo">⌂</div>

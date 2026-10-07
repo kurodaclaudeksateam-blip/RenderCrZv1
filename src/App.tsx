@@ -3,6 +3,8 @@ import { useStore } from './store';
 import HomeScreen from './components/HomeScreen';
 import EditorScreen from './components/EditorScreen';
 import Intro from './components/Intro';
+import Login from './components/Login';
+import { isAuthenticated, logout } from './auth';
 
 const Viewer3D = lazy(() => import('./three/Viewer3D'));
 
@@ -12,7 +14,7 @@ export default function App() {
   const dirty = useStore((s) => s.dirty);
   const autosave = useStore((s) => s.autosave);
   const toast = useStore((s) => s.toast);
-  const [intro, setIntro] = useState(true);
+  const [stage, setStage] = useState<'intro' | 'login' | 'app'>('intro');
 
   // autoguardado con retardo
   useEffect(() => {
@@ -34,12 +36,19 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onUnload);
   }, []);
 
-  if (intro) return <Intro onStart={() => setIntro(false)} />;
+  if (stage === 'intro') return <Intro onStart={() => setStage(isAuthenticated() ? 'app' : 'login')} />;
+  if (stage === 'login') return <Login onSuccess={() => setStage('app')} />;
+
+  const signOut = () => {
+    logout();
+    useStore.getState().closeProject();
+    setStage('login');
+  };
 
   return (
     <>
       {screen === 'home' || !project ? (
-        <HomeScreen />
+        <HomeScreen onLogout={signOut} />
       ) : screen === 'editor' ? (
         <EditorScreen />
       ) : (
