@@ -110,6 +110,8 @@ function Model({ f }: { f: Furniture }) {
       return <MetalStairs f={f} />;
     case 'cerco':
       return <Fence f={f} />;
+    case 'cerco_malla':
+      return <MeshFence f={f} />;
     case 'anuncio_torre':
     case 'anuncio_cuadro':
       return <LedAd f={f} />;
@@ -893,6 +895,30 @@ function LedAd({ f }: { f: Furniture }) {
       ))}
     </group>
   );
+}
+
+/** Cerco de malla metálica: postes cada 2.4 m, largueros y paños de malla. */
+function MeshFence({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const t = Math.max(0.04, Math.min(d, 0.07));
+  const panels = Math.max(1, Math.round(w / 2.4));
+  const pw = w / panels;
+  const wire = shade(color, 0.85);
+  const parts: React.ReactNode[] = [];
+  for (let i = 0; i <= panels; i++) {
+    const x = Math.max(-w / 2 + t / 2, Math.min(w / 2 - t / 2, -w / 2 + i * pw));
+    parts.push(<Bx key={`p${i}`} x={x} w={t} h={h} d={t} c={color} metal={0.6} rough={0.4} />);
+  }
+  for (const y of [0.06, h - 0.06]) parts.push(<Bx key={`r${y}`} w={w} h={0.04} d={0.04} y0={y} c={color} metal={0.6} rough={0.4} />);
+  for (let p = 0; p < panels; p++) {
+    parts.push(
+      <mesh key={`m${p}`} position={[-w / 2 + pw * (p + 0.5), h / 2, 0]}>
+        <boxGeometry args={[pw - t, h - 0.16, 0.008, Math.max(4, Math.round(pw / 0.09)), Math.max(4, Math.round(h / 0.09)), 1]} />
+        <meshStandardMaterial color={wire} wireframe metalness={0.7} roughness={0.35} />
+      </mesh>,
+    );
+  }
+  return <group>{parts}</group>;
 }
 
 /** Cerco metálico de barrotes: postes, largueros y barrotes verticales. */

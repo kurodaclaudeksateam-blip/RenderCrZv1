@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCurrentLevel, useStore } from '../store';
 import Editor2D from './Editor2D';
 import PropertiesPanel from './PropertiesPanel';
-import { CATALOG, CATEGORIES } from '../catalog';
+import { ADS_CATEGORY, CATALOG, CATEGORIES, type CatalogItem } from '../catalog';
 import { addFurniture, addLevel, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
@@ -80,6 +80,7 @@ export default function EditorScreen() {
             </div>
           </section>
           <LevelsSection />
+          <AdsSection onAdd={() => setLeftOpen(false)} />
           <CatalogSection onAdd={() => setLeftOpen(false)} />
         </aside>
 
@@ -160,12 +161,49 @@ function LevelsSection() {
   );
 }
 
+function CatalogButton({ c, onAdd }: { c: CatalogItem & { key: number }; onAdd: () => void }) {
+  return (
+    <button
+      className="catalog-item"
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/x-furniture', String(c.key));
+        e.dataTransfer.effectAllowed = 'copy';
+      }}
+      onClick={() => {
+        addFurniture(c);
+        onAdd();
+      }}
+      title={`${c.label} — ${c.w}×${c.d} m. Clic para agregar o arrástralo al plano`}
+    >
+      <span className="ci-icon">{c.icon}</span>
+      <span className="ci-label">{c.label}</span>
+      <span className="ci-dim">{c.w}×{c.d}</span>
+    </button>
+  );
+}
+
+const CATALOG_ITEMS = CATALOG.map((c, i) => ({ ...c, key: i }));
+
+/** Torres y cuadros LED para rótulos; la imagen se sube en las propiedades del anuncio. */
+function AdsSection({ onAdd }: { onAdd: () => void }) {
+  return (
+    <section className="catalog">
+      <h3>Anuncios y rótulos</h3>
+      <div className="catalog-grid">
+        {CATALOG_ITEMS.filter((c) => c.category === ADS_CATEGORY).map((c) => (
+          <CatalogButton key={c.key} c={c} onAdd={onAdd} />
+        ))}
+      </div>
+      <p className="muted small">Agrega un anuncio y, en sus propiedades, sube la imagen que rellena el letrero.</p>
+    </section>
+  );
+}
+
 function CatalogSection({ onAdd }: { onAdd: () => void }) {
   const [cat, setCat] = useState(CATEGORIES[0]);
   const [q, setQ] = useState('');
-  const items = CATALOG.map((c, i) => ({ ...c, key: i })).filter((c) =>
-    q ? c.label.toLowerCase().includes(q.toLowerCase()) : c.category === cat,
-  );
+  const items = CATALOG_ITEMS.filter((c) => (q ? c.label.toLowerCase().includes(q.toLowerCase()) : c.category === cat));
   return (
     <section className="catalog">
       <h3>Objetos de almacén</h3>
@@ -181,24 +219,7 @@ function CatalogSection({ onAdd }: { onAdd: () => void }) {
       )}
       <div className="catalog-grid">
         {items.map((c) => (
-          <button
-            key={c.key}
-            className="catalog-item"
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setData('text/x-furniture', String(c.key));
-              e.dataTransfer.effectAllowed = 'copy';
-            }}
-            onClick={() => {
-              addFurniture(c);
-              onAdd();
-            }}
-            title={`${c.label} — ${c.w}×${c.d} m. Clic para agregar o arrástralo al plano`}
-          >
-            <span className="ci-icon">{c.icon}</span>
-            <span className="ci-label">{c.label}</span>
-            <span className="ci-dim">{c.w}×{c.d}</span>
-          </button>
+          <CatalogButton key={c.key} c={c} onAdd={onAdd} />
         ))}
       </div>
     </section>

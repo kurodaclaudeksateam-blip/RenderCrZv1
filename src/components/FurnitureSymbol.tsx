@@ -98,12 +98,13 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           ))}
         </g>
       );
-    case 'cerco': {
+    case 'cerco':
+    case 'cerco_malla': {
       const posts = Math.max(1, Math.round(w / 2.4));
       const t = Math.max(d, 0.08);
       return (
         <g>
-          <rect x={x0} y={-t / 2} width={w} height={t} fill={color} stroke={line} strokeWidth={sw} />
+          <rect x={x0} y={-t / 2} width={w} height={t} fill={color} stroke={line} strokeWidth={sw} strokeDasharray={f.type === 'cerco_malla' ? `${3 * k} ${2 * k}` : undefined} />
           {Array.from({ length: posts + 1 }, (_, i) => (
             <rect key={i} x={x0 + (i * w) / posts - 0.06} y={-0.06} width={0.12} height={0.12} fill={line} />
           ))}

@@ -53,6 +53,7 @@ export type FurnitureType =
   | 'rack_custom'
   | 'tarima_custom'
   | 'cerco'
+  | 'cerco_malla'
   | 'anuncio_torre'
   | 'anuncio_cuadro'
   | 'escalera_metal'

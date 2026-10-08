@@ -75,7 +75,7 @@ const TEXT_TYPES = new Set(['letrero', 'letrero_pie', 'zona', 'anuncio_torre', '
 const AD_TYPES = new Set(['anuncio_torre', 'anuncio_cuadro']);
 const AD_MAX_SIDE = 640;
 
-/** Reduce la imagen elegida y la devuelve como JPEG en data URL, para que el proyecto pese poco. */
+/** Reduce la imagen elegida y la devuelve en data URL como WebP al 70 % de calidad, para que el proyecto pese poco. */
 function shrinkImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -90,7 +90,9 @@ function shrinkImage(file: File): Promise<string> {
       g.fillStyle = '#ffffff';
       g.fillRect(0, 0, c.width, c.height);
       g.drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL('image/jpeg', 0.72));
+      const webp = c.toDataURL('image/webp', 0.7);
+      // los navegadores que no generan WebP devuelven PNG: ahí se usa JPEG
+      resolve(webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/jpeg', 0.7));
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
