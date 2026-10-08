@@ -394,6 +394,7 @@ kbd {
 }
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 10px 12px 14px;
   align-items: center;
@@ -1399,4 +1400,20 @@ details summary {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--border);
+}
+
+/* ---------- Tipos de pared ---------- */
+.wall-swatch {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  font-size: 14px;
+}
+
+.card-delete {
+  margin-left: auto;
 }

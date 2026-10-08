@@ -166,16 +166,16 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
                     ⤓
                   </button>
                   <button
-                    className="icon danger-text"
-                    title="Eliminar"
+                    className="danger small card-delete"
+                    title="Eliminar el proyecto de la nube y de este navegador"
                     onClick={() => {
-                      if (confirm(`¿Eliminar "${m.name}"? Esta acción no se puede deshacer.`)) {
+                      if (confirm(`¿Eliminar "${m.name}"? Se borra de la nube y su liga para compartir deja de funcionar. Esta acción no se puede deshacer.`)) {
                         removeProject(m.id).catch(() => notify('⚠️ No se pudo eliminar de la nube; se quitó solo de este navegador'));
                         refresh();
                       }
                     }}
                   >
-                    🗑
+                    🗑 Eliminar
                   </button>
                 </div>
               </article>

@@ -1,8 +1,8 @@
-import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence } from './catalog';
+import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence, WALL_MATERIALS } from './catalog';
 import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, FENCE_HEIGHT } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
-import type { Furniture, Level, OpeningKind, Vec2 } from './types';
+import type { Furniture, Level, OpeningKind, Vec2, WallMaterial } from './types';
 
 /** Centro visible del editor 2D (lo actualiza el editor). */
 export const editorView = { center: { x: 0, y: 0 } as Vec2 };
@@ -41,6 +41,7 @@ export function catalogItem(key: string) {
 export function addRoom(points: Vec2[]) {
   if (points.length < 3) return;
   const id = uid();
+  const wall = WALL_MATERIALS.find((m) => m.id === st().wallMaterial) ?? WALL_MATERIALS[0];
   st().mutate((_, level) => {
     const n = level.rooms.length;
     level.rooms.push({
@@ -49,8 +50,9 @@ export function addRoom(points: Vec2[]) {
       points,
       floor: 'epoxi',
       floorColor: '#9aa5b1',
-      wallColor: '#e7e5e4',
+      wallColor: wall.id === 'liso' ? '#e7e5e4' : wall.color,
       hasWalls: true,
+      ...(wall.id === 'liso' ? {} : { wallMaterial: wall.id }),
     });
   });
   st().select({ kind: 'room', id });
@@ -230,4 +232,17 @@ export function copyLevel(fromId: string, toId: string | null, full: boolean) {
     Object.assign(target, { rooms, openings, furniture });
   });
   st().setLevel(targetId);
+}
+
+/** Elige el tipo de pared: se aplica al ambiente seleccionado y queda para los ambientes nuevos. */
+export function pickWallMaterial(id: WallMaterial) {
+  const wall = WALL_MATERIALS.find((m) => m.id === id);
+  if (!wall) return;
+  st().setWallMaterial(id);
+  const { selection } = st();
+  if (selection?.kind !== 'room') return;
+  st().mutate((_, level) => {
+    const room = level.rooms.find((r) => r.id === selection.id);
+    if (room) Object.assign(room, { wallMaterial: id, wallColor: wall.color, hasWalls: true });
+  });
 }

@@ -13,6 +13,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - Editar vértices arrastrando, agregar vértices con doble clic en una arista y borrar con Alt+clic.
   - Ajuste a cuadrícula y a vértices existentes, ángulos de 45° con Shift, cotas en metros y áreas.
   - Puertas, **portones de andén** y ventanas sobre los muros (también cortan muros compartidos entre ambientes). Las puertas pueden ser de **madera, vidrio, metal o malla** y al colocarlas se adaptan al muro o cerco: toman el tipo que corresponde, el marco se ajusta al grosor y en un cerco quedan como portón con postes.
+  - Sección **Tipos de pared** en el panel: elige el material y se aplica al ambiente seleccionado y a los que dibujes después.
   - **Materiales de muro** por ambiente: liso pintado, ladrillo, block, concreto, lámina metálica, madera, vidrio, cerco de malla metálica y cerco de barrotes (con altura propia).
   - Catálogo logístico que se agrega con clic o arrastrando al plano:
     - **Almacenaje**: rack selectivo, rack doble fondo, rack bajo, anaqueles metálicos y de picking, cantilever, contenedores. Racks y anaqueles pueden ir **con cajas o sin cajas**.

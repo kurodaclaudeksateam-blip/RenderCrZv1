@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Level, Project, Selection, Tool } from './types';
+import type { Level, Project, Selection, Tool, WallMaterial } from './types';
 import { persist } from './cloud';
 
 export type Screen = 'home' | 'editor' | 'viewer';
@@ -10,6 +10,8 @@ interface EditorState {
   levelId: string | null;
   selection: Selection;
   tool: Tool;
+  /** material con el que se levantan los muros de los ambientes nuevos */
+  wallMaterial: WallMaterial;
   gridSize: number;
   snap: boolean;
   showGhost: boolean;
@@ -24,6 +26,7 @@ interface EditorState {
   closeProject: () => void;
   setScreen: (s: Screen) => void;
   setTool: (t: Tool) => void;
+  setWallMaterial: (m: WallMaterial) => void;
   setLevel: (id: string) => void;
   select: (s: Selection) => void;
   setGrid: (g: number) => void;
@@ -66,6 +69,7 @@ export const useStore = create<EditorState>((set, get) => ({
   levelId: null,
   selection: null,
   tool: 'select',
+  wallMaterial: 'liso',
   gridSize: readPref('grid', 0.1),
   snap: readPref('snap', true),
   showGhost: readPref('ghost', true),
@@ -81,6 +85,7 @@ export const useStore = create<EditorState>((set, get) => ({
   closeProject: () => set({ project: null, levelId: null, selection: null, past: [], future: [], screen: 'home' }),
   setScreen: (screen) => set({ screen }),
   setTool: (tool) => set({ tool }),
+  setWallMaterial: (wallMaterial) => set({ wallMaterial }),
   setLevel: (levelId) => set({ levelId, selection: null }),
   select: (selection) => set({ selection }),
   setGrid: (gridSize) => {

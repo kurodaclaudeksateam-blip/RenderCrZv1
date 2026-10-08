@@ -101,16 +101,16 @@ export const CATALOG: CatalogItem[] = [
   { type: 'escalera', label: 'Escalera', icon: '🪜', category: 'Oficina', w: 1.0, d: 3.2, h: 2.7, color: '#b08968' },
 ];
 
-export const WALL_MATERIALS: { id: WallMaterial; label: string; color: string }[] = [
-  { id: 'liso', label: 'Liso pintado', color: '#f5f5f4' },
-  { id: 'ladrillo', label: 'Ladrillo', color: '#b4533a' },
-  { id: 'block', label: 'Block de concreto', color: '#b8b8b4' },
-  { id: 'concreto', label: 'Concreto', color: '#a8a29e' },
-  { id: 'lamina', label: 'Lámina metálica', color: '#94a3b8' },
-  { id: 'madera', label: 'Madera', color: '#a47148' },
-  { id: 'vidrio', label: 'Vidrio', color: '#cfeaff' },
-  { id: 'malla', label: 'Cerco de malla metálica', color: '#cbd5e1' },
-  { id: 'cerco', label: 'Cerco de barrotes', color: '#f8fafc' },
+export const WALL_MATERIALS: { id: WallMaterial; label: string; icon: string; color: string }[] = [
+  { id: 'liso', label: 'Liso pintado', icon: '⬜', color: '#f5f5f4' },
+  { id: 'ladrillo', label: 'Ladrillo', icon: '🧱', color: '#b4533a' },
+  { id: 'block', label: 'Block de concreto', icon: '🔲', color: '#b8b8b4' },
+  { id: 'concreto', label: 'Concreto', icon: '🪨', color: '#a8a29e' },
+  { id: 'lamina', label: 'Lámina metálica', icon: '🏭', color: '#94a3b8' },
+  { id: 'madera', label: 'Madera', icon: '🪵', color: '#a47148' },
+  { id: 'vidrio', label: 'Vidrio', icon: '🪟', color: '#cfeaff' },
+  { id: 'malla', label: 'Cerco de malla metálica', icon: '🕸️', color: '#cbd5e1' },
+  { id: 'cerco', label: 'Cerco de barrotes', icon: '🚧', color: '#f8fafc' },
 ];
 
 export const isFence = (m?: WallMaterial) => m === 'malla' || m === 'cerco';

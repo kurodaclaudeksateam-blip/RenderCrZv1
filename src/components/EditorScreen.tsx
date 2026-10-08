@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useCurrentLevel, useStore } from '../store';
 import Editor2D from './Editor2D';
 import PropertiesPanel from './PropertiesPanel';
-import { ADS_CATEGORY, CATALOG, CATEGORIES, type CatalogItem } from '../catalog';
-import { addFurniture, addLevel, copyLevel, setLevelCount } from '../actions';
+import { ADS_CATEGORY, CATALOG, CATEGORIES, WALL_MATERIALS, type CatalogItem } from '../catalog';
+import { addFurniture, addLevel, copyLevel, pickWallMaterial, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
 import type { Tool } from '../types';
@@ -80,6 +80,7 @@ export default function EditorScreen() {
             </div>
           </section>
           <LevelsSection />
+          <WallsSection />
           <AdsSection onAdd={() => setLeftOpen(false)} />
           <CatalogSection onAdd={() => setLeftOpen(false)} />
         </aside>
@@ -211,6 +212,33 @@ function CatalogButton({ c, onAdd }: { c: CatalogItem & { key: number }; onAdd: 
       <span className="ci-label">{c.label}</span>
       <span className="ci-dim">{c.w}×{c.d}</span>
     </button>
+  );
+}
+
+/** Tipos de pared: se aplican al ambiente seleccionado y a los ambientes que se dibujen después. */
+function WallsSection() {
+  const current = useStore((s) => s.wallMaterial);
+  const level = useCurrentLevel();
+  const selection = useStore((s) => s.selection);
+  const room = selection?.kind === 'room' ? level?.rooms.find((r) => r.id === selection.id) : undefined;
+  const active = room ? (room.wallMaterial ?? 'liso') : current;
+  return (
+    <section>
+      <h3>Tipos de pared</h3>
+      <div className="tool-grid">
+        {WALL_MATERIALS.map((m) => (
+          <button key={m.id} className={`tool ${active === m.id ? 'active' : ''}`} onClick={() => pickWallMaterial(m.id)} title={`Pared de ${m.label.toLowerCase()}`}>
+            <span className="wall-swatch" style={{ background: m.color }}>
+              {m.icon}
+            </span>
+            <span className="tool-label">{m.label}</span>
+          </button>
+        ))}
+      </div>
+      <p className="muted small">
+        {room ? `Se aplica a «${room.name}».` : 'Selecciona un ambiente para cambiar sus paredes, o elige un tipo y dibuja: los ambientes nuevos salen con esa pared.'}
+      </p>
+    </section>
   );
 }
 
