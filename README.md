@@ -25,7 +25,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
     - También oficina, servicios y mobiliario residencial.
   - Cada objeto se mueve, gira, duplica y edita (medidas, color, elevación, texto y niveles de carga).
   - Indicadores por nivel: posiciones de pallet, m² en zonas y número de estructuras.
-  - Niveles: indica cuántos tendrá el proyecto, la altura de cada uno, y copia el contorno de un nivel a otro. El nivel inferior se muestra como guía.
+  - Niveles: indica cuántos tendrá el proyecto, la altura de cada uno, y **copia un nivel a otro** (a uno nuevo o sobre planta baja, nivel 1, etc.), completo o solo el contorno. El nivel inferior se muestra como guía.
   - Deshacer y rehacer, atajos de teclado y diseño adaptable a móvil.
 - **Vista 3D** (Three.js / React Three Fiber)
   - **Vista volumen**: órbita, filtro de niveles visibles, modo rayos X, sombras y captura PNG.

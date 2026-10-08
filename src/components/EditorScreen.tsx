@@ -3,7 +3,7 @@ import { useCurrentLevel, useStore } from '../store';
 import Editor2D from './Editor2D';
 import PropertiesPanel from './PropertiesPanel';
 import { ADS_CATEGORY, CATALOG, CATEGORIES, type CatalogItem } from '../catalog';
-import { addFurniture, addLevel, setLevelCount } from '../actions';
+import { addFurniture, addLevel, copyLevel, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
 import type { Tool } from '../types';
@@ -103,7 +103,18 @@ export default function EditorScreen() {
 function LevelsSection() {
   const project = useStore((s) => s.project)!;
   const level = useCurrentLevel()!;
-  const { setLevel, mutate } = useStore.getState();
+  const { setLevel, mutate, notify } = useStore.getState();
+  const [copyTo, setCopyTo] = useState('new');
+  const [copyFull, setCopyFull] = useState(true);
+  const badge = (i: number) => (i === 0 ? 'PB' : `N${i + 1}`);
+  // si el destino elegido ya no existe o es el nivel actual, se copia a uno nuevo
+  const target = project.levels.find((l) => l.id === copyTo && l.id !== level.id);
+
+  const copy = () => {
+    if (target && (target.rooms.length || target.furniture.length) && !confirm(`"${target.name}" ya tiene contenido y se reemplazará por la copia de "${level.name}". ¿Continuar?`)) return;
+    copyLevel(level.id, target?.id ?? null, copyFull);
+    notify(`⧉ "${level.name}" copiado a ${target ? `"${target.name}"` : 'un nivel nuevo'}`);
+  };
   const applyCount = (value: string) => {
     const n = Math.max(1, Math.min(20, Math.round(Number(value) || 1)));
     if (n === project.levels.length) return;
@@ -155,7 +166,27 @@ function LevelsSection() {
       </ul>
       <div className="row">
         <button className="secondary small" onClick={() => addLevel()}>＋ Nivel vacío</button>
-        <button className="secondary small" onClick={() => addLevel(level)} title="Crea un nivel nuevo copiando los ambientes del nivel actual">⧉ Copiar contorno</button>
+      </div>
+      <div className="level-copy">
+        <label className="field">
+          <span>Copiar “{level.name}” a</span>
+          <select value={target ? target.id : 'new'} onChange={(e) => setCopyTo(e.target.value)}>
+            <option value="new">＋ Un nivel nuevo</option>
+            {project.levels.map((l, i) =>
+              l.id === level.id ? null : (
+                <option key={l.id} value={l.id}>
+                  {badge(i)} · {l.name}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="inline check">
+          <input type="checkbox" checked={copyFull} onChange={(e) => setCopyFull(e.target.checked)} /> Con puertas, ventanas y objetos
+        </label>
+        <button className="secondary small" onClick={copy} title="Copia el nivel seleccionado al nivel elegido">
+          ⧉ Copiar nivel
+        </button>
       </div>
     </section>
   );

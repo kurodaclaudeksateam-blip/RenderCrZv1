@@ -203,3 +203,27 @@ export function addLevel(copyFrom?: Level) {
   st().setLevel(lvl.id);
 }
 
+
+/**
+ * Copia un nivel sobre otro (reemplaza su contenido) o a un nivel nuevo si no se indica destino.
+ * Con `full` copia también puertas, ventanas y objetos; sin él, solo el contorno de los ambientes.
+ */
+export function copyLevel(fromId: string, toId: string | null, full: boolean) {
+  const { project } = st();
+  const from = project?.levels.find((l) => l.id === fromId);
+  if (!project || !from) return;
+  const roomIds = new Map(from.rooms.map((r) => [r.id, uid()]));
+  const rooms = from.rooms.map((r) => ({ ...structuredClone(r), id: roomIds.get(r.id)! }));
+  const openings = full ? from.openings.filter((o) => roomIds.has(o.roomId)).map((o) => ({ ...o, id: uid(), roomId: roomIds.get(o.roomId)! })) : [];
+  const furniture = full ? from.furniture.map((f) => ({ ...structuredClone(f), id: uid() })) : [];
+  const targetId = toId ?? uid();
+  st().mutate((p) => {
+    let target = p.levels.find((l) => l.id === toId);
+    if (!target) {
+      target = { ...newLevel(p.levels.length, from.height), id: targetId };
+      p.levels.push(target);
+    }
+    Object.assign(target, { rooms, openings, furniture });
+  });
+  st().setLevel(targetId);
+}

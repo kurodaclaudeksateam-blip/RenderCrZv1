@@ -1391,3 +1391,12 @@ details summary {
 .file-button input {
   display: none;
 }
+
+/* ---------- Copiar nivel ---------- */
+.level-copy {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
