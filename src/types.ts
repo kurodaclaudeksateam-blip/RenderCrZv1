@@ -11,8 +11,8 @@ export type FloorMaterial = 'madera' | 'ceramica' | 'alfombra' | 'concreto' | 'm
 /** Acabado de los muros; 'malla' y 'cerco' son cercos en vez de muro sólido. */
 export type WallMaterial = 'liso' | 'ladrillo' | 'block' | 'concreto' | 'lamina' | 'madera' | 'vidrio' | 'malla' | 'cerco';
 
-/** Tipo de puerta; sin tipo el vano queda abierto. */
-export type DoorStyle = 'madera' | 'vidrio' | 'metal' | 'malla';
+/** Tipo de puerta; 'marco' es un vano con marco y 'arco' uno con remate curvo. Sin tipo el vano queda abierto. */
+export type DoorStyle = 'madera' | 'vidrio' | 'metal' | 'malla' | 'marco' | 'arco';
 
 export interface Room {
   id: string;

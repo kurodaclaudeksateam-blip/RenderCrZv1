@@ -289,7 +289,19 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
         if (g.s0 < cursor) continue; // vanos superpuestos: se ignora el segundo
         solid(cursor, g.s0, 0, H);
         const o = g.o;
-        if (o.kind === 'door') {
+        if (o.kind === 'door' && o.door === 'arco' && !fence) {
+          // arco: el muro baja en curva desde la clave hasta los arranques
+          const top = Math.min(o.height, H - 0.05);
+          const r = Math.min((g.s1 - g.s0) / 2, top);
+          const mid = (g.s0 + g.s1) / 2;
+          const N = 14;
+          for (let i = 0; i < N; i++) {
+            const sa = g.s0 + ((g.s1 - g.s0) * i) / N;
+            const sb = g.s0 + ((g.s1 - g.s0) * (i + 1)) / N;
+            const x = Math.min(r, Math.abs((sa + sb) / 2 - mid));
+            solid(sa, sb, top - r + Math.sqrt(r * r - x * x), H);
+          }
+        } else if (o.kind === 'door') {
           solid(g.s0, g.s1, Math.min(o.height, H - 0.05), H);
         } else if (fence) {
           solid(g.s0, g.s1, 0, H);

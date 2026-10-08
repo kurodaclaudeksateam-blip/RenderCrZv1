@@ -120,6 +120,34 @@ export const DOOR_STYLES: { id: DoorStyle; label: string }[] = [
   { id: 'vidrio', label: 'Vidrio' },
   { id: 'metal', label: 'Metal' },
   { id: 'malla', label: 'Malla' },
+  { id: 'marco', label: 'Marco abierto' },
+  { id: 'arco', label: 'Arco' },
+];
+
+/** Lo que se puede colocar sobre un muro desde la sección «Puertas y marcos». */
+export interface OpeningPreset {
+  id: string;
+  label: string;
+  icon: string;
+  kind: 'door' | 'window';
+  /** 'auto' elige la puerta según el muro o cerco */
+  door?: DoorStyle | 'auto';
+  dock?: boolean;
+  width: number;
+  height: number;
+  sill: number;
+}
+
+export const OPENING_PRESETS: OpeningPreset[] = [
+  { id: 'madera', label: 'Puerta de madera', icon: '🚪', kind: 'door', door: 'madera', width: 0.9, height: 2.1, sill: 0 },
+  { id: 'vidrio', label: 'Puerta de vidrio', icon: '🪟', kind: 'door', door: 'vidrio', width: 1.0, height: 2.2, sill: 0 },
+  { id: 'metal', label: 'Puerta metálica', icon: '🔩', kind: 'door', door: 'metal', width: 1.0, height: 2.2, sill: 0 },
+  { id: 'malla', label: 'Puerta de malla', icon: '🕸️', kind: 'door', door: 'malla', width: 1.2, height: 2.0, sill: 0 },
+  { id: 'doble', label: 'Puerta doble', icon: '🚪', kind: 'door', door: 'auto', width: 1.8, height: 2.2, sill: 0 },
+  { id: 'anden', label: 'Portón de andén', icon: '🚛', kind: 'door', door: 'metal', dock: true, width: 3.0, height: 3.6, sill: 0 },
+  { id: 'marco', label: 'Marco abierto', icon: '▯', kind: 'door', door: 'marco', width: 1.4, height: 2.3, sill: 0 },
+  { id: 'arco', label: 'Arco', icon: '∩', kind: 'door', door: 'arco', width: 1.8, height: 2.6, sill: 0 },
+  { id: 'ventana', label: 'Ventana', icon: '🪟', kind: 'window', width: 1.2, height: 1.2, sill: 0.9 },
 ];
 
 /** Puerta que corresponde al muro o cerco donde se coloca. */

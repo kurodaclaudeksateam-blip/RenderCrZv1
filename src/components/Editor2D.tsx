@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCurrentLevel, useStore } from '../store';
+import { OPENING_PRESETS } from '../catalog';
 import {
   add,
   area,
@@ -181,10 +182,13 @@ export default function Editor2D() {
   // --- muros calculados -----------------------------------------------------
   const walls = useMemo(() => computeWalls(level, project.wallThickness), [level, project.wallThickness]);
 
+  // alcance para atinarle a un muro: 0.6 m o 24 px, lo que sea mayor (con el plano alejado 0.6 m son muy pocos píxeles)
+  const wallReach = Math.max(0.6, 24 * k);
+  const openingPreset = useStore((st) => st.openingPreset);
   const openingHover = useMemo(() => {
     if ((tool !== 'door' && tool !== 'dock' && tool !== 'window') || !cursor) return null;
-    return nearestEdge(level.rooms.filter((r) => r.hasWalls), cursor, 0.6);
-  }, [tool, cursor, level.rooms]);
+    return nearestEdge(level.rooms.filter((r) => r.hasWalls), cursor, wallReach);
+  }, [tool, cursor, level.rooms, wallReach]);
 
   // --- teclado --------------------------------------------------------------
   useEffect(() => {
@@ -328,9 +332,14 @@ export default function Editor2D() {
       return;
     }
 
-    if ((tool === 'door' || tool === 'dock' || tool === 'window') && openingHover) {
-      addOpening(tool === 'window' ? 'window' : 'door', openingHover.roomId, openingHover.edge, openingHover.t, dist(openingHover.a, openingHover.b), tool === 'dock');
-      return;
+    if (tool === 'door' || tool === 'dock' || tool === 'window') {
+      // se busca el muro en el punto tocado: en pantallas táctiles no hay cursor previo
+      const hit = nearestEdge(level.rooms.filter((r) => r.hasWalls), raw, wallReach);
+      if (hit) {
+        addOpening(tool === 'window' ? 'window' : 'door', hit.roomId, hit.edge, hit.t, dist(hit.a, hit.b), tool === 'dock');
+        return;
+      }
+      useStore.getState().notify(level.rooms.some((r) => r.hasWalls) ? 'Toca más cerca de una pared para colocarla' : 'Primero dibuja un ambiente con paredes');
     }
 
     startPan(e);
@@ -561,7 +570,7 @@ export default function Editor2D() {
                 <polygon points={pts(box)} fill={o.kind === 'window' ? 'var(--glass)' : 'var(--bg-plan)'} stroke={selected ? 'var(--accent)' : 'var(--wall)'} strokeWidth={k * (selected ? 2.5 : 1)} />
                 {o.kind === 'window' ? (
                   <line {...seg(add(p0, mul(nIn, t / 2)), add(p1, mul(nIn, t / 2)))} stroke="var(--wall)" strokeWidth={k * 1.2} />
-                ) : (
+                ) : o.door === 'marco' || o.door === 'arco' ? null : (
                   <>
                     <line {...seg(add(p0, mul(nIn, t)), add(p0, mul(nIn, t + o.width)))} stroke="var(--ink)" strokeWidth={k * 1.5} />
                     <path
@@ -626,7 +635,7 @@ export default function Editor2D() {
             <g pointerEvents="none">
               {(() => {
                 const L = dist(openingHover.a, openingHover.b);
-                const w = Math.min(tool === 'door' ? 0.9 : tool === 'dock' ? 3 : 1.2, L - 0.1);
+                const w = Math.min(OPENING_PRESETS.find((p) => p.id === openingPreset)?.width ?? (tool === 'door' ? 0.9 : tool === 'dock' ? 3 : 1.2), L - 0.1);
                 const dir = norm(sub(openingHover.b, openingHover.a));
                 const half = w / 2 / L;
                 const c = add(openingHover.a, mul(sub(openingHover.b, openingHover.a), Math.min(1 - half, Math.max(half, openingHover.t))));

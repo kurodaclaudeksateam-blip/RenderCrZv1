@@ -10,6 +10,8 @@ const STYLE = {
   metal: { frame: '#4b5563', leaf: '#9ca3af' },
   vidrio: { frame: '#cbd5e1', leaf: '#cfeaff' },
   malla: { frame: '#94a3b8', leaf: '#cbd5e1' },
+  marco: { frame: '#e5e7eb', leaf: '#e5e7eb' },
+  arco: { frame: '#e5e7eb', leaf: '#e5e7eb' },
 };
 
 function Box({ p, s, c, metal = 0, rough = 0.7 }: { p: [number, number, number]; s: [number, number, number]; c: string; metal?: number; rough?: number }) {
@@ -108,8 +110,13 @@ export function Door({ d, y }: { d: DoorPlacement & { style: NonNullable<DoorPla
   const depth = d.fence ? 0.07 : d.depth + 0.03;
   const inner = w - jamb * 2;
 
+  // el arco lo forma el propio muro; el marco abierto no lleva hojas
+  if (d.style === 'arco') return null;
+
   let leaves: ReactNode;
-  if (d.style === 'metal' && w > 2.4) {
+  if (d.style === 'marco') {
+    leaves = null;
+  } else if (d.style === 'metal' && w > 2.4) {
     leaves = <RollUp w={w} h={h} depth={d.depth} />;
   } else if (inner > 1.5) {
     leaves = (

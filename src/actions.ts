@@ -1,4 +1,4 @@
-import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence, WALL_MATERIALS } from './catalog';
+import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence, OPENING_PRESETS, WALL_MATERIALS } from './catalog';
 import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, FENCE_HEIGHT } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
@@ -65,19 +65,51 @@ export function roomTint(index: number) {
 /** Portón de andén / acceso vehicular. */
 export const DOCK_DEFAULT = { width: 3.0, height: 3.6, sill: 0 };
 
-export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: number, edgeLen: number, dock = false) {
+/** Medidas y tipo de lo que se va a colocar: el elegido en «Puertas y marcos» o el genérico de la herramienta. */
+function openingSpec(kind: OpeningKind, dock: boolean) {
+  const preset = OPENING_PRESETS.find((p) => p.id === st().openingPreset);
+  if (preset) return preset;
   const def = dock ? DOCK_DEFAULT : kind === 'door' ? DOOR_DEFAULT : WINDOW_DEFAULT;
-  const width = Math.min(def.width, Math.max(0.3, edgeLen - 0.1));
+  return { ...def, kind, dock, door: kind === 'door' ? ('auto' as const) : undefined };
+}
+
+export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: number, edgeLen: number, dock = false) {
+  const spec = openingSpec(kind, dock);
+  const width = Math.min(spec.width, Math.max(0.3, edgeLen - 0.1));
   const half = width / 2 / edgeLen;
   const id = uid();
   st().mutate((_, level) => {
     // la puerta se adapta al muro o cerco: su tipo sale del material y no rebasa la altura de un cerco
     const room = level.rooms.find((r) => r.id === roomId);
     const fence = isFence(room?.wallMaterial);
-    const height = kind === 'door' && fence ? Math.min(def.height, room?.wallHeight ?? FENCE_HEIGHT) : def.height;
-    level.openings.push({ id, roomId, edge, t: Math.min(1 - half, Math.max(half, t)), width, height, sill: def.sill, kind, ...(kind === 'door' ? { door: doorForWall(room?.wallMaterial, dock) } : {}) });
+    const height = spec.kind === 'door' && fence ? Math.min(spec.height, room?.wallHeight ?? FENCE_HEIGHT) : spec.height;
+    const door = spec.door === 'auto' ? doorForWall(room?.wallMaterial, !!spec.dock) : spec.door;
+    level.openings.push({ id, roomId, edge, t: Math.min(1 - half, Math.max(half, t)), width, height, sill: spec.sill, kind: spec.kind, ...(spec.kind === 'door' && door ? { door } : {}) });
   });
   st().select({ kind: 'opening', id });
+}
+
+/**
+ * Elige una puerta, marco o ventana. Con un ambiente seleccionado se coloca de una vez
+ * en el centro de su muro más largo; si no, queda lista para tocar el muro donde va.
+ */
+export function pickOpening(presetId: string) {
+  const preset = OPENING_PRESETS.find((p) => p.id === presetId);
+  if (!preset) return;
+  const { selection, project, levelId } = st();
+  const level = project?.levels.find((l) => l.id === levelId);
+  const room = selection?.kind === 'room' ? level?.rooms.find((r) => r.id === selection.id && r.hasWalls) : undefined;
+  st().setTool(preset.kind === 'window' ? 'window' : preset.dock ? 'dock' : 'door');
+  st().setOpeningPreset(preset.id);
+  if (!room) return;
+  let edge = 0;
+  let longest = 0;
+  room.points.forEach((a, i) => {
+    const len = dist(a, room.points[(i + 1) % room.points.length]);
+    if (len > longest) [edge, longest] = [i, len];
+  });
+  addOpening(preset.kind, room.id, edge, 0.5, longest, !!preset.dock);
+  st().setTool('select');
 }
 
 export function deleteSelection() {

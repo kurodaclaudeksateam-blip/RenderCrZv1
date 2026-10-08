@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useCurrentLevel, useStore } from '../store';
 import Editor2D from './Editor2D';
 import PropertiesPanel from './PropertiesPanel';
-import { ADS_CATEGORY, CATALOG, CATEGORIES, WALL_MATERIALS, type CatalogItem } from '../catalog';
-import { addFurniture, addLevel, copyLevel, pickWallMaterial, setLevelCount } from '../actions';
+import { ADS_CATEGORY, CATALOG, CATEGORIES, OPENING_PRESETS, WALL_MATERIALS, type CatalogItem } from '../catalog';
+import { addFurniture, addLevel, copyLevel, pickOpening, pickWallMaterial, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
 import { NamesDialog } from './NamesDialog';
@@ -84,6 +84,7 @@ export default function EditorScreen() {
           </section>
           <LevelsSection />
           <WallsSection />
+          <OpeningsSection onPick={() => setLeftOpen(false)} />
           <AdsSection onAdd={() => setLeftOpen(false)} />
           <CatalogSection onAdd={() => setLeftOpen(false)} />
         </aside>
@@ -241,6 +242,40 @@ function WallsSection() {
       </div>
       <p className="muted small">
         {room ? `Se aplica a «${room.name}».` : 'Selecciona un ambiente para cambiar sus paredes, o elige un tipo y dibuja: los ambientes nuevos salen con esa pared.'}
+      </p>
+    </section>
+  );
+}
+
+/** Puertas, marcos, arcos y ventanas: se colocan sobre una pared o cerco y se ajustan a su grosor. */
+function OpeningsSection({ onPick }: { onPick: () => void }) {
+  const active = useStore((s) => s.openingPreset);
+  const level = useCurrentLevel();
+  const selection = useStore((s) => s.selection);
+  const room = selection?.kind === 'room' ? level?.rooms.find((r) => r.id === selection.id && r.hasWalls) : undefined;
+  return (
+    <section>
+      <h3>Puertas y marcos</h3>
+      <div className="tool-grid">
+        {OPENING_PRESETS.map((p) => (
+          <button
+            key={p.id}
+            className={`tool ${active === p.id ? 'active' : ''}`}
+            onClick={() => {
+              pickOpening(p.id);
+              onPick();
+            }}
+            title={`${p.label} — ${p.width}×${p.height} m`}
+          >
+            <span className="tool-icon">{p.icon}</span>
+            <span className="tool-label">{p.label}</span>
+          </button>
+        ))}
+      </div>
+      <p className="muted small">
+        {room
+          ? `Se coloca al centro de la pared más larga de «${room.name}»; después arrástrala a su lugar.`
+          : 'Elige una y toca la pared o cerco donde va: queda centrada en su grosor y abre el paso. Con un ambiente seleccionado se coloca sola en su pared más larga.'}
       </p>
     </section>
   );
