@@ -121,6 +121,7 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           {[x0, -x0 - 0.05].flatMap((x) => [y0, -y0 - 0.05].map((y) => <rect key={`${x}${y}`} x={x} y={y} width={0.05} height={0.05} fill={line} />))}
         </g>
       );
+    case 'rack_tubos':
     case 'cantilever': {
       const cols = Math.max(2, Math.round(w / 1.2) + 1);
       return (

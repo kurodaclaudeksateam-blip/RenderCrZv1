@@ -62,6 +62,8 @@ export function WalkControls({
   segments,
   solids,
   collisions,
+  ground,
+  onLevel,
   onLockChange,
 }: {
   start: { x: number; z: number; yaw: number };
@@ -70,6 +72,9 @@ export function WalkControls({
   /** contorno en planta de los objetos que bloquean el paso */
   solids: Vec2[][];
   collisions: boolean;
+  /** altura del suelo bajo el visitante (escaleras y rampas) y, si toca, cambio de nivel */
+  ground?: (x: number, z: number) => { h: number; go?: number };
+  onLevel?: (delta: number) => void;
   onLockChange: (locked: boolean) => void;
 }) {
   const { camera, gl } = useThree();
@@ -165,7 +170,9 @@ export function WalkControls({
     const moving = Math.hypot(nx - pos.current.x, nz - pos.current.z) > 1e-5;
     pos.current.x = nx;
     pos.current.z = nz;
-    pos.current.y += (eyeY - pos.current.y) * Math.min(1, dt * 4);
+    const g = ground?.(nx, nz);
+    if (g?.go) onLevel?.(g.go);
+    pos.current.y += (eyeY + (g?.h ?? 0) - pos.current.y) * Math.min(1, dt * 6);
     bob.current = moving ? bob.current + dt * (run ? 13 : 8) : bob.current * 0.9;
 
     camera.position.set(pos.current.x, pos.current.y + Math.sin(bob.current) * 0.025, pos.current.z);

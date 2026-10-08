@@ -3,6 +3,7 @@ import { listProjects, loadProject, newProject, sampleProject, sampleWarehouse, 
 import { cloudInfo, persist, removeProject, syncProjects } from '../cloud';
 import { SessionExpired } from '../auth';
 import { ShareDialog } from './ShareDialog';
+import { TrashDialog } from './TrashDialog';
 import { useStore } from '../store';
 import { downloadProject, pickProjectFile } from '../io';
 import { bounds, uid } from '../geometry';
@@ -36,6 +37,7 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
   const [cloud, setCloud] = useState(cloudInfo);
   const [syncing, setSyncing] = useState(true);
   const [sharing, setSharing] = useState<Project | null>(null);
+  const [trash, setTrash] = useState(false);
   const refresh = () => {
     setList(listProjects());
     setCloud(cloudInfo());
@@ -120,6 +122,9 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
       <section className="projects">
         <div className="projects-head">
           <h2>Mis proyectos</h2>
+          <button className="ghost small" onClick={() => setTrash(true)} title="Proyectos eliminados en los últimos 30 días">
+            🗑 Papelera
+          </button>
           <span className="muted small">{syncing ? 'Sincronizando con la nube…' : `☁️ Guardados en la nube · ${fmtBytes(cloudBytes)} en total`}</span>
         </div>
         {list.length === 0 ? (
@@ -169,7 +174,7 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
                     className="danger small card-delete"
                     title="Eliminar el proyecto de la nube y de este navegador"
                     onClick={() => {
-                      if (confirm(`¿Eliminar "${m.name}"? Se borra de la nube y su liga para compartir deja de funcionar. Esta acción no se puede deshacer.`)) {
+                      if (confirm(`¿Eliminar "${m.name}"? Se va a la papelera, donde puedes restaurarlo durante 30 días; mientras tanto su liga para compartir deja de funcionar.`)) {
                         removeProject(m.id).catch(() => notify('⚠️ No se pudo eliminar de la nube; se quitó solo de este navegador'));
                         refresh();
                       }
@@ -185,6 +190,14 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
       </section>
 
       {sharing && <ShareDialog project={sharing} onClose={() => { setSharing(null); refresh(); }} />}
+      {trash && (
+        <TrashDialog
+          onClose={() => setTrash(false)}
+          onRestored={() => {
+            syncProjects().then(refresh).catch(() => notify('⚠️ Restaurado en la nube; vuelve a entrar para verlo aquí'));
+          }}
+        />
+      )}
       {creating && <NewProjectDialog onClose={() => setCreating(false)} onCreate={create} />}
     </div>
   );

@@ -306,6 +306,7 @@ export function sampleWarehouse(name: string): Project {
     f('malla', 'Malla cuarentena', 46, 13.9, 6.5, 0.06, 2.4, '#facc15'),
     f('cerco', 'Cerco blanco', 42.7, 16.5, 5, 0.06, 1.8, '#f8fafc', 90),
     f('pallet_carga', 'Pallet en cuarentena', 46, 17, 1.2, 1, 1.3, '#b88a58'),
+    f('rack_tubos', 'Rack para tuberías', 40, 18.6, 5, 1, 2.4, '#1e3a8a', 0, { shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] }),
     f('letrero', 'Letrero picking', 40, 7.6, 3, 0.05, 0.8, '#ca8a04', 0, { label: 'PICKING', elevation: 4.5 }),
     f('extintor', 'Extintor', 49.55, 10, 0.25, 0.25, 0.75, '#dc2626'),
   ];

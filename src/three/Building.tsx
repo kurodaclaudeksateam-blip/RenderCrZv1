@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { SLAB, computeWalls } from '../geometry';
+import { SLAB, computeWalls, pointInPolygon } from '../geometry';
 import { Door, DoorTarget } from './Doors';
 import type { Furniture, Level, Room, Vec2 } from '../types';
 import { floorTexture, wallTexture } from './textures';
@@ -80,6 +80,9 @@ function stagger(points: Vec2[], from: number, to: number, build?: BuildWindow) 
   return at;
 }
 
+/** Lleva techo el ambiente cuyas paredes llegan hasta arriba (no los cercos ni los muros bajos). */
+const roofed = (r: Room) => r.hasWalls && !r.wallHeight && r.wallMaterial !== 'malla' && r.wallMaterial !== 'cerco';
+
 /** Objeto de cerco equivalente a un tramo de muro de cerco entre a y b. */
 function fenceModel(a: Vec2, b: Vec2, h: number, color: string, mesh: boolean): Furniture {
   return {
@@ -122,21 +125,22 @@ export function LevelMesh({
   thickness,
   ceiling,
   wallOpacity = 1,
-  isTop,
   build,
   height = level.height,
+  above,
   onPick,
 }: {
   level: Level;
   elevation: number;
   /** altura real del nivel (ver levelHeights) */
   height?: number;
+  /** nivel de encima: los ambientes que no cubre llevan su propio techo */
+  above?: Level;
   /** con edición 3D activa: avisa qué puerta, pared u objeto se tocó */
-  onPick?: (kind: 'opening' | 'room' | 'furniture', id: string, point: Vec2) => void;
+  onPick?: (kind: 'opening' | 'room' | 'furniture' | 'floor', id: string, point: Vec2) => void;
   thickness: number;
   ceiling: boolean;
   wallOpacity?: number;
-  isTop: boolean;
   /** si se indica, el nivel se arma por pasos: piso, muros y objetos */
   build?: BuildWindow;
 }) {
@@ -168,7 +172,7 @@ export function LevelMesh({
 
   const doorAt = build ? build.at + build.span * 0.47 : 0;
   // un clic (no un arrastre de la cámara) sobre la pieza más cercana
-  const pick = (kind: 'opening' | 'room' | 'furniture', id: string) =>
+  const pick = (kind: 'opening' | 'room' | 'furniture' | 'floor', id: string) =>
     onPick &&
     ((e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
@@ -180,7 +184,9 @@ export function LevelMesh({
       {level.rooms.map((r, i) => (
         <Reveal key={r.id} clock={clock} at={floorAt[i]} dur={0.7} pivot={[roomMid[i].x, 0, roomMid[i].y]} mode="spread">
           {elevation > 0 && <Slab room={r} top={elevation} ceiling={false} />}
-          <Floor room={r} y={elevation + 0.004} />
+          <group onClick={pick('floor', r.id)}>
+            <Floor room={r} y={elevation + 0.004} />
+          </group>
         </Reveal>
       ))}
       {wallGeos.map((w, i) => (
@@ -208,8 +214,8 @@ export function LevelMesh({
           </group>
         </Reveal>
       ))}
-      {/* techo propio del último nivel (losa de cubierta) cuando se recorre */}
-      {ceiling && isTop && level.rooms.filter((r) => r.hasWalls).map((r) => <Slab key={`c${r.id}`} room={r} top={elevation + height + SLAB} ceiling />)}
+      {/* techo (losa de cubierta) de los ambientes que no tienen otro nivel encima */}
+      {ceiling && level.rooms.filter((r, i) => roofed(r) && !(above?.rooms.some((u) => pointInPolygon(roomMid[i], u.points)))).map((r) => <Slab key={`c${r.id}`} room={r} top={elevation + height + SLAB} ceiling />)}
       {level.furniture.map((f, i) => (
         <Reveal key={f.id} clock={clock} at={furnAt[i]} dur={0.5} pivot={[f.x, elevation + f.elevation, f.y]} mode="pop">
           <group onClick={pick('furniture', f.id)}>

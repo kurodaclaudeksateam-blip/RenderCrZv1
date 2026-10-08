@@ -1,25 +1,28 @@
-import { DOOR_STYLES, OPENING_PRESETS, WALL_MATERIALS, isFence } from '../catalog';
-import { addOpeningAt } from '../actions';
-import { dist } from '../geometry';
+import { DOOR_STYLES, OPENING_PRESETS, WALL_MATERIALS } from '../catalog';
+import { addOpeningAt, setWallSide } from '../actions';
+import { dist, nearestEdge, wallSide } from '../geometry';
 import { useStore } from '../store';
-import type { DoorStyle, Furniture, Opening, Project, Room, Vec2, WallMaterial } from '../types';
+import type { DoorStyle, Furniture, Opening, Project, Room, Vec2, WallMaterial, WallSide } from '../types';
 
 /** Lo que se tocó en la vista 3D con la edición activa. */
-export type Pick = { kind: 'opening' | 'room' | 'furniture'; id: string; point?: Vec2 };
+export type Pick = { kind: 'opening' | 'room' | 'furniture' | 'floor'; id: string; point?: Vec2 };
 
-function Num({ label, value, onChange, min = 0.05, max = 60 }: { label: string; value: number; onChange: (n: number) => void; min?: number; max?: number }) {
+/** Elemento que se reubicará con el siguiente toque. */
+export type MoveTarget = { kind: 'opening' | 'furniture'; id: string };
+
+function Num({ label, value, onChange, min = 0.05, max = 60, step = 0.05 }: { label: string; value: number; onChange: (n: number) => void; min?: number; max?: number; step?: number }) {
   return (
     <label className="field">
       <span>{label}</span>
       <input
         type="number"
-        step={0.05}
+        step={step}
         min={min}
         max={max}
         value={value}
         onChange={(e) => {
           const n = Number(e.target.value);
-          if (Number.isFinite(n) && n >= min && n <= max) onChange(n);
+          if (e.target.value !== '' && Number.isFinite(n) && n >= min && n <= max) onChange(n);
         }}
       />
     </label>
@@ -38,13 +41,13 @@ export function EditPanel({
   pick: Pick;
   /** cambia lo que se edita (p. ej. a la puerta recién agregada) */
   onPick: (p: Pick) => void;
-  /** pide que el siguiente toque sobre una pared reubique esta puerta */
-  onMove: (openingId: string) => void;
+  /** pide que el siguiente toque reubique esta puerta u objeto */
+  onMove: (target: MoveTarget) => void;
   onClose: () => void;
 }) {
   const mutate = useStore((s) => s.mutate);
   const level = project.levels.find((l) => (pick.kind === 'room' ? l.rooms : pick.kind === 'opening' ? l.openings : l.furniture).some((x) => x.id === pick.id));
-  if (!level) return null;
+  if (!level || pick.kind === 'floor') return null;
 
   // los cambios se aplican por id en el nivel del elemento, sin mover su lugar en la lista
   const edit = <T extends Opening | Room | Furniture>(list: 'openings' | 'rooms' | 'furniture', change: Partial<T>) =>
@@ -75,20 +78,23 @@ export function EditPanel({
     title = o.kind === 'window' ? '🪟 Ventana' : '🚪 Puerta';
     body = (
       <>
-        <label className="field">
-          <span>Tipo de puerta</span>
-          <select value={o.door ?? ''} onChange={(e) => edit<Opening>('openings', { door: (e.target.value || undefined) as DoorStyle | undefined })}>
-            <option value="">Sin puerta (solo el vano)</option>
-            {DOOR_STYLES.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {o.kind === 'door' && (
+          <label className="field">
+            <span>Tipo de puerta</span>
+            <select value={o.door ?? ''} onChange={(e) => edit<Opening>('openings', { door: (e.target.value || undefined) as DoorStyle | undefined })}>
+              <option value="">Sin puerta (solo el vano)</option>
+              {DOOR_STYLES.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="grid2">
-          <Num label="Ancho (m)" value={o.width} min={0.3} max={20} onChange={(width) => edit<Opening>('openings', { width })} />
+          <Num label="Ancho (m)" value={o.width} min={0.3} max={Math.max(0.3, len - 0.1)} onChange={(width) => edit<Opening>('openings', { width })} />
           <Num label="Alto (m)" value={o.height} min={0.3} max={20} onChange={(height) => edit<Opening>('openings', { height })} />
+          {o.kind === 'window' && <Num label="Alféizar (m)" value={o.sill} min={0} max={20} onChange={(sill) => edit<Opening>('openings', { sill })} />}
         </div>
         <label className="field">
           <span>
@@ -107,21 +113,25 @@ export function EditPanel({
             25 cm ▶
           </button>
         </div>
-        <button className="secondary small" onClick={() => onMove(o.id)}>
+        <button className="secondary small" onClick={() => onMove({ kind: 'opening', id: o.id })}>
           ↔ Mover a otro punto u otra pared
         </button>
         <button className="danger small" onClick={() => remove('openings')}>
-          🗑 Eliminar puerta
+          🗑 Eliminar
         </button>
       </>
     );
   } else if (pick.kind === 'room') {
     const r = level.rooms.find((x) => x.id === pick.id)!;
+    const spot = pick.point ? nearestEdge([r], pick.point, Infinity) : null;
+    const side = spot ? r.sides?.[spot.edge] : null;
+    const real = spot ? wallSide(r, spot.edge, level.height, project.wallThickness) : null;
+    const setSide = (patch: WallSide | null) => spot && setWallSide(r.id, spot.edge, patch);
     title = `🧱 Paredes de «${r.name}»`;
     body = (
       <>
         <label className="field">
-          <span>Tipo de pared o cerco</span>
+          <span>Tipo de pared o cerco (todo el ambiente)</span>
           <select
             value={r.wallMaterial ?? 'liso'}
             onChange={(e) => {
@@ -136,12 +146,41 @@ export function EditPanel({
             ))}
           </select>
         </label>
-        {isFence(r.wallMaterial) && <Num label="Altura del cerco (m)" value={r.wallHeight ?? 2} min={0.5} max={12} onChange={(wallHeight) => edit<Room>('rooms', { wallHeight })} />}
+        <div className="grid2">
+          <Num label="Altura (0 = al techo)" value={r.wallHeight ?? 0} min={0} max={30} onChange={(h) => edit<Room>('rooms', { wallHeight: h || undefined })} />
+          <Num label="Grosor (0 = proyecto)" value={r.wallThickness ?? 0} min={0} max={1.5} step={0.01} onChange={(t) => edit<Room>('rooms', { wallThickness: t || undefined })} />
+        </div>
         <label className="field">
           <span>Color</span>
           <input type="color" value={r.wallColor} onChange={(e) => edit<Room>('rooms', { wallColor: e.target.value })} />
         </label>
-        {r.hasWalls && pick.point && (
+        {spot && (
+          <>
+            <strong>
+              Solo este tramo ({dist(spot.a, spot.b).toFixed(2)} m{real ? ` · ${real.height.toFixed(2)} m de alto` : ' · sin pared'})
+            </strong>
+            <label className="field">
+              <span>Material del tramo</span>
+              <select
+                value={side?.material ?? ''}
+                onChange={(e) => {
+                  const m = WALL_MATERIALS.find((x) => x.id === e.target.value);
+                  setSide(e.target.value === '' ? { material: undefined, color: undefined } : e.target.value === 'none' ? { material: 'none', color: undefined } : { material: m!.id, color: m!.color });
+                }}
+              >
+                <option value="">Igual que el ambiente</option>
+                {WALL_MATERIALS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+                <option value="none">Sin pared en este tramo</option>
+              </select>
+            </label>
+            <Num label="Altura del tramo (0 = la del ambiente)" value={side?.height ?? 0} min={0} max={30} onChange={(h) => setSide({ height: h || undefined })} />
+          </>
+        )}
+        {r.hasWalls && real && pick.point && (
           <>
             <strong>Agregar donde tocaste</strong>
             <div className="edit3d-grid">
@@ -165,23 +204,52 @@ export function EditPanel({
     );
   } else {
     const f = level.furniture.find((x) => x.id === pick.id)!;
+    const set = (change: Partial<Furniture>) => edit<Furniture>('furniture', change);
     title = '📦 Objeto';
     body = (
       <>
         <label className="field">
           <span>Nombre</span>
-          <input value={f.name} onChange={(e) => edit<Furniture>('furniture', { name: e.target.value })} />
+          <input value={f.name} onChange={(e) => set({ name: e.target.value })} />
         </label>
         <label className="inline check">
-          <input type="checkbox" checked={!!f.showName} onChange={(e) => edit<Furniture>('furniture', { showName: e.target.checked })} /> Mostrar rótulo con el nombre
+          <input type="checkbox" checked={!!f.showName} onChange={(e) => set({ showName: e.target.checked })} /> Mostrar rótulo con el nombre
         </label>
         <div className="grid2">
-          <Num label="Largo (m)" value={f.w} onChange={(w) => edit<Furniture>('furniture', { w })} />
-          <Num label="Alto (m)" value={f.h} onChange={(h) => edit<Furniture>('furniture', { h })} />
+          <Num label="Largo (m)" value={f.w} onChange={(w) => set({ w })} />
+          <Num label="Fondo (m)" value={f.d} min={0.02} onChange={(d) => set({ d })} />
+          <Num label="Alto (m)" value={f.h} min={0.01} onChange={(h) => set({ h })} />
+          <Num label="Elevación (m)" value={f.elevation} min={0} onChange={(elevation) => set({ elevation })} />
         </div>
+        <span className="muted small">Girar ({Math.round(f.rotation)}°)</span>
+        <div className="row">
+          {[-90, -15, 15, 90].map((deg) => (
+            <button key={deg} className="secondary small" onClick={() => set({ rotation: (((f.rotation + deg) % 360) + 360) % 360 })}>
+              {deg > 0 ? '⟳' : '⟲'} {Math.abs(deg)}°
+            </button>
+          ))}
+        </div>
+        <span className="muted small">Mover 25 cm</span>
+        <div className="row">
+          <button className="secondary small" onClick={() => set({ x: f.x - 0.25 })} title="Hacia −X">
+            ◀
+          </button>
+          <button className="secondary small" onClick={() => set({ y: f.y - 0.25 })} title="Hacia el fondo">
+            ▲
+          </button>
+          <button className="secondary small" onClick={() => set({ y: f.y + 0.25 })} title="Hacia el frente">
+            ▼
+          </button>
+          <button className="secondary small" onClick={() => set({ x: f.x + 0.25 })} title="Hacia +X">
+            ▶
+          </button>
+        </div>
+        <button className="secondary small" onClick={() => onMove({ kind: 'furniture', id: f.id })}>
+          ↔ Mover: tocar el lugar nuevo
+        </button>
         <label className="field">
           <span>Color</span>
-          <input type="color" value={f.color} onChange={(e) => edit<Furniture>('furniture', { color: e.target.value })} />
+          <input type="color" value={f.color} onChange={(e) => set({ color: e.target.value })} />
         </label>
         <button className="danger small" onClick={() => remove('furniture')}>
           🗑 Eliminar objeto

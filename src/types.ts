@@ -14,6 +14,14 @@ export type WallMaterial = 'liso' | 'ladrillo' | 'block' | 'concreto' | 'lamina'
 /** Tipo de puerta; 'marco' es un vano con marco y 'arco' uno con remate curvo. Sin tipo el vano queda abierto. */
 export type DoorStyle = 'madera' | 'vidrio' | 'metal' | 'malla' | 'marco' | 'arco';
 
+/** Ajustes propios de un tramo de pared (un lado del ambiente); lo que falte se toma del ambiente. */
+export interface WallSide {
+  /** 'none' deja ese lado sin pared */
+  material?: WallMaterial | 'none';
+  height?: number;
+  color?: string;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -23,8 +31,12 @@ export interface Room {
   wallColor: string;
   hasWalls: boolean;
   wallMaterial?: WallMaterial;
-  /** altura de los cercos (malla y barrotes); los muros llegan al techo */
+  /** altura de las paredes; sin valor llegan al techo (los cercos miden 2 m) */
   wallHeight?: number;
+  /** grosor de las paredes; sin valor se usa el del proyecto */
+  wallThickness?: number;
+  /** ajustes por tramo, en el orden de las aristas (punto i → punto i+1) */
+  sides?: (WallSide | null)[];
 }
 
 export type OpeningKind = 'door' | 'window';
@@ -61,6 +73,7 @@ export type FurnitureType =
   | 'malla'
   | 'rampa_curva'
   | 'rack_custom'
+  | 'rack_tubos'
   | 'tarima_custom'
   | 'cerco'
   | 'cerco_malla'

@@ -1486,3 +1486,45 @@ details summary {
 .edit3d input[type='range'] {
   width: 100%;
 }
+
+/* ---------- Tramos de pared, tuberías y resumen ---------- */
+.sides-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.side-row {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+}
+.summary-body {
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+.summary-level h3 {
+  margin: 10px 0 6px;
+  font-size: 14px;
+}
+.summary-level table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+}
+.summary-level th,
+.summary-level td {
+  padding: 5px 9px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.summary-level th {
+  background: var(--panel-2);
+  font-weight: 600;
+}
+.summary-level tr.total td {
+  font-weight: 700;
+}

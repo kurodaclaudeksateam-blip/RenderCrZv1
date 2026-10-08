@@ -1,8 +1,8 @@
-import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence, OPENING_PRESETS, WALL_MATERIALS, type OpeningPreset } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, FENCE_HEIGHT, nearestEdge } from './geometry';
+import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, OPENING_PRESETS, WALL_MATERIALS, type OpeningPreset } from './catalog';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
-import type { Furniture, Level, OpeningKind, Room, Vec2, WallMaterial } from './types';
+import type { Furniture, Level, OpeningKind, Room, Vec2, WallMaterial, WallSide } from './types';
 
 /** Centro visible del editor 2D (lo actualiza el editor). */
 export const editorView = { center: { x: 0, y: 0 } as Vec2 };
@@ -26,6 +26,7 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center) {
       color: item.color,
       ...(item.text ? { label: item.text } : {}),
       ...(item.shelves ? { shelves: item.shelves } : {}),
+      ...(item.cells ? { cells: [...item.cells] } : {}),
       ...(item.cols ? { cols: item.cols } : {}),
       ...(item.rows ? { rows: item.rows } : {}),
     });
@@ -84,9 +85,9 @@ function insertOpening(levelId: string | null, roomId: string, edge: number, t: 
     const level = p.levels.find((l) => l.id === levelId) ?? current;
     // la puerta se adapta al muro o cerco: su tipo sale del material y no rebasa la altura de un cerco
     const room = level.rooms.find((r) => r.id === roomId);
-    const fence = isFence(room?.wallMaterial);
-    const height = spec.kind === 'door' && fence ? Math.min(spec.height, room?.wallHeight ?? FENCE_HEIGHT) : spec.height;
-    const door = spec.door === 'auto' ? doorForWall(room?.wallMaterial, !!spec.dock) : spec.door;
+    const side = room && wallSide(room, edge, level.height, p.wallThickness);
+    const height = spec.kind === 'door' && side ? Math.min(spec.height, side.height) : spec.height;
+    const door = spec.door === 'auto' ? doorForWall(side?.material, !!spec.dock) : spec.door;
     level.openings.push({ id, roomId, edge, t: Math.min(1 - half, Math.max(half, t)), width, height, sill: spec.sill, kind: spec.kind, ...(spec.kind === 'door' && door ? { door } : {}) });
   });
   return id;
@@ -233,6 +234,11 @@ export function insertVertex(roomId: string, edge: number, point: Vec2) {
     const L = dist(a, b) || 1;
     const s = dist(a, point) / L;
     r.points.splice(edge + 1, 0, point);
+    // los dos tramos nuevos heredan los ajustes del tramo partido
+    if (r.sides) {
+      while (r.sides.length < n) r.sides.push(null);
+      r.sides.splice(edge + 1, 0, r.sides[edge] ? { ...r.sides[edge] } : null);
+    }
     for (const o of level.openings) {
       if (o.roomId !== roomId) continue;
       if (o.edge > edge) o.edge += 1;
@@ -254,6 +260,7 @@ export function removeVertex(roomId: string, index: number) {
     const n = r.points.length;
     const prevEdge = (index - 1 + n) % n;
     r.points.splice(index, 1);
+    r.sides?.splice(index, 1);
     level.openings = level.openings.filter((o) => !(o.roomId === roomId && (o.edge === index || o.edge === prevEdge)));
     for (const o of level.openings) if (o.roomId === roomId && o.edge > index) o.edge -= 1;
   });
@@ -318,5 +325,46 @@ export function pickWallMaterial(id: WallMaterial) {
   st().mutate((_, level) => {
     const room = level.rooms.find((r) => r.id === selection.id);
     if (room) Object.assign(room, { wallMaterial: id, wallColor: wall.color, hasWalls: true });
+  });
+}
+
+/**
+ * Ajusta un tramo de pared de un ambiente (en cualquier nivel). Los valores vacíos
+ * vuelven a tomarse del ambiente; `null` deja el tramo sin ajustes propios.
+ */
+export function setWallSide(roomId: string, edge: number, patch: WallSide | null) {
+  st().mutate((p) => {
+    const room = p.levels.flatMap((l) => l.rooms).find((r) => r.id === roomId);
+    if (!room) return;
+    const sides = Array.from({ length: room.points.length }, (_, i) => room.sides?.[i] ?? null);
+    const next: WallSide = { ...sides[edge], ...patch };
+    for (const k of Object.keys(next) as (keyof WallSide)[]) if (!next[k]) delete next[k];
+    sides[edge] = patch && Object.keys(next).length ? next : null;
+    if (sides.some(Boolean)) room.sides = sides;
+    else delete room.sides;
+  });
+}
+
+/** Agrega una esquina al ambiente a la mitad de su lado más largo, para darle forma irregular. */
+export function addCorner(roomId: string) {
+  const { project, levelId } = st();
+  const room = project?.levels.find((l) => l.id === levelId)?.rooms.find((r) => r.id === roomId);
+  if (!room) return;
+  let edge = 0;
+  let longest = 0;
+  room.points.forEach((a, i) => {
+    const len = dist(a, room.points[(i + 1) % room.points.length]);
+    if (len > longest) [edge, longest] = [i, len];
+  });
+  const a = room.points[edge];
+  const b = room.points[(edge + 1) % room.points.length];
+  insertVertex(roomId, edge, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+}
+
+/** Desde la vista 3D: lleva un objeto al punto que se tocó. */
+export function moveFurnitureTo(id: string, point: Vec2) {
+  st().mutate((p) => {
+    const f = p.levels.flatMap((l) => l.furniture).find((x) => x.id === id);
+    if (f) Object.assign(f, { x: Math.round(point.x * 100) / 100, y: Math.round(point.y * 100) / 100 });
   });
 }

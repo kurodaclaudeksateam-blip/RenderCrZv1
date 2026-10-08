@@ -14,6 +14,9 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - Ajuste a cuadrícula y a vértices existentes, ángulos de 45° con Shift, cotas en metros y áreas.
   - Puertas, **portones de andén** y ventanas sobre los muros (también cortan muros compartidos entre ambientes). Las puertas pueden ser de **madera, vidrio, metal o malla** y al colocarlas se adaptan al muro o cerco: toman el tipo que corresponde, el marco se ajusta al grosor y en un cerco quedan como portón con postes.
   - Sección **Puertas y marcos** en el panel: puertas de madera, vidrio, metal y malla, puerta doble, portón de andén, marco abierto, arco y ventana. Se elige una y se toca la pared (o se coloca sola en el ambiente seleccionado).
+  - **Paredes a medida**: cada ambiente tiene su altura y grosor de pared, y cada tramo (lado) puede llevar otro material, otra altura o quedar sin pared. El botón *Agregar esquina* convierte un ambiente rectangular en irregular.
+  - **Rack para tuberías**: rack alargado de brazos; en cada nivel se elige la tubería (metal, cobre, PVC o ABS) y su diámetro (de ½″ a 8″).
+  - **Resumen** (📊): ambientes con área y perímetro, objetos por tipo, posiciones de pallet y zonas; se descarga para Excel (CSV) o se imprime/guarda en PDF junto con el plano.
   - Sección **Tipos de pared** en el panel: elige el material y se aplica al ambiente seleccionado y a los que dibujes después.
   - **Materiales de muro** por ambiente: liso pintado, ladrillo, block, concreto, lámina metálica, madera, vidrio, cerco de malla metálica y cerco de barrotes (con altura propia).
   - Catálogo logístico que se agrega con clic o arrastrando al plano:
@@ -32,7 +35,9 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - Deshacer y rehacer, atajos de teclado y diseño adaptable a móvil.
 - **Nombres y rótulos**: cada objeto puede mostrar un rótulo con su nombre (plano, 3D y recorrido). El botón 🏷 *Nombres* abre una tabla con los racks (o todos los objetos) para nombrarlos, numerarlos y encender sus rótulos sin cambiar su orden.
 - **Vista 3D** (Three.js / React Three Fiber)
-  - **Editar en 3D**: con el botón ✏️ se toca una puerta, pared, cerco u objeto y se cambia ahí mismo su tipo, medidas, color o nombre. Al tocar una pared o cerco se le puede **agregar** una puerta, marco, arco o ventana en ese punto, y cada puerta se puede **deslizar** por su pared o **mover** a otra: el hueco anterior se rellena solo.
+  - **Techo**: casilla para ver la cubierta de los ambientes que no tienen otro nivel encima.
+  - En el **recorrido** se sube y baja caminando por escaleras y rampas; al llegar arriba se pasa al nivel superior.
+  - **Editar en 3D**: con el botón ✏️ se toca una puerta, pared, cerco u objeto y se cambia ahí mismo su tipo, medidas, color o nombre. Al tocar una pared o cerco se le puede **agregar** una puerta, marco, arco o ventana en ese punto, y cada puerta se puede **deslizar** por su pared o **mover** a otra: el hueco anterior se rellena solo. También se cambian ahí la altura y el grosor de las paredes, el material de un solo tramo y las medidas, el giro y la posición de cualquier objeto (se mueve tocando el lugar nuevo).
   - **Vista volumen**: órbita, filtro de niveles visibles, modo rayos X, sombras y captura PNG.
   - **Recorrido virtual**: primera persona con WASD/flechas y mouse (pointer lock), con colisión contra muros, racks y equipos, cambio de nivel y controles táctiles.
   - Racks con largueros y pallets cargados, letreros con texto, zonas pintadas en el piso, montacargas y equipos 3D paramétricos.
@@ -63,6 +68,10 @@ Opcionalmente se pueden definir `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` (llave
 Los proyectos viven en la tabla `public.crz_proyectos` del mismo proyecto Supabase (script en `supabase/crz_proyectos.sql`). Igual que `crz_acceso`, la tabla no es legible desde la API: la app usa funciones `crz_*`. Al iniciar sesión, `crz_iniciar_sesion` devuelve un token (12 h) que autoriza listar, guardar y eliminar; `crz_proyecto_compartido(share_id)` es la única función pública y solo lee el proyecto de esa liga.
 
 **Peso**: cada proyecto se guarda en formato compacto (`src/codec.ts`): tuplas en vez de objetos, medidas redondeadas al milímetro, sin ids internos y comprimido con deflate. El almacén de ejemplo (84 objetos, 2 niveles) pasa de 16.3 KB en JSON a **2.4 KB**; la casa de ejemplo, de 7.9 KB a 1.5 KB. Las imágenes de anuncios se reducen a 640 px y se comprimen en WebP al 70 % de calidad y se guardan una sola vez aunque varios anuncios usen la misma. El límite por proyecto es de 600 KB.
+
+### Papelera
+
+Eliminar un proyecto lo manda a la papelera (columna `eliminado_en`, script `supabase/crz_papelera.sql`): desaparece de la lista y su liga deja de funcionar, pero se puede restaurar durante 30 días desde *Mis proyectos → Papelera*. Pasado ese plazo se borra.
 
 ## Despliegue en Vercel
 

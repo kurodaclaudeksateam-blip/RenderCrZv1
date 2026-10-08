@@ -6,8 +6,8 @@ import { useStore } from '../store';
 import { area, bounds, computeWalls, interiorPoint, levelElevations, levelHeights, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
 import { LevelMesh, type BuildClock } from './Building';
 import type { Project, Vec2 } from '../types';
-import { EditPanel, type Pick } from './EditPanel';
-import { moveOpeningTo } from '../actions';
+import { EditPanel, type MoveTarget, type Pick } from './EditPanel';
+import { moveFurnitureTo, moveOpeningTo } from '../actions';
 import { WalkControls, walkInput } from './WalkControls';
 import { grassTexture } from './textures';
 
@@ -163,21 +163,65 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const [xray, setXray] = useState(false);
   const [editing, setEditing] = useState(false);
   const [pick, setPick] = useState<Pick | null>(null);
-  const [moving, setMoving] = useState<string | null>(null);
-  const movingRef = useRef<string | null>(null);
+  const [roof, setRoof] = useState(false);
+  const [moving, setMoving] = useState<MoveTarget | null>(null);
+  const movingRef = useRef<MoveTarget | null>(null);
   movingRef.current = moving;
   const onPick = useCallback((kind: Pick['kind'], id: string, point: Vec2) => {
-    const door = movingRef.current;
-    // con «mover» activo, el siguiente toque sobre una pared o cerco reubica la puerta
-    if (door && kind === 'room') {
-      if (moveOpeningTo(door, id, point)) setPick({ kind: 'opening', id: door, point });
+    const target = movingRef.current;
+    // con «mover» activo, el siguiente toque reubica el objeto (en cualquier punto) o la puerta (sobre una pared o cerco)
+    if (target?.kind === 'furniture') {
+      moveFurnitureTo(target.id, point);
+      setPick({ kind: 'furniture', id: target.id });
+      setMoving(null);
+      return;
+    }
+    if (target) {
+      if (kind !== 'room') return;
+      if (moveOpeningTo(target.id, id, point)) setPick({ kind: 'opening', id: target.id, point });
       else useStore.getState().notify('La puerta solo se puede mover a una pared del mismo nivel');
       setMoving(null);
       return;
     }
-    if (door) return;
-    setPick({ kind, id, point });
+    if (kind !== 'floor') setPick({ kind, id, point });
   }, []);
+
+  // --- recorrido: subir y bajar por escaleras y rampas ---
+  const walkLevelRef = useRef(0);
+  const walkGround = useCallback(
+    (x: number, z: number) => {
+      const li = Math.min(walkLevelRef.current, levels.length - 1);
+      // altura sobre el piso del nivel y avance (0 abajo, 1 arriba) si el punto cae sobre una escalera o rampa
+      const climb = (index: number) => {
+        for (const f of levels[index].furniture) {
+          if (f.type !== 'escalera' && f.type !== 'escalera_metal' && f.type !== 'rampa_curva') continue;
+          const r = (f.rotation * Math.PI) / 180;
+          const dx = x - f.x;
+          const dz = z - f.y;
+          const lx = dx * Math.cos(r) + dz * Math.sin(r);
+          const ly = -dx * Math.sin(r) + dz * Math.cos(r);
+          if (Math.abs(lx) > f.w / 2 || Math.abs(ly) > f.d / 2) continue;
+          let t = (f.d / 2 - ly) / f.d;
+          if (f.type === 'rampa_curva') {
+            const u = (lx + f.w / 2) / f.w;
+            const v = (f.d / 2 - ly) / f.d;
+            const rr = Math.hypot(u, v);
+            if (rr < 0.45 || rr > 1) continue;
+            t = Math.atan2(v, u) / (Math.PI / 2);
+          }
+          return { t, h: f.elevation + t * f.h, top: f.elevation + f.h };
+        }
+        return null;
+      };
+      const here = climb(li);
+      if (here) return { h: here.h, go: here.t > 0.96 && li + 1 < levels.length && here.top >= heights[li] - 0.6 ? 1 : 0 };
+      // en el nivel de arriba, la escalera que llega desde abajo sigue bajo los pies
+      const below = li > 0 ? climb(li - 1) : null;
+      if (below && below.top >= heights[li - 1] - 0.6) return { h: below.h - (elevations[li] - elevations[li - 1]), go: below.t < 0.9 ? -1 : 0 };
+      return { h: 0 };
+    },
+    [levels, heights, elevations],
+  );
   const [collisions, setCollisions] = useState(true);
   const [locked, setLocked] = useState(false);
   const [ready, setReady] = useState(false);
@@ -195,6 +239,8 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const size = Math.max(6, b.maxX - b.minX, b.maxY - b.minY);
   const totalH = elevations[elevations.length - 1] + heights[heights.length - 1];
 
+  walkLevelRef.current = walkLevel;
+  const onWalkLevel = useCallback((delta: number) => setWalkLevel((l) => Math.max(0, Math.min(levels.length - 1, l + delta))), [levels.length]);
   const walkLvl = levels[Math.min(walkLevel, levels.length - 1)];
   const { segs: walkSegments, solids: walkSolids } = useMemo(() => {
     const segs = computeWalls(walkLvl, project.wallThickness).segments;
@@ -309,9 +355,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
                 level={l}
                 elevation={elevations[i]}
                 height={heights[i]}
+                above={mode === 'walk' || i < maxLevel ? levels[i + 1] : undefined}
                 thickness={project.wallThickness}
-                ceiling={mode === 'walk'}
-                isTop={i === levels.length - 1}
+                ceiling={mode === 'walk' || roof}
                 wallOpacity={mode === 'orbit' && xray ? 0.35 : 1}
                 build={building ? buildWindows[i] : undefined}
                 onPick={editing && mode === 'orbit' ? onPick : undefined}
@@ -323,7 +369,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           ) : mode === 'orbit' ? (
             <OrbitControls makeDefault target={orbitTarget} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={1.5} maxDistance={size * 6} enableDamping />
           ) : (
-            <WalkControls start={start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} solids={walkSolids} collisions={collisions} onLockChange={onLockChange} />
+            <WalkControls start={start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} solids={walkSolids} collisions={collisions} ground={walkGround} onLevel={onWalkLevel} onLockChange={onLockChange} />
           )}
           <Snapshot onReady={onSnapReady} />
           <FirstFrame onReady={onFirstFrame} />
@@ -395,6 +441,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
             <label className="inline check">
               <input type="checkbox" checked={xray} onChange={(e) => setXray(e.target.checked)} /> Rayos X
             </label>
+            <label className="inline check" title="Muestra la cubierta de la nave">
+              <input type="checkbox" checked={roof} onChange={(e) => setRoof(e.target.checked)} /> Techo
+            </label>
             <button className={editing ? 'primary' : 'secondary'} onClick={() => { setEditing(!editing); setPick(null); setMoving(null); }} title="Toca una puerta, pared, cerco u objeto para editarlo">
               ✏️ <span className="hide-sm">Editar en 3D</span>
             </button>
@@ -426,7 +475,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
 
       {editing && mode === 'orbit' && !shared && (moving ? (
         <div className="edit3d hint">
-          Toca el punto de la pared o cerco donde va la puerta.
+          {moving.kind === 'furniture' ? 'Toca el lugar del piso donde va el objeto.' : 'Toca el punto de la pared o cerco donde va la puerta.'}
           <button className="secondary small" onClick={() => setMoving(null)}>
             Cancelar
           </button>
@@ -434,7 +483,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
       ) : pick ? (
         <EditPanel project={project} pick={pick} onPick={setPick} onMove={setMoving} onClose={() => setPick(null)} />
       ) : (
-        <div className="edit3d hint">Toca una pared o cerco para agregarle una puerta, o una puerta u objeto para editarlo o moverlo.</div>
+        <div className="edit3d hint">Toca una pared o cerco para cambiar su tamaño o agregarle una puerta, o una puerta u objeto para editarlo, girarlo o moverlo.</div>
       ))}
 
       {!ready && !empty && !shared && <div className="viewer-loading"><span className="spinner" /> Construyendo la escena 3D…</div>}

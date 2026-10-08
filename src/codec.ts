@@ -2,17 +2,33 @@
 // milímetros, sin ids internos (se regeneran al abrir) y comprimido con deflate.
 // Texto resultante: "z1." + base64(deflate(json)) o "j1." + json si no hay compresión.
 
-import type { Furniture, Level, Opening, Project, Room } from './types';
+import type { Furniture, Level, Opening, Project, Room, WallSide } from './types';
 import { uid } from './geometry';
 
 const mm = (n: number) => Math.round(n * 1000) / 1000;
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
 
-type RoomT = [string, number[], string, string, string, number, (string | 0)?, number?];
+type SideT = [(string | 0)?, number?, (string | 0)?] | 0;
+type RoomT = [string, number[], string, string, string, number, (string | 0)?, number?, number?, (SideT[] | 0)?];
 type OpeningT = [number, number, number, number, number, number, number, string?];
 type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?, number?, number?];
 type LevelT = [string, number, RoomT[], OpeningT[], FurnT[]];
 type ProjectT = [1, string, number, number, number, LevelT[], string[]?];
+
+/** Datos opcionales de pared de un ambiente; se omiten los finales vacíos. */
+function roomExtras(r: Room) {
+  const sides = r.sides?.some((s) => s && (s.material || s.height || s.color))
+    ? r.sides.map((s): SideT => (s && (s.material || s.height || s.color) ? [s.material || 0, mm(s.height ?? 0), s.color || 0] : 0))
+    : 0;
+  const extras: unknown[] = [r.wallMaterial && r.wallMaterial !== 'liso' ? r.wallMaterial : 0, mm(r.wallHeight ?? 0), mm(r.wallThickness ?? 0), sides];
+  while (extras.length && !extras[extras.length - 1]) extras.pop();
+  return extras;
+}
+
+function unpackSide(s: SideT): WallSide | null {
+  if (!s) return null;
+  return { ...(s[0] ? { material: s[0] as WallSide['material'] } : {}), ...(s[1] ? { height: s[1] } : {}), ...(s[2] ? { color: s[2] } : {}) };
+}
 
 function pack(p: Project): ProjectT {
   // cada imagen se guarda una sola vez aunque la usen varios anuncios
@@ -27,7 +43,7 @@ function pack(p: Project): ProjectT {
       return [
         l.name,
         mm(l.height),
-        l.rooms.map((r): RoomT => [r.name, r.points.flatMap((q) => [mm(q.x), mm(q.y)]), r.floor, r.floorColor, r.wallColor, r.hasWalls ? 1 : 0, ...(r.wallMaterial && r.wallMaterial !== 'liso' ? [r.wallMaterial, mm(r.wallHeight ?? 0)] : [])] as RoomT),
+        l.rooms.map((r): RoomT => [r.name, r.points.flatMap((q) => [mm(q.x), mm(q.y)]), r.floor, r.floorColor, r.wallColor, r.hasWalls ? 1 : 0, ...roomExtras(r)] as RoomT),
         l.openings
           .filter((o) => roomIndex.has(o.roomId))
           .map((o): OpeningT => [roomIndex.get(o.roomId)!, o.edge, r4(o.t), mm(o.width), mm(o.height), mm(o.sill), o.kind === 'window' ? 1 : 0, ...(o.door ? [o.door] : [])] as OpeningT),
@@ -53,7 +69,7 @@ function unpack(t: ProjectT, id: string): Project {
       const rooms = l[2].map((r): Room => {
         const points = [];
         for (let i = 0; i + 1 < r[1].length; i += 2) points.push({ x: r[1][i], y: r[1][i + 1] });
-        return { id: uid(), name: r[0], points, floor: r[2] as Room['floor'], floorColor: r[3], wallColor: r[4], hasWalls: !!r[5], ...(r[6] ? { wallMaterial: r[6] as Room['wallMaterial'] } : {}), ...(r[7] ? { wallHeight: r[7] } : {}) };
+        return { id: uid(), name: r[0], points, floor: r[2] as Room['floor'], floorColor: r[3], wallColor: r[4], hasWalls: !!r[5], ...(r[6] ? { wallMaterial: r[6] as Room['wallMaterial'] } : {}), ...(r[7] ? { wallHeight: r[7] } : {}), ...(r[8] ? { wallThickness: r[8] } : {}), ...(r[9] ? { sides: r[9].map(unpackSide) } : {}) };
       });
       return {
         id: uid(),

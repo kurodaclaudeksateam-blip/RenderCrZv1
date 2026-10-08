@@ -139,6 +139,22 @@ export async function syncProjects(): Promise<void> {
   writeInfo({ ...Object.fromEntries(Object.entries(readInfo()).filter(([id]) => !known[id] && !remote.has(id))), ...info });
 }
 
+export interface TrashItem {
+  id: string;
+  name: string;
+  deletedAt: number;
+}
+
+/** Proyectos eliminados en los últimos 30 días. */
+export async function listTrash(): Promise<TrashItem[]> {
+  const rows = await rpc<{ id: string; nombre: string; eliminado_ms: number }[]>('crz_listar_papelera', { p_token: sessionToken() });
+  return rows.map((r) => ({ id: r.id, name: r.nombre, deletedAt: Number(r.eliminado_ms) }));
+}
+
+export async function restoreProject(id: string) {
+  await rpc('crz_restaurar_proyecto', { p_token: sessionToken(), p_id: id });
+}
+
 export interface SharedProject {
   name: string;
   project: Project;

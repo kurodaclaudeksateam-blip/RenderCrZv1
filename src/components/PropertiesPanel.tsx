@@ -1,8 +1,8 @@
 import { useCurrentLevel, useStore } from '../store';
 import { useState } from 'react';
 import { area, cellGrid, cellIndex, dist, fmt, levelHeights, perimeter } from '../geometry';
-import { CATALOG, DOOR_STYLES, FLOOR_MATERIALS, WALL_MATERIALS, isFence } from '../catalog';
-import { deleteSelection, duplicateSelection, rotateSelection, updateFurniture } from '../actions';
+import { CATALOG, DOOR_STYLES, FLOOR_MATERIALS, PIPE_MATERIALS, PIPE_SIZES, WALL_MATERIALS, isFence, parsePipe } from '../catalog';
+import { addCorner, deleteSelection, duplicateSelection, rotateSelection, setWallSide, updateFurniture } from '../actions';
 import type { DoorStyle, FloorMaterial, Furniture, Level, Opening, Project, Room, WallMaterial } from '../types';
 
 /** Campo numérico que confirma con Enter o al salir. */
@@ -137,6 +137,42 @@ const SHELF_TYPES = new Set(['rack', 'estanteria_metal', 'cantilever']);
 const CELL_TYPES = new Set(['rack_custom', 'tarima_custom']);
 const BOX_COLORS = ['#c69c6d', '#ef4444', '#f59e0b', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6', '#f8fafc', '#334155'];
 
+/** Rack para tuberías: material y diámetro de los tubos de cada nivel. */
+function PipeEditor({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) => void }) {
+  const levels = Math.max(1, Math.round(f.shelves ?? 4));
+  const cells = Array.from({ length: levels }, (_, i) => f.cells?.[i] ?? '');
+  const setLevel = (k: number, material: string, d: number) => set({ cells: cells.map((v, i) => (i !== k ? v : material ? `${material}:${d}` : '')) });
+  return (
+    <div className="cell-editor">
+      <Num label="Niveles de brazos" value={levels} step={1} min={1} max={10} unit="" onChange={(n) => set({ shelves: Math.max(1, Math.min(10, Math.round(n))), cells: cells.slice(0, Math.round(n)) })} />
+      {Array.from({ length: levels }, (_, i) => levels - 1 - i).map((k) => {
+        const pipe = parsePipe(cells[k]);
+        return (
+          <div key={k} className="side-row">
+            <span className="muted small">Nivel {k + 1}{k === 0 ? ' (abajo)' : ''}</span>
+            <select value={pipe?.material.id ?? ''} onChange={(e) => setLevel(k, e.target.value, pipe?.d ?? 0.05)} aria-label={`Material del nivel ${k + 1}`}>
+              <option value="">Vacío</option>
+              {PIPE_MATERIALS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <select value={pipe?.d ?? 0.05} disabled={!pipe} onChange={(e) => setLevel(k, pipe!.material.id, Number(e.target.value))} aria-label={`Diámetro del nivel ${k + 1}`}>
+              {PIPE_SIZES.map((s) => (
+                <option key={s.d} value={s.d}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
+      <p className="muted small">El largo del rack es el largo de los tubos. Cada nivel lleva un tipo de tubería y un diámetro.</p>
+    </div>
+  );
+}
+
 /** Rack y tarima a medida: se elige un color y se toca cada posición para poner o quitar su caja. */
 function CellEditor({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) => void }) {
   const [color, setColor] = useState(BOX_COLORS[0]);
@@ -264,6 +300,7 @@ function FurnitureProps({ f }: { f: Furniture }) {
         </label>
       )}
       {CELL_TYPES.has(f.type) && <CellEditor f={f} set={set} />}
+      {f.type === 'rack_tubos' && <PipeEditor f={f} set={set} />}
       {(f.type === 'rack' || f.type === 'rack_custom') && <p className="muted small">Capacidad: <b>{palletPositions(f)}</b> posiciones de pallet</p>}
       <label className="field">
         <span>Tipo (modelo 3D)</span>
@@ -341,7 +378,42 @@ function RoomProps({ r }: { r: Room }) {
           ))}
         </select>
       </label>
-      {isFence(r.wallMaterial) && <Num label="Altura del cerco" value={r.wallHeight ?? 2} min={0.5} max={12} onChange={(wallHeight) => set({ wallHeight })} />}
+      <div className="grid2">
+        <Num label={isFence(r.wallMaterial) ? 'Altura del cerco' : 'Altura de pared (0 = al techo)'} value={r.wallHeight ?? (isFence(r.wallMaterial) ? 2 : 0)} min={0} max={30} onChange={(h) => set({ wallHeight: h || undefined })} />
+        <Num label="Grosor de pared (0 = proyecto)" value={r.wallThickness ?? 0} min={0} max={1.5} step={0.01} onChange={(t) => set({ wallThickness: t || undefined })} />
+      </div>
+      <details>
+        <summary>Paredes por tramo</summary>
+        <div className="sides-list">
+          {r.points.map((p, i) => {
+            const side = r.sides?.[i];
+            return (
+              <div key={i} className="side-row">
+                <span className="muted small">
+                  Tramo {i + 1} · {fmt(dist(p, r.points[(i + 1) % r.points.length]))} m
+                </span>
+                <select
+                  value={side?.material ?? ''}
+                  onChange={(e) => {
+                    const m = WALL_MATERIALS.find((x) => x.id === e.target.value);
+                    setWallSide(r.id, i, e.target.value === '' ? { material: undefined, color: undefined } : e.target.value === 'none' ? { material: 'none', color: undefined } : { material: m!.id, color: m!.color });
+                  }}
+                  aria-label={`Material del tramo ${i + 1}`}
+                >
+                  <option value="">Igual que el ambiente</option>
+                  {WALL_MATERIALS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                  <option value="none">Sin pared</option>
+                </select>
+                <Num label="Altura (0 = la del ambiente)" value={side?.height ?? 0} min={0} max={30} onChange={(h) => setWallSide(r.id, i, { height: h || undefined })} />
+              </div>
+            );
+          })}
+        </div>
+      </details>
       <div className="grid2">
         <Color label="Color piso" value={r.floorColor} onChange={(floorColor) => set({ floorColor })} />
         <Color label="Color muros" value={r.wallColor} onChange={(wallColor) => set({ wallColor })} />
@@ -363,6 +435,9 @@ function RoomProps({ r }: { r: Room }) {
           ))}
         </div>
       </details>
+      <button className="secondary small" onClick={() => addCorner(r.id)} title="Agrega un vértice a la mitad del lado más largo; después arrástralo">
+        ＋ Agregar esquina (forma irregular)
+      </button>
       <Actions />
       <p className="tip">
         Arrastra los vértices para deformar el ambiente. Doble clic sobre una arista agrega un vértice; Alt+clic en un vértice lo elimina.

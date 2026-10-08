@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Billboard, RoundedBox } from '@react-three/drei';
 import type { Furniture } from '../types';
 import { cellGrid, cellIndex } from '../geometry';
+import { parsePipe } from '../catalog';
 import { imageTexture, textTexture } from './textures';
 
 type V3 = [number, number, number];
@@ -102,6 +103,8 @@ function Model({ f }: { f: Furniture }) {
       return <Rack f={f} />;
     case 'rack_custom':
       return <CustomRack f={f} />;
+    case 'rack_tubos':
+      return <PipeRack f={f} />;
     case 'tarima_custom':
       return <CustomPallet f={f} />;
     case 'rampa_curva':
@@ -709,6 +712,43 @@ function Rack({ f }: { f: Furniture }) {
           parts.push(<Bx key={`ld${row}-${b}-${k}-${sIdx}`} x={px} z={zc} w={pw - 0.04} h={ch} d={pd - 0.04} y0={y + 0.14} c={CARDBOARD[Math.floor(r() * CARDBOARD.length)]} rough={0.95} />);
           parts.push(<Bx key={`lb${row}-${b}-${k}-${sIdx}`} x={px} z={zc} w={pw - 0.03} h={0.05} d={pd - 0.03} y0={y + 0.14 + ch * 0.55} c="#e0f2fe" rough={0.3} opacity={0.5} />);
         }
+      }
+    }
+  }
+  return <group>{parts}</group>;
+}
+
+// tubo unitario acostado a lo largo de x: se escala a [largo, diámetro, diámetro]
+const UNIT_PIPE = new THREE.CylinderGeometry(0.5, 0.5, 1, 14).rotateZ(Math.PI / 2);
+
+/** Rack alargado de brazos para tuberías; cada nivel lleva tubos de un material y diámetro (f.cells). */
+function PipeRack({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const levels = Math.max(1, Math.round(f.shelves ?? 4));
+  const cols = Math.max(2, Math.round(w / 1.5) + 1);
+  const gapY = (h - 0.3) / levels;
+  const parts: React.ReactNode[] = [];
+  for (let i = 0; i < cols; i++) {
+    const x = -w / 2 + 0.08 + (i * (w - 0.16)) / (cols - 1);
+    parts.push(<Bx key={`c${i}`} x={x} z={-d / 2 + 0.06} w={0.1} h={h} d={0.12} c={color} metal={0.5} rough={0.45} />);
+    parts.push(<Bx key={`f${i}`} x={x} w={0.1} h={0.1} d={d} c={color} metal={0.5} rough={0.45} />);
+    for (let k = 0; k < levels; k++) {
+      const y = 0.25 + k * gapY;
+      parts.push(<Bx key={`a${i}-${k}`} x={x} w={0.07} h={0.07} d={d} y0={y - 0.07} c={shade(color, 0.85)} metal={0.5} rough={0.45} />);
+      parts.push(<Bx key={`s${i}-${k}`} x={x} z={d / 2 - 0.03} w={0.07} h={0.16} d={0.05} y0={y - 0.07} c={shade(color, 0.85)} metal={0.5} rough={0.45} />);
+    }
+  }
+  for (let k = 0; k < levels; k++) {
+    const pipe = parsePipe(f.cells?.[k]);
+    if (!pipe) continue;
+    const y = 0.25 + k * gapY;
+    const across = Math.max(1, Math.min(16, Math.floor((d - 0.24) / pipe.d)));
+    const layers = Math.max(1, Math.min(3, Math.floor((gapY - 0.14) / pipe.d)));
+    const mat = sharedMat({ c: pipe.material.color, metal: pipe.material.metal, rough: pipe.material.rough });
+    for (let l = 0; l < layers; l++) {
+      for (let j = 0; j < across - (l % 2); j++) {
+        const z = -d / 2 + 0.16 + pipe.d / 2 + j * pipe.d + (l % 2) * (pipe.d / 2);
+        parts.push(<mesh key={`p${k}-${l}-${j}`} position={[0, y + pipe.d / 2 + l * pipe.d * 0.87, z]} scale={[w * 1.03, pipe.d, pipe.d]} geometry={UNIT_PIPE} material={mat} castShadow />);
       }
     }
   }

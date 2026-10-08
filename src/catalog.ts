@@ -15,6 +15,7 @@ export interface CatalogItem {
   shelves?: number;
   cols?: number;
   rows?: number;
+  cells?: string[];
 }
 
 /** Los anuncios tienen su propia sección en el panel, fuera de las categorías. */
@@ -28,6 +29,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'rack', label: 'Rack doble fondo', icon: '🏗️', category: 'Almacenaje', w: 2.7, d: 2.3, h: 6.0, color: '#f97316', shelves: 4 },
   { type: 'rack', label: 'Rack bajo', icon: '🏗️', category: 'Almacenaje', w: 2.7, d: 1.1, h: 3.5, color: '#2563eb', shelves: 2 },
   { type: 'rack_custom', label: 'Rack a medida', icon: '🧩', category: 'Almacenaje', w: 2.7, d: 1.1, h: 4.5, color: '#f97316', shelves: 3, cols: 2 },
+  { type: 'rack_tubos', label: 'Rack para tuberías', icon: '🧵', category: 'Almacenaje', w: 6.0, d: 1.0, h: 2.4, color: '#1e3a8a', shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] },
   { type: 'estanteria_metal', label: 'Anaquel metálico', icon: '🗄️', category: 'Almacenaje', w: 1.2, d: 0.5, h: 2.1, color: '#94a3b8', shelves: 5 },
   { type: 'estanteria_metal', label: 'Anaquel picking', icon: '🗄️', category: 'Almacenaje', w: 2.0, d: 0.6, h: 2.4, color: '#64748b', shelves: 6 },
   { type: 'cantilever', label: 'Cantilever', icon: '🪜', category: 'Almacenaje', w: 3.0, d: 1.2, h: 3.5, color: '#16a34a', shelves: 4 },
@@ -100,6 +102,31 @@ export const CATALOG: CatalogItem[] = [
   { type: 'lampara', label: 'Lámpara pie', icon: '💡', category: 'Hogar', w: 0.4, d: 0.4, h: 1.6, color: '#f5deb3' },
   { type: 'escalera', label: 'Escalera', icon: '🪜', category: 'Oficina', w: 1.0, d: 3.2, h: 2.7, color: '#b08968' },
 ];
+
+/** Tuberías del rack para tuberías: cada nivel guarda «material:diámetro en metros». */
+export const PIPE_MATERIALS = [
+  { id: 'metal', label: 'Metal (acero)', color: '#9ca3af', metal: 0.85, rough: 0.35 },
+  { id: 'cobre', label: 'Cobre', color: '#b87333', metal: 0.9, rough: 0.3 },
+  { id: 'pvc', label: 'PVC', color: '#f1f5f9', metal: 0, rough: 0.6 },
+  { id: 'abs', label: 'ABS', color: '#1f2937', metal: 0, rough: 0.55 },
+];
+
+export const PIPE_SIZES = [
+  { d: 0.013, label: '½″ (13 mm)' },
+  { d: 0.025, label: '1″ (25 mm)' },
+  { d: 0.05, label: '2″ (50 mm)' },
+  { d: 0.075, label: '3″ (75 mm)' },
+  { d: 0.1, label: '4″ (100 mm)' },
+  { d: 0.15, label: '6″ (150 mm)' },
+  { d: 0.2, label: '8″ (200 mm)' },
+];
+
+export function parsePipe(cell?: string) {
+  const [id, d] = (cell ?? '').split(':');
+  const material = PIPE_MATERIALS.find((m) => m.id === id);
+  const size = Number(d);
+  return material && size > 0 ? { material, d: size } : null;
+}
 
 export const WALL_MATERIALS: { id: WallMaterial; label: string; icon: string; color: string }[] = [
   { id: 'liso', label: 'Liso pintado', icon: '⬜', color: '#f5f5f4' },

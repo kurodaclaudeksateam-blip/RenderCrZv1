@@ -20,7 +20,9 @@ export async function rpc<T>(fn: string, args: Record<string, unknown>): Promise
   });
   if (res.status === 401 || res.status === 403) throw new SessionExpired('Sesión vencida');
   if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
-  return (await res.json()) as T;
+  // las funciones que no devuelven nada responden 204 sin cuerpo
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 export function sessionToken(): string | null {
