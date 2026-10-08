@@ -19,7 +19,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
     - **Carga**: pallets vacíos, pallets con carga, cajas, bultos.
     - **Equipos**: rampa de descarga curva, escalera metálica, montacargas, transpaleta, banda transportadora, mesa de embalaje, báscula.
     - **Señalización**: letreros colgantes y de pie con texto editable (pasillos, andenes, salidas).
-    - **Anuncios**: torres de anuncio y cuadros con luz LED (rectangulares o cuadrados). Se les puede **subir una imagen** que rellena el letrero por ambas caras; sin imagen muestran su texto.
+    - **Anuncios**: torres de anuncio, rótulos en poste (tubo largo con el rótulo rectangular arriba) y cuadros con luz LED (rectangulares o cuadrados). Se les puede **subir una imagen** que rellena el letrero por ambas caras; sin imagen muestran su texto.
     - **Zonas** de piso rotuladas: recepción, despacho, picking, cuarentena, devoluciones, pasillo peatonal.
     - **Seguridad**: extintores, conos, bolardos, cerco metálico blanco, cerco de malla metálica, malla divisoria, columnas.
     - También oficina, servicios y mobiliario residencial.

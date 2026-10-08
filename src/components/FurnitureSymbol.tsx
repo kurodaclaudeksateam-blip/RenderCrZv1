@@ -90,12 +90,14 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
     }
     case 'anuncio_torre':
     case 'anuncio_cuadro':
+    case 'anuncio_poste':
       return (
         <g>
           <rect x={x0} y={y0} width={w} height={Math.max(d, 0.1)} fill={color} stroke={line} strokeWidth={sw} />
           {[y0, y0 + Math.max(d, 0.1)].map((y) => (
             <line key={y} x1={x0 + 0.05} x2={-x0 - 0.05} y1={y} y2={y} stroke="#38bdf8" strokeWidth={sw * 2.5} />
           ))}
+          {f.type === 'anuncio_poste' && <circle cx={0} cy={y0 + Math.max(d, 0.1) / 2} r={Math.max(0.12, w * 0.05)} fill={line} />}
         </g>
       );
     case 'cerco':

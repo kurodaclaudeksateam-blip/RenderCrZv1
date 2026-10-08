@@ -71,8 +71,8 @@ export default function PropertiesPanel() {
   return <ProjectProps project={project} level={level} />;
 }
 
-const TEXT_TYPES = new Set(['letrero', 'letrero_pie', 'zona', 'anuncio_torre', 'anuncio_cuadro']);
-const AD_TYPES = new Set(['anuncio_torre', 'anuncio_cuadro']);
+const TEXT_TYPES = new Set(['letrero', 'letrero_pie', 'zona', 'anuncio_torre', 'anuncio_cuadro', 'anuncio_poste']);
+const AD_TYPES = new Set(['anuncio_torre', 'anuncio_cuadro', 'anuncio_poste']);
 const AD_MAX_SIDE = 640;
 
 /** Reduce la imagen elegida y la devuelve en data URL como WebP al 70 % de calidad, para que el proyecto pese poco. */

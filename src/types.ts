@@ -56,6 +56,7 @@ export type FurnitureType =
   | 'cerco_malla'
   | 'anuncio_torre'
   | 'anuncio_cuadro'
+  | 'anuncio_poste'
   | 'escalera_metal'
   // señalización y zonas
   | 'letrero'

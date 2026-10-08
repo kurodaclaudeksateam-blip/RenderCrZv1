@@ -115,6 +115,8 @@ function Model({ f }: { f: Furniture }) {
     case 'anuncio_torre':
     case 'anuncio_cuadro':
       return <LedAd f={f} />;
+    case 'anuncio_poste':
+      return <PoleAd f={f} />;
     case 'estanteria_metal':
       return <MetalShelf f={f} />;
     case 'cantilever':
@@ -889,6 +891,32 @@ function LedAd({ f }: { f: Furniture }) {
       {[1, -1].map((s) => (
         <group key={s}>
           {/* marco de luz LED alrededor del anuncio */}
+          <B p={[0, py, s * (d / 2 + 0.001)]} s={[pw + 0.05, ph + 0.05, 0.004]} c="#ffffff" emissive="#e0f2fe" />
+          <LedFace f={f} w={pw} h={ph} y={py} z={s * (d / 2 + 0.006)} back={s < 0} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/** Rótulo en poste: tubo largo con el rótulo rectangular luminoso arriba (ancho × alto total). */
+function PoleAd({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  // el rótulo ocupa la parte alta; el resto de la altura es tubo
+  const sh = Math.min(h * 0.45, Math.max(0.6, w * 0.5));
+  const y0 = h - sh;
+  const r = Math.max(0.08, Math.min(0.35, w * 0.05));
+  const m = Math.min(0.1, w * 0.04);
+  const pw = w - m * 2;
+  const ph = sh - m * 2;
+  const py = y0 + sh / 2;
+  return (
+    <group>
+      <Cyl p={[0, 0.03, 0]} r={r * 2.6} h={0.06} c="#374151" rough={0.8} seg={20} />
+      <Cyl p={[0, (y0 + 0.1) / 2, 0]} r={r} h={y0 + 0.1} c="#9ca3af" metal={0.7} rough={0.35} seg={20} />
+      <Bx w={w} h={sh} d={d} y0={y0} c={color} metal={0.4} rough={0.5} />
+      {[1, -1].map((s) => (
+        <group key={s}>
           <B p={[0, py, s * (d / 2 + 0.001)]} s={[pw + 0.05, ph + 0.05, 0.004]} c="#ffffff" emissive="#e0f2fe" />
           <LedFace f={f} w={pw} h={ph} y={py} z={s * (d / 2 + 0.006)} back={s < 0} />
         </group>

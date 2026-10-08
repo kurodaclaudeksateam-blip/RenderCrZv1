@@ -49,6 +49,8 @@ export const CATALOG: CatalogItem[] = [
   // --- Anuncios
   { type: 'anuncio_torre', label: 'Torre de anuncio', icon: '🗼', category: 'Anuncios', w: 1.6, d: 0.4, h: 5.0, color: '#111827', text: 'TU ANUNCIO' },
   { type: 'anuncio_torre', label: 'Torre de anuncio alta', icon: '🗼', category: 'Anuncios', w: 2.2, d: 0.5, h: 8.0, color: '#111827', text: 'TU ANUNCIO' },
+  { type: 'anuncio_poste', label: 'Rótulo en poste', icon: '🪧', category: 'Anuncios', w: 3.0, d: 0.3, h: 8.0, color: '#111827', text: 'TU ANUNCIO' },
+  { type: 'anuncio_poste', label: 'Rótulo en poste alto', icon: '🪧', category: 'Anuncios', w: 5.0, d: 0.4, h: 14.0, color: '#111827', text: 'TU ANUNCIO' },
   { type: 'anuncio_cuadro', label: 'Cuadro LED rectangular', icon: '🖼️', category: 'Anuncios', w: 2.4, d: 0.12, h: 1.4, color: '#111827', elevation: 1.6, text: 'TU ANUNCIO' },
   { type: 'anuncio_cuadro', label: 'Cuadro LED cuadrado', icon: '🖼️', category: 'Anuncios', w: 1.5, d: 0.12, h: 1.5, color: '#111827', elevation: 1.6, text: 'TU ANUNCIO' },
   // --- Señalización
