@@ -105,6 +105,8 @@ function Model({ f }: { f: Furniture }) {
       return <CustomRack f={f} />;
     case 'rack_tubos':
       return <PipeRack f={f} />;
+    case 'rack_tubos_v':
+      return <VerticalPipeRack f={f} />;
     case 'tarima_custom':
       return <CustomPallet f={f} />;
     case 'rampa_curva':
@@ -749,6 +751,57 @@ function PipeRack({ f }: { f: Furniture }) {
       for (let j = 0; j < across - (l % 2); j++) {
         const z = -d / 2 + 0.16 + pipe.d / 2 + j * pipe.d + (l % 2) * (pipe.d / 2);
         parts.push(<mesh key={`p${k}-${l}-${j}`} position={[0, y + pipe.d / 2 + l * pipe.d * 0.87, z]} scale={[w * 1.03, pipe.d, pipe.d]} geometry={UNIT_PIPE} material={mat} castShadow />);
+      }
+    }
+  }
+  return <group>{parts}</group>;
+}
+
+const UNIT_PIPE_UP = new THREE.CylinderGeometry(0.5, 0.5, 1, 14);
+
+/**
+ * Rack para tubos de pie: base encajonada que guarda el pie de los tubos, compartimentos
+ * (uno por tipo de tubería, f.cells) y tope superior con barandal que evita que se vuelquen.
+ */
+function VerticalPipeRack({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const bays = Math.max(1, Math.round(f.shelves ?? 4));
+  const bw = w / bays;
+  const base = Math.min(0.4, h * 0.18);
+  const t = 0.04;
+  const dark = shade(color, 0.8);
+  const steel = { metal: 0.5, rough: 0.45 };
+  const parts: React.ReactNode[] = [
+    // base encajonada: fondo, frente, respaldo y costados
+    <Bx key="floor" w={w} h={t} d={d} c={dark} {...steel} />,
+    <Bx key="front" z={d / 2 - t / 2} w={w} h={base} d={t} c={color} {...steel} />,
+    <Bx key="back" z={-d / 2 + t / 2} w={w} h={base} d={t} c={color} {...steel} />,
+    // tope superior: marco que rodea la punta de los tubos
+    <Bx key="capF" z={d / 2 - t / 2} w={w} h={0.06} d={t} y0={h - 0.06} c={color} {...steel} />,
+    <Bx key="capB" z={-d / 2 + t / 2} w={w} h={0.06} d={t} y0={h - 0.06} c={color} {...steel} />,
+    // barandal de media altura al frente
+    <Bx key="rail" z={d / 2 - t / 2} w={w} h={0.05} d={t} y0={base + (h - base) * 0.55} c="#facc15" {...steel} />,
+  ];
+  for (let i = 0; i <= bays; i++) {
+    const x = Math.max(-w / 2 + t / 2, Math.min(w / 2 - t / 2, -w / 2 + i * bw));
+    // divisor del cajón, postes de piso a tope y travesaño del tope
+    parts.push(<Bx key={`div${i}`} x={x} w={t} h={base} d={d} c={color} {...steel} />);
+    parts.push(<Bx key={`pb${i}`} x={x} z={-d / 2 + 0.03} w={0.06} h={h} d={0.06} c={color} {...steel} />);
+    parts.push(<Bx key={`pf${i}`} x={x} z={d / 2 - 0.03} w={0.06} h={h} d={0.06} c={color} {...steel} />);
+    parts.push(<Bx key={`cap${i}`} x={x} w={t} h={0.06} d={d} y0={h - 0.06} c={color} {...steel} />);
+  }
+  const len = h - t - 0.12;
+  for (let b = 0; b < bays; b++) {
+    const pipe = parsePipe(f.cells?.[b]);
+    if (!pipe) continue;
+    const nx = Math.max(1, Math.min(8, Math.floor((bw - 0.12) / pipe.d)));
+    const nz = Math.max(1, Math.min(6, Math.floor((d - 0.14) / pipe.d)));
+    const mat = sharedMat({ c: pipe.material.color, metal: pipe.material.metal, rough: pipe.material.rough });
+    for (let ix = 0; ix < nx; ix++) {
+      for (let iz = 0; iz < nz; iz++) {
+        const x = -w / 2 + b * bw + bw / 2 + (ix - (nx - 1) / 2) * pipe.d;
+        const z = (iz - (nz - 1) / 2) * pipe.d;
+        parts.push(<mesh key={`p${b}-${ix}-${iz}`} position={[x, t + len / 2, z]} scale={[pipe.d, len, pipe.d]} geometry={UNIT_PIPE_UP} material={mat} castShadow />);
       }
     }
   }

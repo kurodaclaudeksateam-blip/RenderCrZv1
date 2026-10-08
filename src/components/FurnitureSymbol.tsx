@@ -121,6 +121,20 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           {[x0, -x0 - 0.05].flatMap((x) => [y0, -y0 - 0.05].map((y) => <rect key={`${x}${y}`} x={x} y={y} width={0.05} height={0.05} fill={line} />))}
         </g>
       );
+    case 'rack_tubos_v': {
+      const bays = Math.max(1, Math.round(f.shelves ?? 4));
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={d} fill={color} fillOpacity={0.25} stroke={line} strokeWidth={sw * 1.6} />
+          {Array.from({ length: bays }, (_, i) => (
+            <g key={i}>
+              {i > 0 && <line x1={x0 + (w * i) / bays} x2={x0 + (w * i) / bays} y1={y0} y2={-y0} stroke={line} strokeWidth={sw} />}
+              {f.cells?.[i] && <circle cx={x0 + (w * (i + 0.5)) / bays} cy={0} r={Math.min(w / bays, d) * 0.28} fill="none" stroke={line} strokeWidth={sw} />}
+            </g>
+          ))}
+        </g>
+      );
+    }
     case 'rack_tubos':
     case 'cantilever': {
       const cols = Math.max(2, Math.round(w / 1.2) + 1);

@@ -3,7 +3,7 @@ import { CATALOG } from '../catalog';
 import { useCurrentLevel, useStore } from '../store';
 import type { Furniture } from '../types';
 
-const RACK_TYPES = new Set<Furniture['type']>(['rack', 'rack_custom', 'rack_tubos', 'estanteria_metal', 'cantilever']);
+const RACK_TYPES = new Set<Furniture['type']>(['rack', 'rack_custom', 'rack_tubos', 'rack_tubos_v', 'estanteria_metal', 'cantilever']);
 const ICONS = new Map(CATALOG.map((c) => [c.type, c.icon]));
 
 /**

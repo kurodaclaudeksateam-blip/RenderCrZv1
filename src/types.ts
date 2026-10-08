@@ -74,6 +74,7 @@ export type FurnitureType =
   | 'rampa_curva'
   | 'rack_custom'
   | 'rack_tubos'
+  | 'rack_tubos_v'
   | 'tarima_custom'
   | 'cerco'
   | 'cerco_malla'

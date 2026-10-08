@@ -30,6 +30,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'rack', label: 'Rack bajo', icon: '🏗️', category: 'Almacenaje', w: 2.7, d: 1.1, h: 3.5, color: '#2563eb', shelves: 2 },
   { type: 'rack_custom', label: 'Rack a medida', icon: '🧩', category: 'Almacenaje', w: 2.7, d: 1.1, h: 4.5, color: '#f97316', shelves: 3, cols: 2 },
   { type: 'rack_tubos', label: 'Rack para tuberías', icon: '🧵', category: 'Almacenaje', w: 6.0, d: 1.0, h: 2.4, color: '#1e3a8a', shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] },
+  { type: 'rack_tubos_v', label: 'Rack vertical para tuberías', icon: '🎋', category: 'Almacenaje', w: 3.0, d: 0.8, h: 3.2, color: '#1e3a8a', shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] },
   { type: 'estanteria_metal', label: 'Anaquel metálico', icon: '🗄️', category: 'Almacenaje', w: 1.2, d: 0.5, h: 2.1, color: '#94a3b8', shelves: 5 },
   { type: 'estanteria_metal', label: 'Anaquel picking', icon: '🗄️', category: 'Almacenaje', w: 2.0, d: 0.6, h: 2.4, color: '#64748b', shelves: 6 },
   { type: 'cantilever', label: 'Cantilever', icon: '🪜', category: 'Almacenaje', w: 3.0, d: 1.2, h: 3.5, color: '#16a34a', shelves: 4 },

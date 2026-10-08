@@ -139,17 +139,19 @@ const BOX_COLORS = ['#c69c6d', '#ef4444', '#f59e0b', '#facc15', '#22c55e', '#3b8
 
 /** Rack para tuberías: material y diámetro de los tubos de cada nivel. */
 function PipeEditor({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) => void }) {
+  // en el rack vertical cada posición es un compartimento de izquierda a derecha
+  const upright = f.type === 'rack_tubos_v';
   const levels = Math.max(1, Math.round(f.shelves ?? 4));
   const cells = Array.from({ length: levels }, (_, i) => f.cells?.[i] ?? '');
   const setLevel = (k: number, material: string, d: number) => set({ cells: cells.map((v, i) => (i !== k ? v : material ? `${material}:${d}` : '')) });
   return (
     <div className="cell-editor">
-      <Num label="Niveles de brazos" value={levels} step={1} min={1} max={10} unit="" onChange={(n) => set({ shelves: Math.max(1, Math.min(10, Math.round(n))), cells: cells.slice(0, Math.round(n)) })} />
-      {Array.from({ length: levels }, (_, i) => levels - 1 - i).map((k) => {
+      <Num label={upright ? 'Compartimentos' : 'Niveles de brazos'} value={levels} step={1} min={1} max={10} unit="" onChange={(n) => set({ shelves: Math.max(1, Math.min(10, Math.round(n))), cells: cells.slice(0, Math.round(n)) })} />
+      {Array.from({ length: levels }, (_, i) => (upright ? i : levels - 1 - i)).map((k) => {
         const pipe = parsePipe(cells[k]);
         return (
           <div key={k} className="side-row">
-            <span className="muted small">Nivel {k + 1}{k === 0 ? ' (abajo)' : ''}</span>
+            <span className="muted small">{upright ? `Compartimento ${k + 1}` : `Nivel ${k + 1}${k === 0 ? ' (abajo)' : ''}`}</span>
             <select value={pipe?.material.id ?? ''} onChange={(e) => setLevel(k, e.target.value, pipe?.d ?? 0.05)} aria-label={`Material del nivel ${k + 1}`}>
               <option value="">Vacío</option>
               {PIPE_MATERIALS.map((m) => (
@@ -168,7 +170,11 @@ function PipeEditor({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>)
           </div>
         );
       })}
-      <p className="muted small">El largo del rack es el largo de los tubos. Cada nivel lleva un tipo de tubería y un diámetro.</p>
+      <p className="muted small">
+        {upright
+          ? 'Los tubos van de pie: el alto del rack es el largo de los tubos. La base encajonada guarda el pie y el tope superior evita que se vuelquen.'
+          : 'El largo del rack es el largo de los tubos. Cada nivel lleva un tipo de tubería y un diámetro.'}
+      </p>
     </div>
   );
 }
@@ -300,7 +306,7 @@ function FurnitureProps({ f }: { f: Furniture }) {
         </label>
       )}
       {CELL_TYPES.has(f.type) && <CellEditor f={f} set={set} />}
-      {f.type === 'rack_tubos' && <PipeEditor f={f} set={set} />}
+      {(f.type === 'rack_tubos' || f.type === 'rack_tubos_v') && <PipeEditor f={f} set={set} />}
       {(f.type === 'rack' || f.type === 'rack_custom') && <p className="muted small">Capacidad: <b>{palletPositions(f)}</b> posiciones de pallet</p>}
       <label className="field">
         <span>Tipo (modelo 3D)</span>

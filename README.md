@@ -15,6 +15,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - Puertas, **portones de andén** y ventanas sobre los muros (también cortan muros compartidos entre ambientes). Las puertas pueden ser de **madera, vidrio, metal o malla** y al colocarlas se adaptan al muro o cerco: toman el tipo que corresponde, el marco se ajusta al grosor y en un cerco quedan como portón con postes.
   - Sección **Puertas y marcos** en el panel: puertas de madera, vidrio, metal y malla, puerta doble, portón de andén, marco abierto, arco y ventana. Se elige una y se toca la pared (o se coloca sola en el ambiente seleccionado).
   - **Paredes a medida**: cada ambiente tiene su altura y grosor de pared, y cada tramo (lado) puede llevar otro material, otra altura o quedar sin pared. El botón *Agregar esquina* convierte un ambiente rectangular en irregular.
+  - **Rack vertical para tuberías**: los tubos van de pie en compartimentos, con base encajonada y tope superior con barandal.
   - **Rack para tuberías**: rack alargado de brazos; en cada nivel se elige la tubería (metal, cobre, PVC o ABS) y su diámetro (de ½″ a 8″).
   - **Resumen** (📊): ambientes con área y perímetro, objetos por tipo, posiciones de pallet y zonas; se descarga para Excel (CSV) o se imprime/guarda en PDF junto con el plano.
   - Sección **Tipos de pared** en el panel: elige el material y se aplica al ambiente seleccionado y a los que dibujes después.
