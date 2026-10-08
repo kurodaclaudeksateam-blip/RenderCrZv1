@@ -1,5 +1,5 @@
-import { CATALOG, ROOM_COLORS, type CatalogItem } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid } from './geometry';
+import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence } from './catalog';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, FENCE_HEIGHT } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
 import type { Furniture, Level, OpeningKind, Vec2 } from './types';
@@ -69,7 +69,11 @@ export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: n
   const half = width / 2 / edgeLen;
   const id = uid();
   st().mutate((_, level) => {
-    level.openings.push({ id, roomId, edge, t: Math.min(1 - half, Math.max(half, t)), width, height: def.height, sill: def.sill, kind });
+    // la puerta se adapta al muro o cerco: su tipo sale del material y no rebasa la altura de un cerco
+    const room = level.rooms.find((r) => r.id === roomId);
+    const fence = isFence(room?.wallMaterial);
+    const height = kind === 'door' && fence ? Math.min(def.height, room?.wallHeight ?? FENCE_HEIGHT) : def.height;
+    level.openings.push({ id, roomId, edge, t: Math.min(1 - half, Math.max(half, t)), width, height, sill: def.sill, kind, ...(kind === 'door' ? { door: doorForWall(room?.wallMaterial, dock) } : {}) });
   });
   st().select({ kind: 'opening', id });
 }

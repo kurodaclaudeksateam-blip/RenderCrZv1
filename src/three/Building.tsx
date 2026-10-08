@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'reac
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { SLAB, computeWalls } from '../geometry';
-import type { Level, Room, Vec2 } from '../types';
-import { floorTexture } from './textures';
+import { Door } from './Doors';
+import type { Furniture, Level, Room, Vec2 } from '../types';
+import { floorTexture, wallTexture } from './textures';
 import { FurnitureModel } from './FurnitureModel';
 
 /** Prisma vertical a partir de un polígono del plano. */
@@ -79,6 +80,23 @@ function stagger(points: Vec2[], from: number, to: number, build?: BuildWindow) 
   return at;
 }
 
+/** Objeto de cerco equivalente a un tramo de muro de cerco entre a y b. */
+function fenceModel(a: Vec2, b: Vec2, h: number, color: string, mesh: boolean): Furniture {
+  return {
+    id: `fence-${a.x},${a.y},${b.x},${b.y}`,
+    type: mesh ? 'cerco_malla' : 'cerco',
+    name: '',
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+    rotation: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI,
+    w: Math.hypot(b.x - a.x, b.y - a.y),
+    d: 0.06,
+    h,
+    elevation: 0,
+    color,
+  };
+}
+
 function Floor({ room, y }: { room: Room; y: number }) {
   const geo = useDisposable(() => flat(room.points, y), [room.points, y]);
   const map = floorTexture(room.floor);
@@ -126,7 +144,10 @@ export function LevelMesh({
       walls.pieces.map((p) => ({
         geo: prism(p.quad, elevation + p.y0, elevation + p.y1),
         color: p.color,
-        glass: !!p.glass,
+        glass: !!p.glass || p.material === 'vidrio',
+        material: p.material,
+        // un tramo de cerco se dibuja con el modelo de cerco, orientado sobre su eje
+        fence: p.fence && fenceModel(p.fence.a, p.fence.b, p.y1 - p.y0, p.color, p.material === 'malla'),
         mid: centroid(p.quad),
       })),
     [walls, elevation],
@@ -141,6 +162,8 @@ export function LevelMesh({
   // las zonas pintadas van primero; después racks y equipos
   const furnAt = useMemo(() => stagger(level.furniture.map((f) => ({ x: f.type === 'zona' ? -1e4 + f.x : f.x, y: f.y })), 0.5, 0.94, build), [level.furniture, build]);
 
+  const doorAt = build ? build.at + build.span * 0.47 : 0;
+
   return (
     <group>
       {level.rooms.map((r, i) => (
@@ -151,15 +174,22 @@ export function LevelMesh({
       ))}
       {wallGeos.map((w, i) => (
         <Reveal key={i} clock={clock} at={wallAt[i]} dur={0.8} pivot={[0, elevation, 0]} mode="rise">
-          {w.glass ? (
+          {w.fence ? (
+            <FurnitureModel f={w.fence} baseY={elevation} />
+          ) : w.glass ? (
             <mesh geometry={w.geo}>
               <meshPhysicalMaterial color="#cfeaff" transparent opacity={0.28} roughness={0.05} metalness={0.1} depthWrite={false} />
             </mesh>
           ) : (
             <mesh geometry={w.geo} castShadow={!transparent} receiveShadow>
-              <meshStandardMaterial color={w.color} roughness={0.85} transparent={transparent} opacity={wallOpacity} depthWrite={!transparent} />
+              <meshStandardMaterial key={w.material} map={wallTexture(w.material)} color={w.color} metalness={w.material === 'lamina' ? 0.15 : 0} roughness={w.material === 'lamina' ? 0.5 : 0.85} transparent={transparent} opacity={wallOpacity} depthWrite={!transparent} />
             </mesh>
           )}
+        </Reveal>
+      ))}
+      {walls.doors.map((d) => (
+        <Reveal key={d.id} clock={clock} at={doorAt} dur={0.6} pivot={[d.a.x, elevation, d.a.y]} mode="pop">
+          <Door d={d} y={elevation} />
         </Reveal>
       ))}
       {/* techo propio del último nivel (losa de cubierta) cuando se recorre */}

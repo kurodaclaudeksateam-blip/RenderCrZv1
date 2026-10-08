@@ -541,7 +541,7 @@ export default function Editor2D() {
             {walls.pieces
               .filter((p) => p.y0 === 0 && !p.glass)
               .map((p, i) => (
-                <polygon key={i} data-kind="room" data-id={p.roomId} points={pts(p.quad)} fill="var(--wall)" stroke="var(--wall)" strokeWidth={k * 0.5} />
+                <polygon key={i} data-kind="room" data-id={p.roomId} points={pts(p.quad)} fill={p.fence ? 'none' : 'var(--wall)'} stroke="var(--wall)" strokeWidth={k * (p.fence ? 1.2 : 0.5)} strokeDasharray={p.fence ? `${3 * k} ${2 * k}` : undefined} />
               ))}
           </g>
 

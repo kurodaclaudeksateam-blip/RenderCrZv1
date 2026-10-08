@@ -8,6 +8,12 @@ export interface Vec2 {
 
 export type FloorMaterial = 'madera' | 'ceramica' | 'alfombra' | 'concreto' | 'marmol' | 'epoxi';
 
+/** Acabado de los muros; 'malla' y 'cerco' son cercos en vez de muro sólido. */
+export type WallMaterial = 'liso' | 'ladrillo' | 'block' | 'concreto' | 'lamina' | 'madera' | 'vidrio' | 'malla' | 'cerco';
+
+/** Tipo de puerta; sin tipo el vano queda abierto. */
+export type DoorStyle = 'madera' | 'vidrio' | 'metal' | 'malla';
+
 export interface Room {
   id: string;
   name: string;
@@ -16,6 +22,9 @@ export interface Room {
   floorColor: string;
   wallColor: string;
   hasWalls: boolean;
+  wallMaterial?: WallMaterial;
+  /** altura de los cercos (malla y barrotes); los muros llegan al techo */
+  wallHeight?: number;
 }
 
 export type OpeningKind = 'door' | 'window';
@@ -32,6 +41,7 @@ export interface Opening {
   /** altura del alféizar (solo ventanas) */
   sill: number;
   kind: OpeningKind;
+  door?: DoorStyle;
 }
 
 export type FurnitureType =

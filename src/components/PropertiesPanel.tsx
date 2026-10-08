@@ -1,9 +1,9 @@
 import { useCurrentLevel, useStore } from '../store';
 import { useState } from 'react';
 import { area, cellGrid, cellIndex, dist, fmt, levelHeights, perimeter } from '../geometry';
-import { CATALOG, FLOOR_MATERIALS } from '../catalog';
+import { CATALOG, DOOR_STYLES, FLOOR_MATERIALS, WALL_MATERIALS, isFence } from '../catalog';
 import { deleteSelection, duplicateSelection, rotateSelection, updateFurniture } from '../actions';
-import type { FloorMaterial, Furniture, Level, Opening, Project, Room } from '../types';
+import type { DoorStyle, FloorMaterial, Furniture, Level, Opening, Project, Room, WallMaterial } from '../types';
 
 /** Campo numérico que confirma con Enter o al salir. */
 function Num({ label, value, onChange, step = 0.05, min, max, unit = 'm' }: { label: string; value: number; onChange: (n: number) => void; step?: number; min?: number; max?: number; unit?: string }) {
@@ -321,6 +321,23 @@ function RoomProps({ r }: { r: Room }) {
           ))}
         </select>
       </label>
+      <label className="field">
+        <span>Material de muros</span>
+        <select
+          value={r.wallMaterial ?? 'liso'}
+          onChange={(e) => {
+            const m = WALL_MATERIALS.find((x) => x.id === e.target.value)!;
+            set({ wallMaterial: m.id as WallMaterial, wallColor: m.color });
+          }}
+        >
+          {WALL_MATERIALS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {isFence(r.wallMaterial) && <Num label="Altura del cerco" value={r.wallHeight ?? 2} min={0.5} max={12} onChange={(wallHeight) => set({ wallHeight })} />}
       <div className="grid2">
         <Color label="Color piso" value={r.floorColor} onChange={(floorColor) => set({ floorColor })} />
         <Color label="Color muros" value={r.wallColor} onChange={(wallColor) => set({ wallColor })} />
@@ -378,6 +395,19 @@ function OpeningProps({ o, level }: { o: Opening; level: Level }) {
         {o.kind === 'window' && <Num label="Alféizar" value={o.sill} min={0} max={level.height - 0.3} onChange={(sill) => set({ sill })} />}
         <Num label="Posición en muro" value={o.t * edgeLen} min={0} max={edgeLen} onChange={(s) => set({ t: s / edgeLen })} />
       </div>
+      {o.kind === 'door' && (
+        <label className="field">
+          <span>Tipo de puerta</span>
+          <select value={o.door ?? ''} onChange={(e) => set({ door: (e.target.value || undefined) as DoorStyle | undefined })}>
+            <option value="">Sin puerta (solo el vano)</option>
+            {DOOR_STYLES.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <p className="muted small">Muro de {fmt(edgeLen)} m en «{room?.name}». Arrastra el vano para deslizarlo por el muro.</p>
       <Actions duplicate={false} />
     </div>

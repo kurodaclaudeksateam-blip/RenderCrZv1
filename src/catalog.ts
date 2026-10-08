@@ -1,4 +1,4 @@
-import type { FloorMaterial, FurnitureType } from './types';
+import type { DoorStyle, FloorMaterial, FurnitureType, WallMaterial } from './types';
 
 export interface CatalogItem {
   type: FurnitureType;
@@ -100,6 +100,34 @@ export const CATALOG: CatalogItem[] = [
   { type: 'lampara', label: 'Lámpara pie', icon: '💡', category: 'Hogar', w: 0.4, d: 0.4, h: 1.6, color: '#f5deb3' },
   { type: 'escalera', label: 'Escalera', icon: '🪜', category: 'Oficina', w: 1.0, d: 3.2, h: 2.7, color: '#b08968' },
 ];
+
+export const WALL_MATERIALS: { id: WallMaterial; label: string; color: string }[] = [
+  { id: 'liso', label: 'Liso pintado', color: '#f5f5f4' },
+  { id: 'ladrillo', label: 'Ladrillo', color: '#b4533a' },
+  { id: 'block', label: 'Block de concreto', color: '#b8b8b4' },
+  { id: 'concreto', label: 'Concreto', color: '#a8a29e' },
+  { id: 'lamina', label: 'Lámina metálica', color: '#94a3b8' },
+  { id: 'madera', label: 'Madera', color: '#a47148' },
+  { id: 'vidrio', label: 'Vidrio', color: '#cfeaff' },
+  { id: 'malla', label: 'Cerco de malla metálica', color: '#cbd5e1' },
+  { id: 'cerco', label: 'Cerco de barrotes', color: '#f8fafc' },
+];
+
+export const isFence = (m?: WallMaterial) => m === 'malla' || m === 'cerco';
+
+export const DOOR_STYLES: { id: DoorStyle; label: string }[] = [
+  { id: 'madera', label: 'Madera' },
+  { id: 'vidrio', label: 'Vidrio' },
+  { id: 'metal', label: 'Metal' },
+  { id: 'malla', label: 'Malla' },
+];
+
+/** Puerta que corresponde al muro o cerco donde se coloca. */
+export function doorForWall(m: WallMaterial | undefined, dock: boolean): DoorStyle {
+  if (isFence(m)) return 'malla';
+  if (dock || m === 'lamina') return 'metal';
+  return m === 'vidrio' ? 'vidrio' : 'madera';
+}
 
 export const FLOOR_MATERIALS: { id: FloorMaterial; label: string; color: string }[] = [
   { id: 'madera', label: 'Madera', color: '#c49a6c' },

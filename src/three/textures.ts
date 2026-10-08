@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { FloorMaterial } from '../types';
+import type { FloorMaterial, WallMaterial } from '../types';
 
 // Texturas procedurales en escala de grises claros; el color del material las tiñe.
 
@@ -35,6 +35,97 @@ function noise(g: CanvasRenderingContext2D, s: number, amount: number, seed: num
     const v = Math.floor(r() * 80);
     g.fillStyle = `rgba(${v},${v},${v},${alpha * r()})`;
     g.fillRect(r() * s, r() * s, 1 + r() * 3, 1 + r() * 3);
+  }
+}
+
+/** Textura de muro (gris claro, la tiñe el color del muro); null para acabados sin textura. */
+export function wallTexture(kind: WallMaterial | undefined): THREE.Texture | null {
+  switch (kind) {
+    case 'ladrillo':
+      return make('w-ladrillo', 512, 1.2, (g, s) => {
+        const r = rand(11);
+        g.fillStyle = '#d9d9d9';
+        g.fillRect(0, 0, s, s);
+        const rows = 16;
+        const cols = 5;
+        const h = s / rows;
+        const w = s / cols;
+        for (let i = 0; i < rows; i++) {
+          for (let j = -1; j < cols; j++) {
+            const v = 205 + Math.floor(r() * 50);
+            g.fillStyle = `rgb(${v},${v},${v})`;
+            g.fillRect(j * w + (i % 2 ? w / 2 : 0) + 3, i * h + 3, w - 6, h - 6);
+          }
+        }
+        noise(g, s, 2500, 5);
+      });
+    case 'block':
+      return make('w-block', 512, 1.2, (g, s) => {
+        const r = rand(13);
+        g.fillStyle = '#9a9a9a';
+        g.fillRect(0, 0, s, s);
+        const rows = 6;
+        const cols = 3;
+        const h = s / rows;
+        const w = s / cols;
+        for (let i = 0; i < rows; i++) {
+          for (let j = -1; j < cols; j++) {
+            const v = 220 + Math.floor(r() * 30);
+            g.fillStyle = `rgb(${v},${v},${v})`;
+            g.fillRect(j * w + (i % 2 ? w / 2 : 0) + 3, i * h + 3, w - 6, h - 6);
+          }
+        }
+        noise(g, s, 5000, 9, 0.12);
+      });
+    case 'concreto':
+      return make('w-concreto', 512, 2.4, (g, s) => {
+        g.fillStyle = '#e6e6e6';
+        g.fillRect(0, 0, s, s);
+        noise(g, s, 9000, 21, 0.14);
+        g.strokeStyle = 'rgba(70,70,70,0.25)';
+        g.lineWidth = 2;
+        for (const k of [0, 0.5]) {
+          g.strokeRect(-2, k * s, s + 4, s / 2);
+          g.strokeRect(k * s, -2, s / 2, s + 4);
+        }
+      });
+    case 'lamina':
+      return make('w-lamina', 256, 0.9, (g, s) => {
+        const ribs = 6;
+        const w = s / ribs;
+        for (let i = 0; i < ribs; i++) {
+          const grad = g.createLinearGradient(i * w, 0, (i + 1) * w, 0);
+          grad.addColorStop(0, '#b5b5b5');
+          grad.addColorStop(0.35, '#ffffff');
+          grad.addColorStop(0.7, '#d0d0d0');
+          grad.addColorStop(1, '#8f8f8f');
+          g.fillStyle = grad;
+          g.fillRect(i * w, 0, w, s);
+        }
+      });
+    case 'madera':
+      return make('w-madera', 512, 1.2, (g, s) => {
+        const r = rand(17);
+        const planks = 8;
+        const w = s / planks;
+        for (let i = 0; i < planks; i++) {
+          const v = 205 + Math.floor(r() * 45);
+          g.fillStyle = `rgb(${v},${v},${v})`;
+          g.fillRect(i * w, 0, w, s);
+          g.fillStyle = 'rgba(60,60,60,0.35)';
+          g.fillRect(i * w, 0, 2, s);
+          for (let k = 0; k < 6; k++) {
+            g.strokeStyle = `rgba(90,90,90,${0.05 + r() * 0.08})`;
+            g.beginPath();
+            const x = i * w + r() * w;
+            g.moveTo(x, 0);
+            g.lineTo(x + (r() - 0.5) * 6, s);
+            g.stroke();
+          }
+        }
+      });
+    default:
+      return null;
   }
 }
 

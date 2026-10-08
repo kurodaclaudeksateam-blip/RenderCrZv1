@@ -8,8 +8,8 @@ import { uid } from './geometry';
 const mm = (n: number) => Math.round(n * 1000) / 1000;
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
 
-type RoomT = [string, number[], string, string, string, number];
-type OpeningT = [number, number, number, number, number, number, number];
+type RoomT = [string, number[], string, string, string, number, (string | 0)?, number?];
+type OpeningT = [number, number, number, number, number, number, number, string?];
 type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?, number?];
 type LevelT = [string, number, RoomT[], OpeningT[], FurnT[]];
 type ProjectT = [1, string, number, number, number, LevelT[], string[]?];
@@ -27,10 +27,10 @@ function pack(p: Project): ProjectT {
       return [
         l.name,
         mm(l.height),
-        l.rooms.map((r): RoomT => [r.name, r.points.flatMap((q) => [mm(q.x), mm(q.y)]), r.floor, r.floorColor, r.wallColor, r.hasWalls ? 1 : 0]),
+        l.rooms.map((r): RoomT => [r.name, r.points.flatMap((q) => [mm(q.x), mm(q.y)]), r.floor, r.floorColor, r.wallColor, r.hasWalls ? 1 : 0, ...(r.wallMaterial && r.wallMaterial !== 'liso' ? [r.wallMaterial, mm(r.wallHeight ?? 0)] : [])] as RoomT),
         l.openings
           .filter((o) => roomIndex.has(o.roomId))
-          .map((o): OpeningT => [roomIndex.get(o.roomId)!, o.edge, r4(o.t), mm(o.width), mm(o.height), mm(o.sill), o.kind === 'window' ? 1 : 0]),
+          .map((o): OpeningT => [roomIndex.get(o.roomId)!, o.edge, r4(o.t), mm(o.width), mm(o.height), mm(o.sill), o.kind === 'window' ? 1 : 0, ...(o.door ? [o.door] : [])] as OpeningT),
         l.furniture.map((f): FurnT => {
           const t: FurnT = [f.type, f.name, mm(f.x), mm(f.y), mm(f.rotation), mm(f.w), mm(f.d), mm(f.h), mm(f.elevation), f.color, f.label || 0, f.shelves ?? 0, f.empty ? 1 : 0, f.cols ?? 0, f.rows ?? 0, f.cells?.some(Boolean) ? f.cells.join(',') : 0, imageRef(f.image)];
           while (t.length > 10 && !t[t.length - 1]) t.pop();
@@ -53,7 +53,7 @@ function unpack(t: ProjectT, id: string): Project {
       const rooms = l[2].map((r): Room => {
         const points = [];
         for (let i = 0; i + 1 < r[1].length; i += 2) points.push({ x: r[1][i], y: r[1][i + 1] });
-        return { id: uid(), name: r[0], points, floor: r[2] as Room['floor'], floorColor: r[3], wallColor: r[4], hasWalls: !!r[5] };
+        return { id: uid(), name: r[0], points, floor: r[2] as Room['floor'], floorColor: r[3], wallColor: r[4], hasWalls: !!r[5], ...(r[6] ? { wallMaterial: r[6] as Room['wallMaterial'] } : {}), ...(r[7] ? { wallHeight: r[7] } : {}) };
       });
       return {
         id: uid(),
@@ -62,7 +62,7 @@ function unpack(t: ProjectT, id: string): Project {
         rooms,
         openings: l[3]
           .filter((o) => rooms[o[0]])
-          .map((o): Opening => ({ id: uid(), roomId: rooms[o[0]].id, edge: o[1], t: o[2], width: o[3], height: o[4], sill: o[5], kind: o[6] ? 'window' : 'door' })),
+          .map((o): Opening => ({ id: uid(), roomId: rooms[o[0]].id, edge: o[1], t: o[2], width: o[3], height: o[4], sill: o[5], kind: o[6] ? 'window' : 'door', ...(o[7] ? { door: o[7] as Opening['door'] } : {}) })),
         furniture: l[4].map(
           (f): Furniture => ({
             id: uid(),

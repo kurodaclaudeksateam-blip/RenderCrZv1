@@ -1,4 +1,4 @@
-import type { Level, Opening, Room, Vec2 } from './types';
+import type { Level, Opening, Room, Vec2, DoorStyle, WallMaterial } from './types';
 
 export const v = (x: number, y: number): Vec2 => ({ x, y });
 export const add = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x + b.x, y: a.y + b.y });
@@ -162,7 +162,25 @@ export interface WallPiece {
   glass?: boolean;
   color: string;
   roomId: string;
+  material?: WallMaterial;
+  /** tramo de cerco: eje del tramo, para dibujarlo como malla o barrotes */
+  fence?: { a: Vec2; b: Vec2 };
 }
+
+/** Puerta colocada en su vano: jambas a y b sobre el eje del muro. */
+export interface DoorPlacement {
+  id: string;
+  a: Vec2;
+  b: Vec2;
+  inward: Vec2;
+  height: number;
+  depth: number;
+  style: DoorStyle;
+  fence: boolean;
+}
+
+/** Altura de un cerco cuando el ambiente no indica otra. */
+export const FENCE_HEIGHT = 2;
 
 export interface WallSegment {
   a: Vec2;
@@ -199,6 +217,8 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
   const H = height;
   const pieces: WallPiece[] = [];
   const segments: WallSegment[] = [];
+  const doors: DoorPlacement[] = [];
+  const fenced = (r?: Room) => r?.wallMaterial === 'malla' || r?.wallMaterial === 'cerco';
   const ops = level.openings
     .map((o) => openingWorld(o, level.rooms))
     .filter((o): o is OpeningWorld => !!o);
@@ -209,6 +229,9 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
     const n = pts.length;
     const ccw = signedArea(pts) > 0;
     const inner = insetPolygon(pts, thickness);
+    const material = room.wallMaterial ?? 'liso';
+    const fence = fenced(room);
+    const fenceH = Math.min(H, room.wallHeight || FENCE_HEIGHT);
 
     for (let i = 0; i < n; i++) {
       const a = pts[i];
@@ -229,7 +252,17 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
       };
       const solid = (s0: number, s1: number, y0: number, y1: number) => {
         if (s1 - s0 < 1e-4 || y1 - y0 < 1e-4) return;
-        pieces.push({ quad: quad(s0, s1), y0, y1, color: room.wallColor, roomId: room.id });
+        if (fence) {
+          // un cerco no lleva dintel sobre la puerta: solo tramos desde el piso
+          if (y0 > 0) return;
+          const q = quad(s0, s1, 0.3, 0.7);
+          const a = lerp(q[0], q[3], 0.5);
+          const b = lerp(q[1], q[2], 0.5);
+          pieces.push({ quad: q, y0: 0, y1: fenceH, color: room.wallColor, roomId: room.id, material, fence: { a, b } });
+          segments.push({ a, b, half: 0.04 });
+          return;
+        }
+        pieces.push({ quad: material === 'vidrio' ? quad(s0, s1, 0.35, 0.65) : quad(s0, s1), y0, y1, color: room.wallColor, roomId: room.id, material });
         if (y0 < 1.2 && y1 > 0.3) {
           const q = quad(s0, s1);
           segments.push({ a: lerp(q[0], q[3], 0.5), b: lerp(q[1], q[2], 0.5), half: thickness / 2 });
@@ -257,6 +290,8 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
         const o = g.o;
         if (o.kind === 'door') {
           solid(g.s0, g.s1, Math.min(o.height, H - 0.05), H);
+        } else if (fence) {
+          solid(g.s0, g.s1, 0, H);
         } else {
           const top = Math.min(o.sill + o.height, H - 0.05);
           solid(g.s0, g.s1, 0, o.sill);
@@ -271,7 +306,26 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
       solid(cursor, L, 0, H);
     }
   }
-  return { pieces, segments };
+
+  for (const o of ops) {
+    if (o.kind !== 'door' || !o.door) continue;
+    const room = level.rooms.find((r) => r.id === o.roomId);
+    if (!room) continue;
+    const fence = fenced(room);
+    const inward = inwardNormal(o.dir, signedArea(room.points) > 0);
+    const c = add(o.center, mul(inward, thickness / 2));
+    doors.push({
+      id: o.id,
+      a: add(c, mul(o.dir, -o.width / 2)),
+      b: add(c, mul(o.dir, o.width / 2)),
+      inward,
+      height: Math.min(o.height, fence ? Math.min(H, room.wallHeight || FENCE_HEIGHT) : H - 0.05),
+      depth: thickness,
+      style: o.door,
+      fence,
+    });
+  }
+  return { pieces, segments, doors };
 }
 
 /** Busca la arista más cercana entre los ambientes de un nivel. */
