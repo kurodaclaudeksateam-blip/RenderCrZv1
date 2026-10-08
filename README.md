@@ -34,7 +34,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - **Recorrido virtual**: primera persona con WASD/flechas y mouse (pointer lock), con colisión contra muros, racks y equipos, cambio de nivel y controles táctiles.
   - Racks con largueros y pallets cargados, letreros con texto, zonas pintadas en el piso, montacargas y equipos 3D paramétricos.
   - Pisos con texturas procedurales (epóxico industrial, concreto, cerámica, madera, alfombra, mármol).
-- **Ejemplo incluido**: centro de distribución con nave irregular, 4 andenes, racks, picking, cuarentena, oficinas y mezzanine.
+- **Ejemplo incluido**: centro de distribución con 4 secciones de distinto tipo de pared (almacenaje, picking y empaque, recepción y despacho, oficinas y servicios), patio con jaula de malla y mezzanine. Usa los 56 tipos de objeto del catálogo y las cuatro clases de puerta.
 
 ## Desarrollo
 
