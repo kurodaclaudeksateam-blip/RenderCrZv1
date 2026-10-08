@@ -9,6 +9,7 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_up1bYZ
 const SESSION_KEY = 'rendercrz:token';
 
 export class SessionExpired extends Error {}
+export class ProjectTooLarge extends Error {}
 
 /** Llama a una función de Supabase (PostgREST RPC). */
 export async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {

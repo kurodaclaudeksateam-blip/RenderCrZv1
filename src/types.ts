@@ -53,6 +53,8 @@ export type FurnitureType =
   | 'rack_custom'
   | 'tarima_custom'
   | 'cerco'
+  | 'anuncio_torre'
+  | 'anuncio_cuadro'
   | 'escalera_metal'
   // señalización y zonas
   | 'letrero'
@@ -118,6 +120,8 @@ export interface Furniture {
   rows?: number;
   /** color de la caja de cada posición ('' = vacía); ver cellIndex */
   cells?: string[];
+  /** imagen del anuncio (data URL ya reducida) */
+  image?: string;
 }
 
 export interface Level {

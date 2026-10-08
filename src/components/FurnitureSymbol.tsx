@@ -88,6 +88,16 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
         </g>
       );
     }
+    case 'anuncio_torre':
+    case 'anuncio_cuadro':
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={Math.max(d, 0.1)} fill={color} stroke={line} strokeWidth={sw} />
+          {[y0, y0 + Math.max(d, 0.1)].map((y) => (
+            <line key={y} x1={x0 + 0.05} x2={-x0 - 0.05} y1={y} y2={y} stroke="#38bdf8" strokeWidth={sw * 2.5} />
+          ))}
+        </g>
+      );
     case 'cerco': {
       const posts = Math.max(1, Math.round(w / 2.4));
       const t = Math.max(d, 0.08);

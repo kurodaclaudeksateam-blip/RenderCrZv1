@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { cloudInfo, shareProject } from '../cloud';
+import { ProjectTooLarge } from '../auth';
 import { useStore } from '../store';
 import type { Project } from '../types';
 
 /** Sube el proyecto y muestra su liga pública de solo lectura. */
 export function ShareDialog({ project, onClose }: { project: Project; onClose: () => void }) {
   const [url, setUrl] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState('');
   const notify = useStore((s) => s.notify);
   const bytes = cloudInfo()[project.id]?.bytes;
 
@@ -16,7 +17,7 @@ export function ShareDialog({ project, onClose }: { project: Project; onClose: (
     const current = useStore.getState().project;
     shareProject(current?.id === project.id ? current : project)
       .then((u) => alive && setUrl(u))
-      .catch(() => alive && setError(true));
+      .catch((e) => alive && setError(e instanceof ProjectTooLarge ? 'El proyecto supera 600 KB: quita o reduce imágenes de anuncios y vuelve a intentarlo.' : 'No se pudo subir el proyecto a la nube. Revisa tu conexión e inténtalo de nuevo.'));
     return () => {
       alive = false;
     };
@@ -36,7 +37,7 @@ export function ShareDialog({ project, onClose }: { project: Project; onClose: (
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h2>Compartir “{project.name}”</h2>
         {error ? (
-          <p className="danger-text">No se pudo subir el proyecto a la nube. Revisa tu conexión e inténtalo de nuevo.</p>
+          <p className="danger-text">{error}</p>
         ) : !url ? (
           <p className="muted">
             <span className="spinner inline-spinner" /> Guardando en la nube…

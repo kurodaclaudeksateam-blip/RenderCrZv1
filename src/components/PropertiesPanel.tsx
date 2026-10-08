@@ -71,7 +71,66 @@ export default function PropertiesPanel() {
   return <ProjectProps project={project} level={level} />;
 }
 
-const TEXT_TYPES = new Set(['letrero', 'letrero_pie', 'zona']);
+const TEXT_TYPES = new Set(['letrero', 'letrero_pie', 'zona', 'anuncio_torre', 'anuncio_cuadro']);
+const AD_TYPES = new Set(['anuncio_torre', 'anuncio_cuadro']);
+const AD_MAX_SIDE = 640;
+
+/** Reduce la imagen elegida y la devuelve como JPEG en data URL, para que el proyecto pese poco. */
+function shrinkImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const k = Math.min(1, AD_MAX_SIDE / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k));
+      c.height = Math.max(1, Math.round(img.height * k));
+      const g = c.getContext('2d')!;
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Imagen inválida'));
+    };
+    img.src = url;
+  });
+}
+
+/** Imagen que rellena el anuncio; sin imagen se muestra el texto. */
+function AdImage({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) => void }) {
+  const notify = useStore((s) => s.notify);
+  const pick = async (file?: File) => {
+    if (!file) return;
+    try {
+      set({ image: await shrinkImage(file) });
+    } catch {
+      notify('⚠️ No se pudo leer la imagen');
+    }
+  };
+  return (
+    <div className="ad-image">
+      {f.image && <img src={f.image} alt="Imagen del anuncio" />}
+      <div className="row wrap">
+        <label className="secondary small file-button">
+          🖼️ {f.image ? 'Cambiar imagen' : 'Subir imagen'}
+          <input type="file" accept="image/*" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+        </label>
+        {f.image && (
+          <button className="secondary small" onClick={() => set({ image: undefined })}>
+            Quitar imagen
+          </button>
+        )}
+      </div>
+      <p className="muted small">
+        {f.image ? `La imagen rellena el anuncio por ambas caras · ${(f.image.length / 1024).toFixed(0)} KB.` : 'Sin imagen se muestra el texto. La imagen se ajusta al tamaño del anuncio y se reduce para que el proyecto pese poco.'}
+      </p>
+    </div>
+  );
+}
 const SHELF_TYPES = new Set(['rack', 'estanteria_metal', 'cantilever']);
 const CELL_TYPES = new Set(['rack_custom', 'tarima_custom']);
 const BOX_COLORS = ['#c69c6d', '#ef4444', '#f59e0b', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6', '#f8fafc', '#334155'];
@@ -185,6 +244,7 @@ function FurnitureProps({ f }: { f: Furniture }) {
       </h2>
       <Text label="Nombre" value={f.name} onChange={(name) => set({ name })} />
       {TEXT_TYPES.has(f.type) && <Text label="Texto del letrero / zona" value={f.label ?? ''} onChange={(label) => set({ label: label.toUpperCase() })} />}
+      {AD_TYPES.has(f.type) && <AdImage f={f} set={set} />}
       {SHELF_TYPES.has(f.type) && (
         <Num label="Niveles de carga" value={f.shelves ?? 4} step={1} min={1} max={12} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />
       )}

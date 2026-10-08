@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import type { Furniture } from '../types';
 import { cellGrid, cellIndex } from '../geometry';
-import { textTexture } from './textures';
+import { imageTexture, textTexture } from './textures';
 
 type V3 = [number, number, number];
 
@@ -110,6 +110,9 @@ function Model({ f }: { f: Furniture }) {
       return <MetalStairs f={f} />;
     case 'cerco':
       return <Fence f={f} />;
+    case 'anuncio_torre':
+    case 'anuncio_cuadro':
+      return <LedAd f={f} />;
     case 'estanteria_metal':
       return <MetalShelf f={f} />;
     case 'cantilever':
@@ -851,6 +854,41 @@ function MetalStairs({ f }: { f: Furniture }) {
             const t = i / (postCount - 1);
             return <Bx key={i} x={x} z={d / 2 - d * t} w={0.045} h={1} d={0.045} y0={h * t} c={color} metal={0.5} rough={0.4} />;
           })}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/** Cara luminosa de un anuncio: la imagen subida o, si no hay, su texto. */
+function LedFace({ f, w, h, y, z, back }: { f: Furniture; w: number; h: number; y: number; z: number; back?: boolean }) {
+  const map = f.image ? imageTexture(f.image) : textTexture(f.label || 'TU ANUNCIO', '#ffffff', '#1d4ed8', w / h);
+  return (
+    <mesh position={[0, y, z]} rotation={[0, back ? Math.PI : 0, 0]}>
+      <planeGeometry args={[w, h]} />
+      <meshStandardMaterial map={map} emissiveMap={map} emissive="#ffffff" emissiveIntensity={0.9} roughness={0.4} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/** Torre de anuncio (tótem) o cuadro con luz LED; el anuncio se ve por ambas caras. */
+function LedAd({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const tower = f.type === 'anuncio_torre';
+  const base = tower ? Math.min(0.3, h * 0.08) : 0;
+  const m = Math.min(0.1, w * 0.06);
+  const pw = w - m * 2;
+  const ph = h - base - m * 2;
+  const py = base + m + ph / 2;
+  return (
+    <group>
+      {tower && <Bx w={w + 0.2} h={base} d={d + 0.2} c="#374151" rough={0.9} />}
+      <Bx w={w} h={h - base} d={d} y0={base} c={color} metal={0.4} rough={0.5} />
+      {[1, -1].map((s) => (
+        <group key={s}>
+          {/* marco de luz LED alrededor del anuncio */}
+          <B p={[0, py, s * (d / 2 + 0.001)]} s={[pw + 0.05, ph + 0.05, 0.004]} c="#ffffff" emissive="#e0f2fe" />
+          <LedFace f={f} w={pw} h={ph} y={py} z={s * (d / 2 + 0.006)} back={s < 0} />
         </group>
       ))}
     </group>

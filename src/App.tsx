@@ -4,7 +4,7 @@ import HomeScreen from './components/HomeScreen';
 import EditorScreen from './components/EditorScreen';
 import Intro from './components/Intro';
 import Login from './components/Login';
-import { SessionExpired, isAuthenticated, logout } from './auth';
+import { ProjectTooLarge, SessionExpired, isAuthenticated, logout } from './auth';
 import { setCloudErrorHandler } from './cloud';
 
 const Viewer3D = lazy(() => import('./three/Viewer3D'));
@@ -44,6 +44,8 @@ export default function App() {
         logout();
         useStore.getState().closeProject();
         setStage('login');
+      } else if (e instanceof ProjectTooLarge) {
+        useStore.getState().notify('⚠️ El proyecto supera 600 KB y no se subió a la nube: quita o reduce imágenes de anuncios');
       } else {
         useStore.getState().notify('⚠️ Sin conexión con la nube: el proyecto quedó guardado solo en este navegador');
       }

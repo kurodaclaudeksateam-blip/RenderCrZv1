@@ -148,6 +148,18 @@ export function grassTexture() {
 }
 
 /** Textura con texto centrado para letreros y rótulos de piso. */
+/** Textura de la imagen subida a un anuncio. */
+export function imageTexture(src: string) {
+  const key = `img:${src}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const t = new THREE.TextureLoader().load(src);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  cache.set(key, t);
+  return t;
+}
+
 export function textTexture(text: string, fg: string, bg: string | null, aspect: number) {
   const key = `txt:${text}|${fg}|${bg}|${aspect.toFixed(2)}`;
   const hit = cache.get(key);

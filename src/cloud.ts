@@ -1,13 +1,15 @@
 // Proyectos en Supabase (tabla crz_proyectos). localStorage queda como copia local
 // inmediata; aquí se sincroniza con la nube y se obtienen las ligas para compartir.
 
-import { rpc, sessionToken } from './auth';
+import { ProjectTooLarge, rpc, sessionToken } from './auth';
 import { decodeProject, encodeProject } from './codec';
 import { deleteProject, listProjects, loadProject, metaOf, saveProject } from './storage';
 import type { Project } from './types';
 
 const CLOUD_KEY = 'rendercrz:cloud';
 const SAVE_DELAY = 2000;
+/** Límite por proyecto de la tabla crz_proyectos. */
+const MAX_BYTES = 600000;
 
 /** Lo que se sabe de cada proyecto ya subido: liga y peso en la nube. */
 export interface CloudInfo {
@@ -49,6 +51,7 @@ export function shareUrl(share: string) {
 
 async function upload(p: Project): Promise<CloudInfo> {
   const datos = await encodeProject(p);
+  if (datos.length > MAX_BYTES) throw new ProjectTooLarge('Proyecto demasiado grande');
   const share = await rpc<string>('crz_guardar_proyecto', {
     p_token: sessionToken(),
     p_id: p.id,
@@ -105,16 +108,17 @@ export async function removeProject(id: string) {
 
 /** Iguala este navegador con la nube: baja lo más reciente y sube lo que falta. */
 export async function syncProjects(): Promise<void> {
-  const rows = await rpc<CloudRow[]>('crz_listar_proyectos', { p_token: sessionToken() });
+  // el estado local se toma antes de consultar: lo que se cree mientras tanto no se toca
   const known = readInfo();
+  const local = new Map(listProjects().map((m) => [m.id, m]));
+  const rows = await rpc<CloudRow[]>('crz_listar_proyectos', { p_token: sessionToken() });
   const info: Record<string, CloudInfo> = {};
   const remote = new Map(rows.map((r) => [r.id, r]));
-  const local = new Map(listProjects().map((m) => [m.id, m]));
 
   for (const r of rows) {
     info[r.id] = { share: r.share_id, bytes: r.bytes };
     const m = local.get(r.id);
-    if (!m || r.cliente_ms > m.updatedAt) {
+    if (!pending.has(r.id) && (!m || r.cliente_ms > m.updatedAt)) {
       const datos = await rpc<string | null>('crz_obtener_proyecto', { p_token: sessionToken(), p_id: r.id });
       if (datos) saveProject(await decodeProject(datos, r.id));
     }
@@ -131,7 +135,8 @@ export async function syncProjects(): Promise<void> {
     const p = loadProject(m.id);
     if (p) info[m.id] = await upload(p);
   }
-  writeInfo({ ...Object.fromEntries(Object.entries(readInfo()).filter(([id]) => pending.has(id))), ...info });
+  // se conserva lo subido durante la sincronización
+  writeInfo({ ...Object.fromEntries(Object.entries(readInfo()).filter(([id]) => !known[id] && !remote.has(id))), ...info });
 }
 
 export interface SharedProject {

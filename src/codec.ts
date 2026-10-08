@@ -10,18 +10,19 @@ const r4 = (n: number) => Math.round(n * 10000) / 10000;
 
 type RoomT = [string, number[], string, string, string, number];
 type OpeningT = [number, number, number, number, number, number, number];
-type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?];
+type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?, number?];
 type LevelT = [string, number, RoomT[], OpeningT[], FurnT[]];
-type ProjectT = [1, string, number, number, number, LevelT[]];
+type ProjectT = [1, string, number, number, number, LevelT[], string[]?];
 
 function pack(p: Project): ProjectT {
-  return [
-    1,
-    p.name,
-    mm(p.wallThickness),
-    p.createdAt,
-    p.updatedAt,
-    p.levels.map((l): LevelT => {
+  // cada imagen se guarda una sola vez aunque la usen varios anuncios
+  const images: string[] = [];
+  const imageRef = (src?: string) => {
+    if (!src) return 0;
+    const i = images.indexOf(src);
+    return i >= 0 ? i + 1 : images.push(src);
+  };
+  const levels = p.levels.map((l): LevelT => {
       const roomIndex = new Map(l.rooms.map((r, i) => [r.id, i]));
       return [
         l.name,
@@ -31,13 +32,13 @@ function pack(p: Project): ProjectT {
           .filter((o) => roomIndex.has(o.roomId))
           .map((o): OpeningT => [roomIndex.get(o.roomId)!, o.edge, r4(o.t), mm(o.width), mm(o.height), mm(o.sill), o.kind === 'window' ? 1 : 0]),
         l.furniture.map((f): FurnT => {
-          const t: FurnT = [f.type, f.name, mm(f.x), mm(f.y), mm(f.rotation), mm(f.w), mm(f.d), mm(f.h), mm(f.elevation), f.color, f.label || 0, f.shelves ?? 0, f.empty ? 1 : 0, f.cols ?? 0, f.rows ?? 0, f.cells?.some(Boolean) ? f.cells.join(',') : 0];
+          const t: FurnT = [f.type, f.name, mm(f.x), mm(f.y), mm(f.rotation), mm(f.w), mm(f.d), mm(f.h), mm(f.elevation), f.color, f.label || 0, f.shelves ?? 0, f.empty ? 1 : 0, f.cols ?? 0, f.rows ?? 0, f.cells?.some(Boolean) ? f.cells.join(',') : 0, imageRef(f.image)];
           while (t.length > 10 && !t[t.length - 1]) t.pop();
           return t;
         }),
       ];
-    }),
-  ];
+  });
+  return [1, p.name, mm(p.wallThickness), p.createdAt, p.updatedAt, levels, ...(images.length ? [images] : [])] as ProjectT;
 }
 
 function unpack(t: ProjectT, id: string): Project {
@@ -81,6 +82,7 @@ function unpack(t: ProjectT, id: string): Project {
             ...(f[13] ? { cols: f[13] } : {}),
             ...(f[14] ? { rows: f[14] } : {}),
             ...(f[15] ? { cells: f[15].split(',') } : {}),
+            ...(f[16] && t[6]?.[f[16] - 1] ? { image: t[6][f[16] - 1] } : {}),
           }),
         ),
       };

@@ -19,6 +19,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
     - **Carga**: pallets vacíos, pallets con carga, cajas, bultos.
     - **Equipos**: rampa de descarga curva, escalera metálica, montacargas, transpaleta, banda transportadora, mesa de embalaje, báscula.
     - **Señalización**: letreros colgantes y de pie con texto editable (pasillos, andenes, salidas).
+    - **Anuncios**: torres de anuncio y cuadros con luz LED (rectangulares o cuadrados). Se les puede **subir una imagen** que rellena el letrero por ambas caras; sin imagen muestran su texto.
     - **Zonas** de piso rotuladas: recepción, despacho, picking, cuarentena, devoluciones, pasillo peatonal.
     - **Seguridad**: extintores, conos, bolardos, cerco metálico blanco, malla divisoria, columnas.
     - También oficina, servicios y mobiliario residencial.
@@ -56,7 +57,7 @@ Opcionalmente se pueden definir `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` (llave
 
 Los proyectos viven en la tabla `public.crz_proyectos` del mismo proyecto Supabase (script en `supabase/crz_proyectos.sql`). Igual que `crz_acceso`, la tabla no es legible desde la API: la app usa funciones `crz_*`. Al iniciar sesión, `crz_iniciar_sesion` devuelve un token (12 h) que autoriza listar, guardar y eliminar; `crz_proyecto_compartido(share_id)` es la única función pública y solo lee el proyecto de esa liga.
 
-**Peso**: cada proyecto se guarda en formato compacto (`src/codec.ts`): tuplas en vez de objetos, medidas redondeadas al milímetro, sin ids internos y comprimido con deflate. El almacén de ejemplo (84 objetos, 2 niveles) pasa de 16.3 KB en JSON a **2.4 KB**; la casa de ejemplo, de 7.9 KB a 1.5 KB. El límite por proyecto es de 600 KB.
+**Peso**: cada proyecto se guarda en formato compacto (`src/codec.ts`): tuplas en vez de objetos, medidas redondeadas al milímetro, sin ids internos y comprimido con deflate. El almacén de ejemplo (84 objetos, 2 niveles) pasa de 16.3 KB en JSON a **2.4 KB**; la casa de ejemplo, de 7.9 KB a 1.5 KB. Las imágenes de anuncios se reducen a 640 px en JPEG (unos 30–70 KB cada una) y se guardan una sola vez aunque varios anuncios usen la misma. El límite por proyecto es de 600 KB.
 
 ## Despliegue en Vercel
 

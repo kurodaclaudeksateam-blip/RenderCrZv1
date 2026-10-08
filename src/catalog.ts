@@ -17,7 +17,7 @@ export interface CatalogItem {
   rows?: number;
 }
 
-export const CATEGORIES = ['Almacenaje', 'Carga', 'Equipos', 'Señalización', 'Zonas', 'Seguridad', 'Oficina', 'Servicios', 'Hogar'];
+export const CATEGORIES = ['Almacenaje', 'Carga', 'Equipos', 'Señalización', 'Anuncios', 'Zonas', 'Seguridad', 'Oficina', 'Servicios', 'Hogar'];
 
 export const CATALOG: CatalogItem[] = [
   // --- Almacenaje
@@ -43,6 +43,11 @@ export const CATALOG: CatalogItem[] = [
   { type: 'banda', label: 'Banda transportadora', icon: '➖', category: 'Equipos', w: 4.0, d: 0.8, h: 0.85, color: '#334155' },
   { type: 'mesa_embalaje', label: 'Mesa de embalaje', icon: '🧰', category: 'Equipos', w: 1.8, d: 0.9, h: 0.9, color: '#a3a3a3' },
   { type: 'bascula', label: 'Báscula de piso', icon: '⚖️', category: 'Equipos', w: 1.5, d: 1.5, h: 0.1, color: '#475569' },
+  // --- Anuncios
+  { type: 'anuncio_torre', label: 'Torre de anuncio', icon: '🗼', category: 'Anuncios', w: 1.6, d: 0.4, h: 5.0, color: '#111827', text: 'TU ANUNCIO' },
+  { type: 'anuncio_torre', label: 'Torre de anuncio alta', icon: '🗼', category: 'Anuncios', w: 2.2, d: 0.5, h: 8.0, color: '#111827', text: 'TU ANUNCIO' },
+  { type: 'anuncio_cuadro', label: 'Cuadro LED rectangular', icon: '🖼️', category: 'Anuncios', w: 2.4, d: 0.12, h: 1.4, color: '#111827', elevation: 1.6, text: 'TU ANUNCIO' },
+  { type: 'anuncio_cuadro', label: 'Cuadro LED cuadrado', icon: '🖼️', category: 'Anuncios', w: 1.5, d: 0.12, h: 1.5, color: '#111827', elevation: 1.6, text: 'TU ANUNCIO' },
   // --- Señalización
   { type: 'letrero', label: 'Letrero colgante', icon: '🪧', category: 'Señalización', w: 1.8, d: 0.05, h: 0.6, color: '#1d4ed8', elevation: 4.0, text: 'PASILLO A' },
   { type: 'letrero', label: 'Letrero salida', icon: '🚪', category: 'Señalización', w: 1.0, d: 0.05, h: 0.35, color: '#16a34a', elevation: 2.4, text: 'SALIDA' },
