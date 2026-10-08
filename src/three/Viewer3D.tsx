@@ -7,6 +7,7 @@ import { area, bounds, computeWalls, interiorPoint, levelElevations, levelHeight
 import { LevelMesh, type BuildClock } from './Building';
 import type { Project, Vec2 } from '../types';
 import { EditPanel, type Pick } from './EditPanel';
+import { moveOpeningTo } from '../actions';
 import { WalkControls, walkInput } from './WalkControls';
 import { grassTexture } from './textures';
 
@@ -162,7 +163,21 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const [xray, setXray] = useState(false);
   const [editing, setEditing] = useState(false);
   const [pick, setPick] = useState<Pick | null>(null);
-  const onPick = useCallback((kind: Pick['kind'], id: string) => setPick({ kind, id }), []);
+  const [moving, setMoving] = useState<string | null>(null);
+  const movingRef = useRef<string | null>(null);
+  movingRef.current = moving;
+  const onPick = useCallback((kind: Pick['kind'], id: string, point: Vec2) => {
+    const door = movingRef.current;
+    // con «mover» activo, el siguiente toque sobre una pared o cerco reubica la puerta
+    if (door && kind === 'room') {
+      if (moveOpeningTo(door, id, point)) setPick({ kind: 'opening', id: door, point });
+      else useStore.getState().notify('La puerta solo se puede mover a una pared del mismo nivel');
+      setMoving(null);
+      return;
+    }
+    if (door) return;
+    setPick({ kind, id, point });
+  }, []);
   const [collisions, setCollisions] = useState(true);
   const [locked, setLocked] = useState(false);
   const [ready, setReady] = useState(false);
@@ -380,7 +395,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
             <label className="inline check">
               <input type="checkbox" checked={xray} onChange={(e) => setXray(e.target.checked)} /> Rayos X
             </label>
-            <button className={editing ? 'primary' : 'secondary'} onClick={() => { setEditing(!editing); setPick(null); }} title="Toca una puerta, pared, cerco u objeto para editarlo">
+            <button className={editing ? 'primary' : 'secondary'} onClick={() => { setEditing(!editing); setPick(null); setMoving(null); }} title="Toca una puerta, pared, cerco u objeto para editarlo">
               ✏️ <span className="hide-sm">Editar en 3D</span>
             </button>
           </>
@@ -409,7 +424,18 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
         </button>
       </header>
 
-      {editing && mode === 'orbit' && !shared && (pick ? <EditPanel project={project} pick={pick} onClose={() => setPick(null)} /> : <div className="edit3d hint">Toca una puerta, una pared, un cerco o un objeto para editarlo.</div>)}
+      {editing && mode === 'orbit' && !shared && (moving ? (
+        <div className="edit3d hint">
+          Toca el punto de la pared o cerco donde va la puerta.
+          <button className="secondary small" onClick={() => setMoving(null)}>
+            Cancelar
+          </button>
+        </div>
+      ) : pick ? (
+        <EditPanel project={project} pick={pick} onPick={setPick} onMove={setMoving} onClose={() => setPick(null)} />
+      ) : (
+        <div className="edit3d hint">Toca una pared o cerco para agregarle una puerta, o una puerta u objeto para editarlo o moverlo.</div>
+      ))}
 
       {!ready && !empty && !shared && <div className="viewer-loading"><span className="spinner" /> Construyendo la escena 3D…</div>}
 

@@ -132,7 +132,7 @@ export function LevelMesh({
   /** altura real del nivel (ver levelHeights) */
   height?: number;
   /** con edición 3D activa: avisa qué puerta, pared u objeto se tocó */
-  onPick?: (kind: 'opening' | 'room' | 'furniture', id: string) => void;
+  onPick?: (kind: 'opening' | 'room' | 'furniture', id: string, point: Vec2) => void;
   thickness: number;
   ceiling: boolean;
   wallOpacity?: number;
@@ -172,7 +172,7 @@ export function LevelMesh({
     onPick &&
     ((e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
-      if (e.delta < 6) onPick(kind, id);
+      if (e.delta < 6) onPick(kind, id, { x: e.point.x, y: e.point.z });
     });
 
   return (

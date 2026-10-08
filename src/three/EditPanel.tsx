@@ -1,9 +1,11 @@
-import { DOOR_STYLES, WALL_MATERIALS, isFence } from '../catalog';
+import { DOOR_STYLES, OPENING_PRESETS, WALL_MATERIALS, isFence } from '../catalog';
+import { addOpeningAt } from '../actions';
+import { dist } from '../geometry';
 import { useStore } from '../store';
-import type { DoorStyle, Furniture, Opening, Project, Room, WallMaterial } from '../types';
+import type { DoorStyle, Furniture, Opening, Project, Room, Vec2, WallMaterial } from '../types';
 
 /** Lo que se tocó en la vista 3D con la edición activa. */
-export type Pick = { kind: 'opening' | 'room' | 'furniture'; id: string };
+export type Pick = { kind: 'opening' | 'room' | 'furniture'; id: string; point?: Vec2 };
 
 function Num({ label, value, onChange, min = 0.05, max = 60 }: { label: string; value: number; onChange: (n: number) => void; min?: number; max?: number }) {
   return (
@@ -25,7 +27,21 @@ function Num({ label, value, onChange, min = 0.05, max = 60 }: { label: string; 
 }
 
 /** Panel flotante de la vista 3D para editar la puerta, pared, cerco u objeto que se tocó. */
-export function EditPanel({ project, pick, onClose }: { project: Project; pick: Pick; onClose: () => void }) {
+export function EditPanel({
+  project,
+  pick,
+  onPick,
+  onMove,
+  onClose,
+}: {
+  project: Project;
+  pick: Pick;
+  /** cambia lo que se edita (p. ej. a la puerta recién agregada) */
+  onPick: (p: Pick) => void;
+  /** pide que el siguiente toque sobre una pared reubique esta puerta */
+  onMove: (openingId: string) => void;
+  onClose: () => void;
+}) {
   const mutate = useStore((s) => s.mutate);
   const level = project.levels.find((l) => (pick.kind === 'room' ? l.rooms : pick.kind === 'opening' ? l.openings : l.furniture).some((x) => x.id === pick.id));
   if (!level) return null;
@@ -49,7 +65,14 @@ export function EditPanel({ project, pick, onClose }: { project: Project; pick: 
 
   if (pick.kind === 'opening') {
     const o = level.openings.find((x) => x.id === pick.id)!;
-    title = '🚪 Puerta';
+    const host = level.rooms.find((r) => r.id === o.roomId);
+    const len = host ? dist(host.points[o.edge % host.points.length], host.points[(o.edge + 1) % host.points.length]) : 1;
+    // deslizar por su pared sin salirse de ella; el muro se rellena y se reabre solo
+    const slide = (s: number) => {
+      const half = o.width / 2 / len;
+      edit<Opening>('openings', { t: Math.min(1 - half, Math.max(half, s / len)) });
+    };
+    title = o.kind === 'window' ? '🪟 Ventana' : '🚪 Puerta';
     body = (
       <>
         <label className="field">
@@ -67,6 +90,26 @@ export function EditPanel({ project, pick, onClose }: { project: Project; pick: 
           <Num label="Ancho (m)" value={o.width} min={0.3} max={20} onChange={(width) => edit<Opening>('openings', { width })} />
           <Num label="Alto (m)" value={o.height} min={0.3} max={20} onChange={(height) => edit<Opening>('openings', { height })} />
         </div>
+        <label className="field">
+          <span>
+            Posición en la pared: {(o.t * len).toFixed(2)} de {len.toFixed(2)} m
+          </span>
+          <input type="range" min={0} max={len} step={0.05} value={o.t * len} onChange={(e) => slide(Number(e.target.value))} />
+        </label>
+        <div className="row">
+          <button className="secondary small" onClick={() => slide(o.t * len - 0.25)} title="Mover 25 cm">
+            ◀ 25 cm
+          </button>
+          <button className="secondary small" onClick={() => slide(len / 2)} title="Centrar en la pared">
+            Centrar
+          </button>
+          <button className="secondary small" onClick={() => slide(o.t * len + 0.25)} title="Mover 25 cm">
+            25 cm ▶
+          </button>
+        </div>
+        <button className="secondary small" onClick={() => onMove(o.id)}>
+          ↔ Mover a otro punto u otra pared
+        </button>
         <button className="danger small" onClick={() => remove('openings')}>
           🗑 Eliminar puerta
         </button>
@@ -98,6 +141,26 @@ export function EditPanel({ project, pick, onClose }: { project: Project; pick: 
           <span>Color</span>
           <input type="color" value={r.wallColor} onChange={(e) => edit<Room>('rooms', { wallColor: e.target.value })} />
         </label>
+        {r.hasWalls && pick.point && (
+          <>
+            <strong>Agregar donde tocaste</strong>
+            <div className="edit3d-grid">
+              {OPENING_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  className="secondary small"
+                  title={`${p.label} — ${p.width}×${p.height} m`}
+                  onClick={() => {
+                    const id = addOpeningAt(r.id, pick.point!, p.id);
+                    if (id) onPick({ kind: 'opening', id });
+                  }}
+                >
+                  {p.icon} {p.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </>
     );
   } else {

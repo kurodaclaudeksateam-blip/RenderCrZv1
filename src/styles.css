@@ -1468,3 +1468,21 @@ details summary {
 .edit3d.hint {
   color: #cbd5e1;
 }
+
+.edit3d {
+  max-height: calc(100% - 150px);
+  overflow: auto;
+}
+.edit3d-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.edit3d-grid button {
+  text-align: left;
+  white-space: normal;
+  line-height: 1.2;
+}
+.edit3d input[type='range'] {
+  width: 100%;
+}

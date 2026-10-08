@@ -1,8 +1,8 @@
-import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence, OPENING_PRESETS, WALL_MATERIALS } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, FENCE_HEIGHT } from './geometry';
+import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, isFence, OPENING_PRESETS, WALL_MATERIALS, type OpeningPreset } from './catalog';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, FENCE_HEIGHT, nearestEdge } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
-import type { Furniture, Level, OpeningKind, Vec2, WallMaterial } from './types';
+import type { Furniture, Level, OpeningKind, Room, Vec2, WallMaterial } from './types';
 
 /** Centro visible del editor 2D (lo actualiza el editor). */
 export const editorView = { center: { x: 0, y: 0 } as Vec2 };
@@ -73,12 +73,15 @@ function openingSpec(kind: OpeningKind, dock: boolean) {
   return { ...def, kind, dock, door: kind === 'door' ? ('auto' as const) : undefined };
 }
 
-export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: number, edgeLen: number, dock = false) {
-  const spec = openingSpec(kind, dock);
+type OpeningSpec = Pick<OpeningPreset, 'kind' | 'door' | 'dock' | 'width' | 'height' | 'sill'>;
+
+/** Inserta una puerta o ventana en el muro indicado de un nivel y devuelve su id. */
+function insertOpening(levelId: string | null, roomId: string, edge: number, t: number, edgeLen: number, spec: OpeningSpec) {
   const width = Math.min(spec.width, Math.max(0.3, edgeLen - 0.1));
   const half = width / 2 / edgeLen;
   const id = uid();
-  st().mutate((_, level) => {
+  st().mutate((p, current) => {
+    const level = p.levels.find((l) => l.id === levelId) ?? current;
     // la puerta se adapta al muro o cerco: su tipo sale del material y no rebasa la altura de un cerco
     const room = level.rooms.find((r) => r.id === roomId);
     const fence = isFence(room?.wallMaterial);
@@ -86,7 +89,46 @@ export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: n
     const door = spec.door === 'auto' ? doorForWall(room?.wallMaterial, !!spec.dock) : spec.door;
     level.openings.push({ id, roomId, edge, t: Math.min(1 - half, Math.max(half, t)), width, height, sill: spec.sill, kind: spec.kind, ...(spec.kind === 'door' && door ? { door } : {}) });
   });
+  return id;
+}
+
+export function addOpening(kind: OpeningKind, roomId: string, edge: number, t: number, edgeLen: number, dock = false) {
+  const id = insertOpening(st().levelId, roomId, edge, t, edgeLen, openingSpec(kind, dock));
   st().select({ kind: 'opening', id });
+}
+
+/** Punto del contorno de un ambiente más cercano a `near`: arista, posición 0..1 y largo de la arista. */
+function wallSpot(room: Room, near: Vec2) {
+  const hit = nearestEdge([room], near, Infinity);
+  return hit && { edge: hit.edge, t: hit.t, len: dist(hit.a, hit.b) };
+}
+
+/** Desde la vista 3D: agrega la puerta o marco elegido en el punto que se tocó de una pared o cerco. */
+export function addOpeningAt(roomId: string, near: Vec2, presetId: string): string | null {
+  const preset = OPENING_PRESETS.find((p) => p.id === presetId);
+  const level = st().project?.levels.find((l) => l.rooms.some((r) => r.id === roomId));
+  const room = level?.rooms.find((r) => r.id === roomId);
+  const spot = room && wallSpot(room, near);
+  if (!preset || !level || !spot) return null;
+  return insertOpening(level.id, roomId, spot.edge, spot.t, spot.len, preset);
+}
+
+/**
+ * Mueve una puerta al punto tocado de una pared o cerco del mismo nivel. Los muros se
+ * recalculan solos: el hueco anterior se rellena y se abre el nuevo.
+ */
+export function moveOpeningTo(openingId: string, roomId: string, near: Vec2): boolean {
+  const level = st().project?.levels.find((l) => l.openings.some((o) => o.id === openingId));
+  const room = level?.rooms.find((r) => r.id === roomId);
+  const spot = room && wallSpot(room, near);
+  if (!level || !spot) return false;
+  st().mutate((p) => {
+    const o = p.levels.find((l) => l.id === level.id)?.openings.find((x) => x.id === openingId);
+    if (!o) return;
+    const half = Math.min(o.width, spot.len - 0.1) / 2 / spot.len;
+    Object.assign(o, { roomId, edge: spot.edge, t: Math.min(1 - half, Math.max(half, spot.t)), width: Math.min(o.width, Math.max(0.3, spot.len - 0.1)) });
+  });
+  return true;
 }
 
 /**
