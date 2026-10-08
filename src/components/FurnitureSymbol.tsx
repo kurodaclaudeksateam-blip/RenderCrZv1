@@ -1,4 +1,5 @@
 import type { Furniture } from '../types';
+import { cellGrid, cellIndex } from '../geometry';
 
 /** Símbolo de planta de un mueble, en coordenadas locales centradas (metros). */
 export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
@@ -29,7 +30,7 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
               const sw2 = (bw - post * 2) / slots;
               return (
                 <g key={`${r}-${b}`}>
-                  {Array.from({ length: slots }, (_, s) => (
+                  {!f.empty && Array.from({ length: slots }, (_, s) => (
                     <rect key={s} x={px + post + s * sw2 + 0.05} y={py + 0.08} width={sw2 - 0.1} height={rd - 0.16} fill="#c8a26b" fillOpacity={0.55} stroke={line} strokeWidth={sw * 0.6} />
                   ))}
                 </g>
@@ -46,6 +47,55 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           })}
           {Array.from({ length: rows + 1 }, (_, r) => (
             <line key={`b${r}`} x1={x0} x2={-x0} y1={y0 + r * rd} y2={y0 + r * rd} stroke={color} strokeWidth={sw * 2.5} />
+          ))}
+        </g>
+      );
+    }
+    case 'rack_custom':
+    case 'tarima_custom': {
+      // vista en planta: cada posición muestra la caja más alta que tenga
+      const g = cellGrid(f);
+      const cw = w / g.cols;
+      const ch = d / g.rows;
+      const isRack = f.type === 'rack_custom';
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={d} fill={color} fillOpacity={isRack ? 0.18 : 0.75} stroke={line} strokeWidth={sw} />
+          {Array.from({ length: g.rows }, (_, r) =>
+            Array.from({ length: g.cols }, (_, c) => {
+              let top = '';
+              for (let l = g.layers - 1; l >= 0 && !top; l--) top = f.cells?.[cellIndex(g, l, r, c)] || '';
+              return <rect key={`${r}-${c}`} x={x0 + c * cw + 0.04} y={y0 + r * ch + 0.04} width={cw - 0.08} height={ch - 0.08} fill={top || 'none'} stroke={line} strokeWidth={sw * 0.6} strokeDasharray={top ? undefined : `${2 * k} ${2 * k}`} />;
+            }),
+          )}
+          {isRack && [y0, -y0].map((y) => <line key={y} x1={x0} x2={-x0} y1={y} y2={y} stroke={color} strokeWidth={sw * 2.5} />)}
+        </g>
+      );
+    }
+    case 'rampa_curva': {
+      const ri = 0.45;
+      return (
+        <g>
+          <path
+            d={`M ${-x0} ${-y0} A ${w} ${d} 0 0 0 ${x0} ${y0} L ${x0} ${-y0 - d * ri} A ${w * ri} ${d * ri} 0 0 1 ${x0 + w * ri} ${-y0} Z`}
+            fill={color}
+            fillOpacity={0.75}
+            stroke={line}
+            strokeWidth={sw}
+          />
+          <path d={`M ${x0 + w * 0.72} ${-y0 - d * 0.06} A ${w * 0.72} ${d * 0.72} 0 0 0 ${x0 + w * 0.06} ${-y0 - d * 0.72}`} fill="none" stroke={line} strokeWidth={sw * 1.4} strokeDasharray={`${4 * k} ${3 * k}`} />
+          <path d={`M ${x0 + w * 0.06 - 0.22} ${-y0 - d * 0.72 + 0.3} L ${x0 + w * 0.06} ${-y0 - d * 0.72} L ${x0 + w * 0.06 + 0.22} ${-y0 - d * 0.72 + 0.3}`} fill="none" stroke={line} strokeWidth={sw * 1.4} />
+        </g>
+      );
+    }
+    case 'cerco': {
+      const posts = Math.max(1, Math.round(w / 2.4));
+      const t = Math.max(d, 0.08);
+      return (
+        <g>
+          <rect x={x0} y={-t / 2} width={w} height={t} fill={color} stroke={line} strokeWidth={sw} />
+          {Array.from({ length: posts + 1 }, (_, i) => (
+            <rect key={i} x={x0 + (i * w) / posts - 0.06} y={-0.06} width={0.12} height={0.12} fill={line} />
           ))}
         </g>
       );
@@ -269,7 +319,8 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           )}
         </g>
       );
-    case 'escalera': {
+    case 'escalera':
+    case 'escalera_metal': {
       const steps = Math.max(3, Math.round(d / 0.28));
       const st = d / steps;
       return (

@@ -51,7 +51,7 @@ export function loadProject(id: string): Project | null {
   }
 }
 
-function metaOf(p: Project): ProjectMeta {
+export function metaOf(p: Project): ProjectMeta {
   return {
     id: p.id,
     name: p.name,

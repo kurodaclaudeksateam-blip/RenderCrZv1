@@ -26,6 +26,8 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center) {
       color: item.color,
       ...(item.text ? { label: item.text } : {}),
       ...(item.shelves ? { shelves: item.shelves } : {}),
+      ...(item.cols ? { cols: item.cols } : {}),
+      ...(item.rows ? { rows: item.rows } : {}),
     });
   });
   st().select({ kind: 'furniture', id });

@@ -49,6 +49,11 @@ export type FurnitureType =
   | 'mesa_embalaje'
   | 'bascula'
   | 'malla'
+  | 'rampa_curva'
+  | 'rack_custom'
+  | 'tarima_custom'
+  | 'cerco'
+  | 'escalera_metal'
   // señalización y zonas
   | 'letrero'
   | 'letrero_pie'
@@ -106,6 +111,13 @@ export interface Furniture {
   label?: string;
   /** niveles de carga en racks y estanterías */
   shelves?: number;
+  /** racks y anaqueles sin carga (solo la estructura) */
+  empty?: boolean;
+  /** rack y tarima a medida: posiciones a lo ancho y a lo fondo */
+  cols?: number;
+  rows?: number;
+  /** color de la caja de cada posición ('' = vacía); ver cellIndex */
+  cells?: string[];
 }
 
 export interface Level {

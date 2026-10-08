@@ -4,7 +4,8 @@ import HomeScreen from './components/HomeScreen';
 import EditorScreen from './components/EditorScreen';
 import Intro from './components/Intro';
 import Login from './components/Login';
-import { isAuthenticated, logout } from './auth';
+import { SessionExpired, isAuthenticated, logout } from './auth';
+import { setCloudErrorHandler } from './cloud';
 
 const Viewer3D = lazy(() => import('./three/Viewer3D'));
 
@@ -34,6 +35,19 @@ export default function App() {
     };
     window.addEventListener('beforeunload', onUnload);
     return () => window.removeEventListener('beforeunload', onUnload);
+  }, []);
+
+  // fallos al subir a la nube: la copia local ya quedó guardada
+  useEffect(() => {
+    setCloudErrorHandler((e) => {
+      if (e instanceof SessionExpired) {
+        logout();
+        useStore.getState().closeProject();
+        setStage('login');
+      } else {
+        useStore.getState().notify('⚠️ Sin conexión con la nube: el proyecto quedó guardado solo en este navegador');
+      }
+    });
   }, []);
 
   if (stage === 'intro') return <Intro onStart={() => setStage(isAuthenticated() ? 'app' : 'login')} />;

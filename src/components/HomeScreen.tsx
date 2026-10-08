@@ -1,9 +1,16 @@
-import { useState } from 'react';
-import { deleteProject, listProjects, loadProject, newProject, sampleProject, sampleWarehouse, saveProject, storageUsageKB, type ProjectMeta } from '../storage';
+import { useEffect, useState } from 'react';
+import { listProjects, loadProject, newProject, sampleProject, sampleWarehouse, type ProjectMeta } from '../storage';
+import { cloudInfo, persist, removeProject, syncProjects } from '../cloud';
+import { SessionExpired } from '../auth';
+import { ShareDialog } from './ShareDialog';
 import { useStore } from '../store';
 import { downloadProject, pickProjectFile } from '../io';
 import { bounds, uid } from '../geometry';
 import type { Project } from '../types';
+
+function fmtBytes(n: number) {
+  return n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
+}
 
 function Thumb({ id }: { id: string }) {
   const p = loadProject(id);
@@ -26,7 +33,35 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
   const [creating, setCreating] = useState(false);
   const openProject = useStore((s) => s.openProject);
   const notify = useStore((s) => s.notify);
-  const refresh = () => setList(listProjects());
+  const [cloud, setCloud] = useState(cloudInfo);
+  const [syncing, setSyncing] = useState(true);
+  const [sharing, setSharing] = useState<Project | null>(null);
+  const refresh = () => {
+    setList(listProjects());
+    setCloud(cloudInfo());
+  };
+
+  // al entrar se iguala este navegador con la nube
+  useEffect(() => {
+    let alive = true;
+    syncProjects()
+      .catch((e) => {
+        if (!alive) return;
+        if (e instanceof SessionExpired) onLogout();
+        else notify('⚠️ Sin conexión con la nube: se muestran los proyectos de este navegador');
+      })
+      .finally(() => {
+        if (!alive) return;
+        setSyncing(false);
+        refresh();
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const cloudBytes = Object.values(cloud).reduce((n, c) => n + c.bytes, 0);
 
   const open = (id: string, screen: 'editor' | 'viewer' = 'editor') => {
     const p = loadProject(id);
@@ -35,7 +70,7 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
   };
 
   const create = (p: Project) => {
-    saveProject(p);
+    persist(p);
     openProject(p);
   };
 
@@ -43,7 +78,7 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
     try {
       const p = await pickProjectFile();
       if (listProjects().some((m) => m.id === p.id)) p.id = uid();
-      saveProject(p);
+      persist(p);
       refresh();
       notify(`📥 "${p.name}" importado`);
     } catch (e) {
@@ -85,7 +120,7 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
       <section className="projects">
         <div className="projects-head">
           <h2>Mis proyectos</h2>
-          <span className="muted small">Guardados en este navegador · {storageUsageKB()} KB usados</span>
+          <span className="muted small">{syncing ? 'Sincronizando con la nube…' : `☁️ Guardados en la nube · ${fmtBytes(cloudBytes)} en total`}</span>
         </div>
         {list.length === 0 ? (
           <div className="empty-state">
@@ -104,18 +139,24 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
                   <p className="muted small">
                     {m.levels} {m.levels === 1 ? 'nivel' : 'niveles'} · {m.rooms} ambientes · {m.furniture} objetos
                   </p>
-                  <p className="muted tiny">Editado {new Date(m.updatedAt).toLocaleString()}</p>
+                  <p className="muted tiny">
+                    Editado {new Date(m.updatedAt).toLocaleString()}
+                    {cloud[m.id] && ` · ☁️ ${fmtBytes(cloud[m.id].bytes)}`}
+                  </p>
                 </div>
                 <div className="card-actions">
                   <button className="primary small" onClick={() => open(m.id)}>✏️ Editar</button>
                   <button className="secondary small" onClick={() => open(m.id, 'viewer')}>🧊 3D</button>
+                  <button className="icon" title="Compartir liga" onClick={() => setSharing(loadProject(m.id))}>
+                    🔗
+                  </button>
                   <button
                     className="icon"
                     title="Duplicar"
                     onClick={() => {
                       const p = loadProject(m.id);
                       if (!p) return;
-                      saveProject({ ...p, id: uid(), name: `${p.name} (copia)`, updatedAt: Date.now() });
+                      persist({ ...p, id: uid(), name: `${p.name} (copia)`, updatedAt: Date.now() });
                       refresh();
                     }}
                   >
@@ -129,7 +170,7 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
                     title="Eliminar"
                     onClick={() => {
                       if (confirm(`¿Eliminar "${m.name}"? Esta acción no se puede deshacer.`)) {
-                        deleteProject(m.id);
+                        removeProject(m.id).catch(() => notify('⚠️ No se pudo eliminar de la nube; se quitó solo de este navegador'));
                         refresh();
                       }
                     }}
@@ -143,6 +184,7 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
         )}
       </section>
 
+      {sharing && <ShareDialog project={sharing} onClose={() => { setSharing(null); refresh(); }} />}
       {creating && <NewProjectDialog onClose={() => setCreating(false)} onCreate={create} />}
     </div>
   );

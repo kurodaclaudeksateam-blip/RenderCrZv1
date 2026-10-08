@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import type { Furniture } from '../types';
+import { cellGrid, cellIndex } from '../geometry';
 import { textTexture } from './textures';
 
 type V3 = [number, number, number];
@@ -99,6 +100,16 @@ function Model({ f }: { f: Furniture }) {
   switch (f.type) {
     case 'rack':
       return <Rack f={f} />;
+    case 'rack_custom':
+      return <CustomRack f={f} />;
+    case 'tarima_custom':
+      return <CustomPallet f={f} />;
+    case 'rampa_curva':
+      return <CurvedRamp f={f} />;
+    case 'escalera_metal':
+      return <MetalStairs f={f} />;
+    case 'cerco':
+      return <Fence f={f} />;
     case 'estanteria_metal':
       return <MetalShelf f={f} />;
     case 'cantilever':
@@ -682,7 +693,7 @@ function Rack({ f }: { f: Furniture }) {
         const lh = k === levels ? Math.min(loadH, Math.max(0, h - y - 0.1)) : loadH;
         if (lh < 0.2) continue;
         for (let sIdx = 0; sIdx < slots; sIdx++) {
-          if (r() > 0.82) continue;
+          if (f.empty || r() > 0.82) continue;
           const px = x0 + post / 2 + slotW * (sIdx + 0.5);
           const pw = Math.min(1.2, slotW - 0.12);
           const pd = Math.min(1.0, rd - 0.1);
@@ -692,6 +703,177 @@ function Rack({ f }: { f: Furniture }) {
           parts.push(<Bx key={`lb${row}-${b}-${k}-${sIdx}`} x={px} z={zc} w={pw - 0.03} h={0.05} d={pd - 0.03} y0={y + 0.14 + ch * 0.55} c="#e0f2fe" rough={0.3} opacity={0.5} />);
         }
       }
+    }
+  }
+  return <group>{parts}</group>;
+}
+
+/** Rack a medida: la carga de cada posición la decide el usuario (f.cells). */
+function CustomRack({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const g = cellGrid(f);
+  const levels = g.layers - 1;
+  const post = 0.08;
+  const frame = '#1e3a8a';
+  const s = h / (levels + 1);
+  const cw = (w - post) / g.cols;
+  const bays = Math.max(1, Math.round(w / 2.7));
+  const perBay = Math.max(1, Math.round(g.cols / bays));
+  const loadH = Math.max(0.2, Math.min(1.45, s - 0.3));
+  const parts: React.ReactNode[] = [];
+  for (let c = 0; c <= g.cols; c++) {
+    if (c % perBay !== 0 && c !== g.cols) continue;
+    const x = -w / 2 + post / 2 + c * cw;
+    for (const z of [-d / 2 + post / 2, d / 2 - post / 2]) parts.push(<Bx key={`p${c}${z}`} x={x} z={z} w={post} h={h} d={post} c={frame} metal={0.5} rough={0.45} />);
+    for (let y = 0.15; y < h; y += 1.2) parts.push(<Bx key={`t${c}-${y}`} x={x} w={0.03} h={0.04} d={d - post} y0={y} c={frame} metal={0.5} rough={0.45} />);
+  }
+  for (let k = 1; k <= levels; k++) {
+    for (const z of [-d / 2 + 0.03, d / 2 - 0.03]) parts.push(<Bx key={`b${k}${z}`} z={z} w={w - post} h={0.11} d={0.05} y0={k * s - 0.11} c={color} metal={0.4} rough={0.45} />);
+  }
+  for (let k = 0; k < g.layers; k++) {
+    for (let c = 0; c < g.cols; c++) {
+      const box = f.cells?.[cellIndex(g, k, 0, c)];
+      if (!box) continue;
+      const x = -w / 2 + post / 2 + cw * (c + 0.5);
+      const pw = Math.min(1.2, cw - 0.1);
+      const pd = Math.min(1.0 * Math.max(1, Math.round(d / 1.1)), d - 0.1);
+      parts.push(<Bx key={`pl${k}-${c}`} x={x} w={pw} h={0.14} d={pd} y0={k * s} c={WOOD} rough={0.95} />);
+      parts.push(<Bx key={`ld${k}-${c}`} x={x} w={pw - 0.04} h={loadH} d={pd - 0.04} y0={k * s + 0.14} c={box} rough={0.9} />);
+    }
+  }
+  return <group>{parts}</group>;
+}
+
+/** Tarima a medida: cajas del color elegido en cada posición y capa. */
+function CustomPallet({ f }: { f: Furniture }) {
+  const { w, d, h } = f;
+  const g = cellGrid(f);
+  const base = Math.min(0.15, h * 0.3);
+  const bw = w / g.cols;
+  const bd = d / g.rows;
+  const bh = (h - base) / g.layers;
+  const boxes: React.ReactNode[] = [];
+  for (let l = 0; l < g.layers; l++) {
+    for (let r = 0; r < g.rows; r++) {
+      for (let c = 0; c < g.cols; c++) {
+        const box = f.cells?.[cellIndex(g, l, r, c)];
+        if (box) boxes.push(<Bx key={`${l}-${r}-${c}`} x={-w / 2 + bw * (c + 0.5)} z={-d / 2 + bd * (r + 0.5)} w={bw - 0.015} h={bh - 0.01} d={bd - 0.015} y0={base + l * bh} c={box} rough={0.9} />);
+      }
+    }
+  }
+  return (
+    <group>
+      <Pallet w={w} d={d} h={base} />
+      {boxes}
+    </group>
+  );
+}
+
+/** Rampa en cuarto de círculo: arranca a nivel de piso en el frente y sube girando hasta h. */
+function CurvedRamp({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const N = 20;
+  const inner = 0.45;
+  const geo = useMemo(() => {
+    const pos: number[] = [];
+    // centro del arco en la esquina frontal izquierda del objeto
+    const pt = (i: number, r: number, y: number) => {
+      const a = (i / N) * (Math.PI / 2);
+      return [-w / 2 + r * Math.cos(a) * w, y, d / 2 - r * Math.sin(a) * d];
+    };
+    const quad = (a: number[], b: number[], c: number[], e: number[]) => pos.push(...a, ...b, ...c, ...a, ...c, ...e);
+    for (let i = 0; i < N; i++) {
+      const y0 = (h * i) / N;
+      const y1 = (h * (i + 1)) / N;
+      quad(pt(i, inner, y0), pt(i, 1, y0), pt(i + 1, 1, y1), pt(i + 1, inner, y1)); // rodadura
+      quad(pt(i, 1, 0), pt(i + 1, 1, 0), pt(i + 1, 1, y1), pt(i, 1, y0)); // cara exterior
+      quad(pt(i + 1, inner, 0), pt(i, inner, 0), pt(i, inner, y0), pt(i + 1, inner, y1)); // cara interior
+    }
+    quad(pt(N, 1, 0), pt(N, inner, 0), pt(N, inner, h), pt(N, 1, h)); // remate alto
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    return g;
+  }, [w, d, h]);
+  const posts = Array.from({ length: 6 }, (_, i) => {
+    const a = (i / 5) * (Math.PI / 2);
+    return { x: -w / 2 + 0.985 * Math.cos(a) * w, z: d / 2 - 0.985 * Math.sin(a) * d, y: (h * i) / 5 };
+  });
+  return (
+    <group>
+      <mesh geometry={geo} castShadow receiveShadow>
+        <meshStandardMaterial color={color} roughness={0.9} side={THREE.DoubleSide} />
+      </mesh>
+      {posts.map((p, i) => (
+        <group key={i}>
+          <Bx x={p.x} z={p.z} w={0.07} h={1} d={0.07} y0={p.y} c="#facc15" metal={0.4} rough={0.5} />
+          {i > 0 && <Beam a={[posts[i - 1].x, posts[i - 1].y + 1, posts[i - 1].z]} b={[p.x, p.y + 1, p.z]} t={0.06} c="#facc15" />}
+          {i > 0 && <Beam a={[posts[i - 1].x, posts[i - 1].y + 0.5, posts[i - 1].z]} b={[p.x, p.y + 0.5, p.z]} t={0.04} c="#facc15" />}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/** Barra recta entre dos puntos. */
+function Beam({ a, b, t, c }: { a: V3; b: V3; t: number; c: string }) {
+  const { mid, quat, len } = useMemo(() => {
+    const va = new THREE.Vector3(...a);
+    const dir = new THREE.Vector3(...b).sub(va);
+    const l = dir.length();
+    return { mid: va.clone().addScaledVector(dir, 0.5), quat: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir.normalize()), len: l };
+  }, [a, b]);
+  return <mesh position={mid} quaternion={quat} scale={[t, t, len]} geometry={UNIT_BOX} material={sharedMat({ c, metal: 0.5, rough: 0.4 })} castShadow />;
+}
+
+/** Escalera industrial: zancas, peldaños de rejilla y barandal a ambos lados. Sube hacia el fondo. */
+function MetalStairs({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const n = Math.max(3, Math.round(h / 0.2));
+  const rise = h / n;
+  const run = d / n;
+  const steel = '#6b7280';
+  const sides = [-w / 2 + 0.03, w / 2 - 0.03];
+  const bottom = (x: number, y: number): V3 => [x, y, d / 2];
+  const top = (x: number, y: number): V3 => [x, h + y, -d / 2];
+  const postCount = Math.max(2, Math.round(d / 1.1) + 1);
+  return (
+    <group>
+      {Array.from({ length: n }, (_, i) => (
+        <Bx key={i} z={d / 2 - run * (i + 0.5)} w={w - 0.08} h={0.035} d={run * 0.92} y0={rise * (i + 1) - 0.035} c={steel} metal={0.7} rough={0.55} />
+      ))}
+      {sides.map((x) => (
+        <group key={x}>
+          <Beam a={bottom(x, 0.05)} b={top(x, 0.05)} t={0.06} c={shade(color, 0.55)} />
+          <Beam a={bottom(x, 1)} b={top(x, 1)} t={0.05} c={color} />
+          <Beam a={bottom(x, 0.55)} b={top(x, 0.55)} t={0.035} c={color} />
+          {Array.from({ length: postCount }, (_, i) => {
+            const t = i / (postCount - 1);
+            return <Bx key={i} x={x} z={d / 2 - d * t} w={0.045} h={1} d={0.045} y0={h * t} c={color} metal={0.5} rough={0.4} />;
+          })}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/** Cerco metálico de barrotes: postes, largueros y barrotes verticales. */
+function Fence({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const t = Math.max(0.04, Math.min(d, 0.07));
+  const panels = Math.max(1, Math.round(w / 2.4));
+  const pw = w / panels;
+  const bars = Math.max(2, Math.round(pw / 0.12));
+  const parts: React.ReactNode[] = [];
+  for (let i = 0; i <= panels; i++) {
+    const x = Math.max(-w / 2 + t / 2, Math.min(w / 2 - t / 2, -w / 2 + i * pw));
+    parts.push(<Bx key={`p${i}`} x={x} w={t} h={h} d={t} c={color} metal={0.3} rough={0.45} />);
+    parts.push(<Bx key={`c${i}`} x={x} w={t + 0.02} h={0.02} d={t + 0.02} y0={h} c={color} metal={0.3} rough={0.45} />);
+  }
+  for (const y of [0.12, h - 0.14]) parts.push(<Bx key={`r${y}`} w={w} h={0.045} d={t * 0.6} y0={y} c={color} metal={0.3} rough={0.45} />);
+  for (let p = 0; p < panels; p++) {
+    for (let b = 1; b < bars; b++) {
+      parts.push(<Bx key={`b${p}-${b}`} x={-w / 2 + p * pw + (pw * b) / bars} w={0.018} h={h - 0.26} d={0.018} y0={0.12} c={color} metal={0.3} rough={0.45} />);
     }
   }
   return <group>{parts}</group>;
@@ -726,6 +908,7 @@ function MetalShelf({ f }: { f: Furniture }) {
       x += iw;
     }
   }
+  if (f.empty) items.length = 0;
   return (
     <group>
       {[-1, 1].flatMap((sx) =>

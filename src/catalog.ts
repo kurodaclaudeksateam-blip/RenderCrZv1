@@ -13,6 +13,8 @@ export interface CatalogItem {
   /** texto de letreros y zonas */
   text?: string;
   shelves?: number;
+  cols?: number;
+  rows?: number;
 }
 
 export const CATEGORIES = ['Almacenaje', 'Carga', 'Equipos', 'Señalización', 'Zonas', 'Seguridad', 'Oficina', 'Servicios', 'Hogar'];
@@ -22,17 +24,21 @@ export const CATALOG: CatalogItem[] = [
   { type: 'rack', label: 'Rack selectivo', icon: '🏗️', category: 'Almacenaje', w: 2.7, d: 1.1, h: 6.0, color: '#f97316', shelves: 4 },
   { type: 'rack', label: 'Rack doble fondo', icon: '🏗️', category: 'Almacenaje', w: 2.7, d: 2.3, h: 6.0, color: '#f97316', shelves: 4 },
   { type: 'rack', label: 'Rack bajo', icon: '🏗️', category: 'Almacenaje', w: 2.7, d: 1.1, h: 3.5, color: '#2563eb', shelves: 2 },
+  { type: 'rack_custom', label: 'Rack a medida', icon: '🧩', category: 'Almacenaje', w: 2.7, d: 1.1, h: 4.5, color: '#f97316', shelves: 3, cols: 2 },
   { type: 'estanteria_metal', label: 'Anaquel metálico', icon: '🗄️', category: 'Almacenaje', w: 1.2, d: 0.5, h: 2.1, color: '#94a3b8', shelves: 5 },
   { type: 'estanteria_metal', label: 'Anaquel picking', icon: '🗄️', category: 'Almacenaje', w: 2.0, d: 0.6, h: 2.4, color: '#64748b', shelves: 6 },
   { type: 'cantilever', label: 'Cantilever', icon: '🪜', category: 'Almacenaje', w: 3.0, d: 1.2, h: 3.5, color: '#16a34a', shelves: 4 },
   { type: 'contenedor', label: 'Contenedor plástico', icon: '🧺', category: 'Almacenaje', w: 0.6, d: 0.4, h: 0.32, color: '#2563eb' },
   // --- Carga
   { type: 'pallet', label: 'Pallet vacío', icon: '🟫', category: 'Carga', w: 1.2, d: 1.0, h: 0.15, color: '#c8a26b' },
+  { type: 'tarima_custom', label: 'Tarima a medida', icon: '🧩', category: 'Carga', w: 1.2, d: 1.0, h: 1.2, color: '#c8a26b', shelves: 3, cols: 2, rows: 2 },
   { type: 'pallet_carga', label: 'Pallet con carga', icon: '📦', category: 'Carga', w: 1.2, d: 1.0, h: 1.4, color: '#c69c6d' },
   { type: 'caja_carton', label: 'Caja de cartón', icon: '📦', category: 'Carga', w: 0.6, d: 0.4, h: 0.4, color: '#c69c6d' },
   { type: 'caja', label: 'Bulto genérico', icon: '⬜', category: 'Carga', w: 1.0, d: 1.0, h: 1.0, color: '#94a3b8' },
   // --- Equipos
   { type: 'montacargas', label: 'Montacargas', icon: '🚜', category: 'Equipos', w: 1.2, d: 3.2, h: 2.2, color: '#facc15' },
+  { type: 'rampa_curva', label: 'Rampa de descarga curva', icon: '↪️', category: 'Equipos', w: 6, d: 6, h: 1.2, color: '#9ca3af' },
+  { type: 'escalera_metal', label: 'Escalera metálica', icon: '🪜', category: 'Equipos', w: 1.0, d: 3.5, h: 3.0, color: '#facc15' },
   { type: 'transpaleta', label: 'Transpaleta', icon: '🛒', category: 'Equipos', w: 0.55, d: 1.6, h: 1.2, color: '#dc2626' },
   { type: 'banda', label: 'Banda transportadora', icon: '➖', category: 'Equipos', w: 4.0, d: 0.8, h: 0.85, color: '#334155' },
   { type: 'mesa_embalaje', label: 'Mesa de embalaje', icon: '🧰', category: 'Equipos', w: 1.8, d: 0.9, h: 0.9, color: '#a3a3a3' },
@@ -52,6 +58,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'extintor', label: 'Extintor', icon: '🧯', category: 'Seguridad', w: 0.25, d: 0.25, h: 0.75, color: '#dc2626' },
   { type: 'cono', label: 'Cono', icon: '🔺', category: 'Seguridad', w: 0.35, d: 0.35, h: 0.7, color: '#f97316' },
   { type: 'bolardo', label: 'Bolardo', icon: '🟡', category: 'Seguridad', w: 0.2, d: 0.2, h: 1.0, color: '#facc15' },
+  { type: 'cerco', label: 'Cerco metálico blanco', icon: '🚧', category: 'Seguridad', w: 2.4, d: 0.06, h: 1.8, color: '#f8fafc' },
   { type: 'malla', label: 'Malla divisoria', icon: '🚧', category: 'Seguridad', w: 3.0, d: 0.06, h: 2.4, color: '#facc15' },
   { type: 'columna', label: 'Columna', icon: '▮', category: 'Seguridad', w: 0.4, d: 0.4, h: 7.0, color: '#d4d4d4' },
   { type: 'sofa', label: 'Sofá', icon: '🛋️', category: 'Hogar', w: 2.1, d: 0.9, h: 0.85, color: '#6b7a8f' },

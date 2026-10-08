@@ -4,14 +4,15 @@ import { OrbitControls, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from '../store';
 import { area, bounds, computeWalls, interiorPoint, levelElevations, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
-import { LevelMesh } from './Building';
+import { LevelMesh, type BuildClock } from './Building';
+import type { Project } from '../types';
 import { WalkControls, walkInput } from './WalkControls';
 import { grassTexture } from './textures';
 
 type Mode = 'orbit' | 'walk';
 
 /** Objetos que no bloquean el recorrido. */
-const NON_BLOCKING = new Set(['zona', 'alfombra', 'letrero', 'escalera', 'planta', 'lampara', 'cono']);
+const NON_BLOCKING = new Set(['zona', 'alfombra', 'letrero', 'escalera', 'escalera_metal', 'rampa_curva', 'planta', 'lampara', 'cono']);
 
 function Ground() {
   const map = useMemo(() => {
@@ -81,8 +82,72 @@ function Snapshot({ onReady }: { onReady: (fn: () => string) => void }) {
   return null;
 }
 
-export default function Viewer3D() {
-  const project = useStore((s) => s.project)!;
+/** Duración de la animación en la que el proyecto se arma desde cero. */
+const BUILD_SECONDS = 10;
+const BUILD_START = 0.6;
+const BUILD_END = 9.2;
+const BUILD_STEPS = ['Trazando el piso', 'Levantando muros y accesos', 'Colocando racks y equipos'];
+
+/** Avanza el reloj del armado y lleva la cámara en órbita hasta la vista final. */
+function BuildDirector({
+  clock,
+  target,
+  end,
+  levels,
+  bar,
+  onStep,
+  onDone,
+}: {
+  clock: BuildClock;
+  target: [number, number, number];
+  end: [number, number, number];
+  levels: number;
+  bar: React.RefObject<HTMLDivElement | null>;
+  onStep: (text: string) => void;
+  onDone: () => void;
+}) {
+  const { camera } = useThree();
+  const step = useRef('');
+  const done = useRef(false);
+  const frames = useRef(0);
+  useFrame((_, dt) => {
+    // los primeros cuadros compilan materiales: no cuentan para el reloj
+    if (frames.current++ > 2) clock.current = Math.min(BUILD_SECONDS, clock.current + Math.min(dt, 0.25));
+    const t = clock.current;
+    const k = t / BUILD_SECONDS;
+    const e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
+    const dx = end[0] - target[0];
+    const dy = end[1] - target[1];
+    const dz = end[2] - target[2];
+    const angle = Math.atan2(dz, dx) - (1 - e) * 2.4;
+    const r = Math.hypot(dx, dz) * (1 + 0.3 * (1 - e));
+    camera.position.set(target[0] + Math.cos(angle) * r, target[1] + dy * (1 + 0.2 * (1 - e)), target[2] + Math.sin(angle) * r);
+    camera.lookAt(target[0], target[1], target[2]);
+    if (bar.current) bar.current.style.transform = `scaleX(${k})`;
+
+    const span = (BUILD_END - BUILD_START) / levels;
+    const lvl = Math.max(0, Math.min(levels - 1, Math.floor((t - BUILD_START) / span)));
+    const local = (t - BUILD_START - lvl * span) / span;
+    const text = t >= BUILD_END ? 'Listo para recorrer' : `${levels > 1 ? `Nivel ${lvl + 1} de ${levels} · ` : ''}${BUILD_STEPS[local < 0.2 ? 0 : local < 0.5 ? 1 : 2]}`;
+    if (text !== step.current) {
+      step.current = text;
+      onStep(text);
+    }
+    if (t >= BUILD_SECONDS && !done.current) {
+      done.current = true;
+      onDone();
+    }
+  });
+  return null;
+}
+
+/**
+ * Vista 3D. Con `project` se muestra ese proyecto en vez del abierto en el editor;
+ * `shared` es la vista pública de una liga: arma el proyecto y solo deja ver en 3D o recorrer.
+ */
+export default function Viewer3D({ project: given, shared = false }: { project?: Project; shared?: boolean }) {
+  const stored = useStore((s) => s.project);
+  const project = given ?? stored!;
   const editorLevelId = useStore((s) => s.levelId);
   const setScreen = useStore((s) => s.setScreen);
   const levels = project.levels;
@@ -97,6 +162,11 @@ export default function Viewer3D() {
   const [locked, setLocked] = useState(false);
   const [ready, setReady] = useState(false);
   const snapRef = useRef<() => string>(() => '');
+  const [building, setBuilding] = useState(shared);
+  const [step, setStep] = useState('Preparando la escena');
+  const clock = useRef(0);
+  const barRef = useRef<HTMLDivElement>(null);
+  const finishBuild = useCallback(() => setBuilding(false), []);
 
   const allPts = levels.flatMap((l) => l.rooms.flatMap((r) => r.points));
   const b = allPts.length ? bounds(allPts) : { minX: -5, minY: -5, maxX: 5, maxY: 5 };
@@ -180,6 +250,9 @@ export default function Viewer3D() {
   };
 
   const orbitCam: [number, number, number] = [cx + size * 0.75, totalH + size * 0.8, cz + size * 1.05];
+  const orbitTarget: [number, number, number] = [cx, Math.min(totalH, 3) / 2, cz];
+  const buildSpan = (BUILD_END - BUILD_START) / levels.length;
+  const buildWindows = useMemo(() => levels.map((_, i) => ({ clock, at: BUILD_START + i * buildSpan, span: buildSpan })), [levels, buildSpan]);
 
   const press = (key: keyof typeof walkInput, value: number | boolean) => ({
     onPointerDown: (e: React.PointerEvent) => {
@@ -217,11 +290,14 @@ export default function Viewer3D() {
                 ceiling={mode === 'walk'}
                 isTop={i === levels.length - 1}
                 wallOpacity={mode === 'orbit' && xray ? 0.35 : 1}
+                build={building ? buildWindows[i] : undefined}
               />
             ) : null,
           )}
-          {mode === 'orbit' ? (
-            <OrbitControls makeDefault target={[cx, Math.min(totalH, 3) / 2, cz]} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={1.5} maxDistance={size * 6} enableDamping />
+          {building ? (
+            <BuildDirector clock={clock} target={orbitTarget} end={orbitCam} levels={levels.length} bar={barRef} onStep={setStep} onDone={finishBuild} />
+          ) : mode === 'orbit' ? (
+            <OrbitControls makeDefault target={orbitTarget} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={1.5} maxDistance={size * 6} enableDamping />
           ) : (
             <WalkControls start={start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} collisions={collisions} onLockChange={onLockChange} />
           )}
@@ -230,7 +306,41 @@ export default function Viewer3D() {
         </Suspense>
       </Canvas>
 
-      <header className="viewer-bar">
+      {building && (
+        <div className="build-intro">
+          <div className="build-card">
+            <div className="build-brand">
+              Render<span>CrZ</span>
+            </div>
+            <h1>{project.name}</h1>
+            <p>{step}</p>
+            <div className="build-bar">
+              <div ref={barRef} />
+            </div>
+          </div>
+          <button className="ghost small build-skip" onClick={() => (clock.current = BUILD_SECONDS)}>
+            Saltar ⏭
+          </button>
+        </div>
+      )}
+
+      {shared && !building && (
+        <header className="viewer-bar">
+          <div className="brand-mini hide-sm">RenderCrZ</div>
+          <strong className="viewer-title">{project.name}</strong>
+          <div className="spacer" />
+          <div className="seg">
+            <button className={mode === 'orbit' ? 'active' : ''} onClick={() => setMode('orbit')}>
+              🧊 Vista 3D
+            </button>
+            <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>
+              🚶 Recorrer
+            </button>
+          </div>
+        </header>
+      )}
+
+      <header className="viewer-bar" hidden={shared}>
         <button className="ghost" onClick={() => setScreen('editor')}>
           ← <span className="hide-sm">Editar plano</span>
         </button>
@@ -287,18 +397,20 @@ export default function Viewer3D() {
         </button>
       </header>
 
-      {!ready && !empty && <div className="viewer-loading"><span className="spinner" /> Construyendo la escena 3D…</div>}
+      {!ready && !empty && !shared && <div className="viewer-loading"><span className="spinner" /> Construyendo la escena 3D…</div>}
 
-      {empty && (
+      {empty && !building && (
         <div className="viewer-empty">
           <p>Aún no hay ambientes en el plano.</p>
-          <button className="primary" onClick={() => setScreen('editor')}>
-            Dibujar el plano
-          </button>
+          {!shared && (
+            <button className="primary" onClick={() => setScreen('editor')}>
+              Dibujar el plano
+            </button>
+          )}
         </div>
       )}
 
-      {mode === 'orbit' && !empty && <div className="viewer-hint">Arrastra para girar · Clic derecho para desplazar · Rueda para zoom</div>}
+      {mode === 'orbit' && !empty && !building && <div className="viewer-hint">Arrastra para girar · Clic derecho para desplazar · Rueda para zoom</div>}
 
       {mode === 'walk' && (
         <>

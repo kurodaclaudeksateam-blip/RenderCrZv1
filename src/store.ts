@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Level, Project, Selection, Tool } from './types';
-import { saveProject } from './storage';
+import { persist } from './cloud';
 
 export type Screen = 'home' | 'editor' | 'viewer';
 
@@ -152,7 +152,7 @@ export const useStore = create<EditorState>((set, get) => ({
   save: () => {
     const { project } = get();
     if (!project) return false;
-    const ok = saveProject(project);
+    const ok = persist(project);
     if (ok) set({ dirty: false, savedAt: Date.now() });
     else get().notify('⚠️ No se pudo guardar: el almacenamiento local está lleno o bloqueado');
     return ok;

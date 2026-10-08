@@ -5,6 +5,7 @@ import PropertiesPanel from './PropertiesPanel';
 import { CATALOG, CATEGORIES } from '../catalog';
 import { addFurniture, addLevel, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
+import { ShareDialog } from './ShareDialog';
 import type { Tool } from '../types';
 
 const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = [
@@ -28,9 +29,10 @@ export default function EditorScreen() {
   const { setTool, undo, redo, save, setScreen, closeProject, mutate, notify } = useStore.getState();
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const saveNow = () => {
-    if (save()) notify(`💾 "${project.name}" guardado en este navegador`);
+    if (save()) notify(`💾 "${project.name}" guardado en la nube`);
   };
 
   const exit = () => {
@@ -57,7 +59,8 @@ export default function EditorScreen() {
         <button className="icon" onClick={undo} disabled={!past} title="Deshacer (Ctrl+Z)">↶</button>
         <button className="icon" onClick={redo} disabled={!future} title="Rehacer (Ctrl+Y)">↷</button>
         <button className="ghost hide-sm" onClick={() => downloadProject(project)} title="Exportar como archivo JSON">⤓ Exportar</button>
-        <button className="secondary" onClick={saveNow} title="Guardar (localStorage)">💾 <span className="hide-sm">Guardar</span></button>
+        <button className="secondary" onClick={saveNow} title="Guardar en este navegador y en la nube">💾 <span className="hide-sm">Guardar</span></button>
+        <button className="secondary" onClick={() => { save(); setSharing(true); }} title="Guardar y obtener la liga para compartir">🔗 <span className="hide-sm">Compartir</span></button>
         <button className="primary" onClick={() => { if (autosave) save(); setScreen('viewer'); }}>
           🧊 <span>Vista 3D</span>
         </button>
@@ -90,6 +93,7 @@ export default function EditorScreen() {
           <PropertiesPanel />
         </aside>
       </div>
+      {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
       {(leftOpen || rightOpen) && <div className="scrim" onClick={() => { setLeftOpen(false); setRightOpen(false); }} />}
     </div>
   );

@@ -1,18 +1,37 @@
-// Acceso con contraseña única verificada en Supabase (tabla CRZ_acceso, función crz_verificar_acceso).
-// La llave publicable es pública por diseño; la tabla no es legible desde la API, solo la función
-// de verificación, que responde verdadero o falso.
+// Acceso con contraseña única verificada en Supabase (tabla crz_acceso). La función
+// crz_iniciar_sesion devuelve un token de sesión que autoriza guardar y leer proyectos.
+// La llave publicable es pública por diseño; las tablas crz_* no son legibles desde la API,
+// solo a través de funciones.
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://mhmqgjgfkcrgbtrhmtqw.supabase.co';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY || 'sb_publishable_up1bYZnUEh0JxdhfBIRTUQ_FO2jrb4X';
 
-const SESSION_KEY = 'rendercrz:auth';
+const SESSION_KEY = 'rendercrz:token';
+
+export class SessionExpired extends Error {}
+
+/** Llama a una función de Supabase (PostgREST RPC). */
+export async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+  });
+  if (res.status === 401 || res.status === 403) throw new SessionExpired('Sesión vencida');
+  if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
+  return (await res.json()) as T;
+}
+
+export function sessionToken(): string | null {
+  try {
+    return sessionStorage.getItem(SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export function isAuthenticated() {
-  try {
-    return sessionStorage.getItem(SESSION_KEY) === '1';
-  } catch {
-    return false;
-  }
+  return !!sessionToken();
 }
 
 export function logout() {
@@ -24,19 +43,12 @@ export function logout() {
 }
 
 export async function verifyPassword(password: string): Promise<boolean> {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/crz_verificar_acceso`, {
-    method: 'POST',
-    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ p_password: password }),
-  });
-  if (!res.ok) throw new Error(`Error del servidor (${res.status})`);
-  const ok = (await res.json()) === true;
-  if (ok) {
-    try {
-      sessionStorage.setItem(SESSION_KEY, '1');
-    } catch {
-      /* sin acceso */
-    }
+  const token = await rpc<string | null>('crz_iniciar_sesion', { p_password: password });
+  if (!token) return false;
+  try {
+    sessionStorage.setItem(SESSION_KEY, token);
+  } catch {
+    /* sin acceso */
   }
-  return ok;
+  return true;
 }

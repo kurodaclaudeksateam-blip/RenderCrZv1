@@ -1,5 +1,6 @@
 import { useCurrentLevel, useStore } from '../store';
-import { area, dist, fmt, perimeter } from '../geometry';
+import { useState } from 'react';
+import { area, cellGrid, cellIndex, dist, fmt, perimeter } from '../geometry';
 import { CATALOG, FLOOR_MATERIALS } from '../catalog';
 import { deleteSelection, duplicateSelection, rotateSelection, updateFurniture } from '../actions';
 import type { FloorMaterial, Furniture, Level, Opening, Project, Room } from '../types';
@@ -72,9 +73,86 @@ export default function PropertiesPanel() {
 
 const TEXT_TYPES = new Set(['letrero', 'letrero_pie', 'zona']);
 const SHELF_TYPES = new Set(['rack', 'estanteria_metal', 'cantilever']);
+const CELL_TYPES = new Set(['rack_custom', 'tarima_custom']);
+const BOX_COLORS = ['#c69c6d', '#ef4444', '#f59e0b', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6', '#f8fafc', '#334155'];
+
+/** Rack y tarima a medida: se elige un color y se toca cada posición para poner o quitar su caja. */
+function CellEditor({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) => void }) {
+  const [color, setColor] = useState(BOX_COLORS[0]);
+  const [layer, setLayer] = useState(0);
+  const g = cellGrid(f);
+  const isRack = f.type === 'rack_custom';
+  const total = g.cols * g.rows * g.layers;
+  const cells = Array.from({ length: total }, (_, i) => f.cells?.[i] ?? '');
+  const shown = Math.min(layer, g.layers - 1);
+
+  // al cambiar la rejilla cada caja conserva su posición (columna, fila, capa)
+  const resize = (patch: Partial<Furniture>) => {
+    const ng = cellGrid({ ...f, ...patch });
+    const next = new Array<string>(ng.cols * ng.rows * ng.layers).fill('');
+    for (let l = 0; l < Math.min(g.layers, ng.layers); l++)
+      for (let r = 0; r < Math.min(g.rows, ng.rows); r++)
+        for (let c = 0; c < Math.min(g.cols, ng.cols); c++) next[cellIndex(ng, l, r, c)] = cells[cellIndex(g, l, r, c)];
+    set({ ...patch, cells: next });
+  };
+  const toggle = (i: number) => set({ cells: cells.map((v, j) => (j !== i ? v : v === color ? '' : color)) });
+  const cell = (l: number, r: number, c: number) => {
+    const i = cellIndex(g, l, r, c);
+    return <button key={i} type="button" className={cells[i] ? 'full' : ''} style={{ background: cells[i] || undefined }} onClick={() => toggle(i)} title={cells[i] ? 'Quitar o cambiar caja' : 'Poner caja'} />;
+  };
+
+  return (
+    <div className="cell-editor">
+      <div className="grid2">
+        <Num label={isRack ? 'Niveles de carga' : 'Capas de cajas'} value={f.shelves ?? 3} step={1} min={1} max={12} unit="" onChange={(n) => resize({ shelves: Math.max(1, Math.min(12, Math.round(n))) })} />
+        <Num label="Posiciones a lo ancho" value={g.cols} step={1} min={1} max={24} unit="" onChange={(n) => resize({ cols: Math.max(1, Math.min(24, Math.round(n))) })} />
+        {!isRack && <Num label="Posiciones a lo fondo" value={g.rows} step={1} min={1} max={12} unit="" onChange={(n) => resize({ rows: Math.max(1, Math.min(12, Math.round(n))) })} />}
+      </div>
+      <div className="cell-colors">
+        {BOX_COLORS.map((c) => (
+          <button key={c} type="button" className={c === color ? 'active' : ''} style={{ background: c }} onClick={() => setColor(c)} title={`Color ${c}`} />
+        ))}
+        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} title="Otro color" />
+      </div>
+      {!isRack && (
+        <label className="field">
+          <span>Capa que se edita (1 = sobre la tarima)</span>
+          <select value={shown} onChange={(e) => setLayer(Number(e.target.value))}>
+            {Array.from({ length: g.layers }, (_, l) => (
+              <option key={l} value={l}>
+                Capa {l + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <div className="cell-grid" style={{ gridTemplateColumns: `repeat(${g.cols}, 1fr)` }}>
+        {isRack
+          ? Array.from({ length: g.layers }, (_, k) => g.layers - 1 - k).flatMap((l) => Array.from({ length: g.cols }, (_, c) => cell(l, 0, c)))
+          : Array.from({ length: g.rows }, (_, r) => Array.from({ length: g.cols }, (_, c) => cell(shown, r, c)))}
+      </div>
+      <p className="muted small">
+        {isRack ? 'Vista de frente: la fila de abajo es el piso. ' : 'Vista desde arriba. '}
+        Elige un color y toca una posición para poner la caja; tócala otra vez con el mismo color para quitarla.
+      </p>
+      <div className="row wrap">
+        <button className="secondary small" onClick={() => set({ cells: cells.map((v, i) => (isRack || Math.floor(i / (g.cols * g.rows)) === shown ? color : v)) })}>
+          {isRack ? 'Llenar todo' : 'Llenar capa'}
+        </button>
+        <button className="secondary small" onClick={() => set({ cells: cells.map(() => '') })}>
+          Vaciar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /** Posiciones de pallet de un rack: módulos × filas × (niveles + piso) × huecos por módulo. */
 export function palletPositions(f: Furniture) {
+  if (f.type === 'rack_custom') {
+    const g = cellGrid(f);
+    return g.cols * g.layers;
+  }
   if (f.type !== 'rack') return 0;
   const bays = Math.max(1, Math.round(f.w / 2.7));
   const rows = f.d > 1.8 ? 2 : 1;
@@ -110,7 +188,17 @@ function FurnitureProps({ f }: { f: Furniture }) {
       {SHELF_TYPES.has(f.type) && (
         <Num label="Niveles de carga" value={f.shelves ?? 4} step={1} min={1} max={12} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />
       )}
-      {f.type === 'rack' && <p className="muted small">Capacidad: <b>{palletPositions(f)}</b> posiciones de pallet</p>}
+      {(f.type === 'rack' || f.type === 'estanteria_metal') && (
+        <label className="field">
+          <span>Carga</span>
+          <select value={f.empty ? 'sin' : 'con'} onChange={(e) => set({ empty: e.target.value === 'sin' })}>
+            <option value="con">Con cajas</option>
+            <option value="sin">Sin cajas (solo estructura)</option>
+          </select>
+        </label>
+      )}
+      {CELL_TYPES.has(f.type) && <CellEditor f={f} set={set} />}
+      {(f.type === 'rack' || f.type === 'rack_custom') && <p className="muted small">Capacidad: <b>{palletPositions(f)}</b> posiciones de pallet</p>}
       <label className="field">
         <span>Tipo (modelo 3D)</span>
         <select value={f.type} onChange={(e) => set({ type: e.target.value as Furniture['type'] })}>
@@ -257,7 +345,7 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
         <div><b>{level.furniture.length}</b><span>objetos</span></div>
         <div><b>{positions}</b><span>posiciones pallet</span></div>
         <div><b>{fmt(zoneArea, 0)}</b><span>m² en zonas</span></div>
-        <div><b>{level.furniture.filter((f) => f.type === 'rack' || f.type === 'estanteria_metal' || f.type === 'cantilever').length}</b><span>estructuras</span></div>
+        <div><b>{level.furniture.filter((f) => f.type === 'rack' || f.type === 'rack_custom' || f.type === 'estanteria_metal' || f.type === 'cantilever').length}</b><span>estructuras</span></div>
       </div>
 
       <h2>

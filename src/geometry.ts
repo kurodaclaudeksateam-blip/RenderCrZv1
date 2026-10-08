@@ -14,6 +14,16 @@ export const norm = (a: Vec2): Vec2 => {
   return { x: a.x / l, y: a.y / l };
 };
 
+/** Rejilla de cajas de un rack o tarima a medida: columnas (ancho), filas (fondo) y capas (alto). */
+export function cellGrid(f: { type: string; cols?: number; rows?: number; shelves?: number }) {
+  const cols = Math.max(1, Math.round(f.cols ?? 2));
+  const levels = Math.max(1, Math.round(f.shelves ?? 3));
+  // el rack carga también a piso; sus cajas ocupan todo el fondo
+  return f.type === 'rack_custom' ? { cols, rows: 1, layers: levels + 1 } : { cols, rows: Math.max(1, Math.round(f.rows ?? 2)), layers: levels };
+}
+
+export const cellIndex = (g: { cols: number; rows: number }, layer: number, row: number, col: number) => (layer * g.rows + row) * g.cols + col;
+
 export const uid = () =>
   (typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
