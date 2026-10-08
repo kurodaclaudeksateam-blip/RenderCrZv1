@@ -195,8 +195,8 @@ export const WINDOW_DEFAULT = { width: 1.2, height: 1.2, sill: 0.9 };
  * ventanas. Un vano también recorta los muros colineales de ambientes vecinos,
  * así una puerta en un muro compartido atraviesa ambos.
  */
-export function computeWalls(level: Level, thickness: number) {
-  const H = level.height;
+export function computeWalls(level: Level, thickness: number, height = level.height) {
+  const H = height;
   const pieces: WallPiece[] = [];
   const segments: WallSegment[] = [];
   const ops = level.openings
@@ -297,13 +297,33 @@ export function localToWorld(lx: number, ly: number, cx: number, cy: number, deg
   return v(cx + lx * c - ly * s, cy + lx * s + ly * c);
 }
 
+/** Holgura entre el objeto más alto de un nivel y la losa del nivel de arriba. */
+const CLEARANCE = 0.3;
+
+/**
+ * Altura real de cada nivel: la indicada, o más si un rack u otro objeto que queda
+ * debajo del nivel superior es más alto. Así la losa de arriba nunca corta los objetos.
+ */
+export function levelHeights(levels: Level[]) {
+  return levels.map((l, i) => {
+    const above = levels[i + 1];
+    if (!above) return l.height;
+    let need = l.height;
+    for (const f of l.furniture) {
+      const top = f.elevation + f.h + CLEARANCE;
+      if (top > need && above.rooms.some((r) => pointInPolygon(f, r.points))) need = top;
+    }
+    return Math.round(need * 100) / 100;
+  });
+}
+
 export function levelElevations(levels: Level[]) {
   const out: number[] = [];
   let acc = 0;
-  for (const l of levels) {
+  levelHeights(levels).forEach((h) => {
     out.push(acc);
-    acc += l.height + SLAB;
-  }
+    acc += h + SLAB;
+  });
   return out;
 }
 

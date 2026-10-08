@@ -1,6 +1,6 @@
 import { useCurrentLevel, useStore } from '../store';
 import { useState } from 'react';
-import { area, cellGrid, cellIndex, dist, fmt, perimeter } from '../geometry';
+import { area, cellGrid, cellIndex, dist, fmt, levelHeights, perimeter } from '../geometry';
 import { CATALOG, FLOOR_MATERIALS } from '../catalog';
 import { deleteSelection, duplicateSelection, rotateSelection, updateFurniture } from '../actions';
 import type { FloorMaterial, Furniture, Level, Opening, Project, Room } from '../types';
@@ -392,6 +392,7 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
   const autosave = useStore((s) => s.autosave);
   const { setGrid, toggleSnap, toggleGhost, setAutosave } = useStore.getState();
   const totalArea = level.rooms.reduce((a, r) => a + area(r.points), 0);
+  const realHeight = levelHeights(project.levels)[project.levels.indexOf(level)] ?? level.height;
   const positions = level.furniture.reduce((n, f) => n + palletPositions(f), 0);
   const zoneArea = level.furniture.filter((f) => f.type === 'zona').reduce((a, f) => a + f.w * f.d, 0);
   return (
@@ -401,6 +402,11 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
       </h2>
       <Text label="Nombre del nivel" value={level.name} onChange={(name) => mutate((_, l) => void (l.name = name))} />
       <Num label="Altura de piso a techo" value={level.height} min={2} max={30} onChange={(height) => mutate((_, l) => void (l.height = height))} />
+      {realHeight > level.height && (
+        <p className="muted small">
+          En 3D este nivel mide <b>{fmt(realHeight)} m</b>: tiene objetos más altos que quedan debajo del nivel superior, y la losa de arriba se coloca por encima de ellos.
+        </p>
+      )}
       <div className="stats">
         <div><b>{level.rooms.length}</b><span>ambientes</span></div>
         <div><b>{fmt(totalArea, 1)}</b><span>m² totales</span></div>

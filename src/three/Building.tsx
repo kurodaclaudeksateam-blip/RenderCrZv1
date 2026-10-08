@@ -106,9 +106,12 @@ export function LevelMesh({
   wallOpacity = 1,
   isTop,
   build,
+  height = level.height,
 }: {
   level: Level;
   elevation: number;
+  /** altura real del nivel (ver levelHeights) */
+  height?: number;
   thickness: number;
   ceiling: boolean;
   wallOpacity?: number;
@@ -116,7 +119,7 @@ export function LevelMesh({
   /** si se indica, el nivel se arma por pasos: piso, muros y objetos */
   build?: BuildWindow;
 }) {
-  const walls = useMemo(() => computeWalls(level, thickness), [level, thickness]);
+  const walls = useMemo(() => computeWalls(level, thickness, height), [level, thickness, height]);
 
   const wallGeos = useMemo(
     () =>
@@ -160,7 +163,7 @@ export function LevelMesh({
         </Reveal>
       ))}
       {/* techo propio del último nivel (losa de cubierta) cuando se recorre */}
-      {ceiling && isTop && level.rooms.filter((r) => r.hasWalls).map((r) => <Slab key={`c${r.id}`} room={r} top={elevation + level.height + SLAB} ceiling />)}
+      {ceiling && isTop && level.rooms.filter((r) => r.hasWalls).map((r) => <Slab key={`c${r.id}`} room={r} top={elevation + height + SLAB} ceiling />)}
       {level.furniture.map((f, i) => (
         <Reveal key={f.id} clock={clock} at={furnAt[i]} dur={0.5} pivot={[f.x, elevation + f.elevation, f.y]} mode="pop">
           <FurnitureModel f={f} baseY={elevation} />

@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from '../store';
-import { area, bounds, computeWalls, interiorPoint, levelElevations, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
+import { area, bounds, computeWalls, interiorPoint, levelElevations, levelHeights, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
 import { LevelMesh, type BuildClock } from './Building';
 import type { Project } from '../types';
 import { WalkControls, walkInput } from './WalkControls';
@@ -152,6 +152,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const setScreen = useStore((s) => s.setScreen);
   const levels = project.levels;
   const elevations = useMemo(() => levelElevations(levels), [levels]);
+  const heights = useMemo(() => levelHeights(levels), [levels]);
 
   const [mode, setMode] = useState<Mode>('orbit');
   const [maxLevel, setMaxLevel] = useState(levels.length - 1);
@@ -173,7 +174,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const cx = (b.minX + b.maxX) / 2;
   const cz = (b.minY + b.maxY) / 2;
   const size = Math.max(6, b.maxX - b.minX, b.maxY - b.minY);
-  const totalH = elevations[elevations.length - 1] + levels[levels.length - 1].height;
+  const totalH = elevations[elevations.length - 1] + heights[heights.length - 1];
 
   const walkLvl = levels[Math.min(walkLevel, levels.length - 1)];
   const walkSegments = useMemo(() => {
@@ -286,6 +287,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
                 key={l.id}
                 level={l}
                 elevation={elevations[i]}
+                height={heights[i]}
                 thickness={project.wallThickness}
                 ceiling={mode === 'walk'}
                 isTop={i === levels.length - 1}
