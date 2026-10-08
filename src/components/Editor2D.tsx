@@ -564,7 +564,11 @@ export default function Editor2D() {
             const p0 = add(ow.center, mul(ow.dir, -o.width / 2));
             const p1 = add(ow.center, mul(ow.dir, o.width / 2));
             const selected = selection?.id === o.id;
-            const box = [p0, p1, add(p1, mul(nIn, t)), add(p0, mul(nIn, t))];
+            // una puerta abre todo el grosor que atraviesa (muros pegados incluidos)
+            const dp = walls.doors.find((d) => d.id === o.id);
+            const box = dp
+              ? [add(dp.a, mul(dp.inward, -dp.depth / 2)), add(dp.b, mul(dp.inward, -dp.depth / 2)), add(dp.b, mul(dp.inward, dp.depth / 2)), add(dp.a, mul(dp.inward, dp.depth / 2))]
+              : [p0, p1, add(p1, mul(nIn, t)), add(p0, mul(nIn, t))];
             return (
               <g key={o.id} data-kind="opening" data-id={o.id} className={tool === 'select' ? 'hit' : ''}>
                 <polygon points={pts(box)} fill={o.kind === 'window' ? 'var(--glass)' : 'var(--bg-plan)'} stroke={selected ? 'var(--accent)' : 'var(--wall)'} strokeWidth={k * (selected ? 2.5 : 1)} />

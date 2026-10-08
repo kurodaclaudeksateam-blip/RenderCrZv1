@@ -210,6 +210,54 @@ export const DOOR_DEFAULT = { width: 0.9, height: 2.1, sill: 0 };
 export const WINDOW_DEFAULT = { width: 1.2, height: 1.2, sill: 0.9 };
 
 /**
+ * Muros que atraviesa una abertura. Además de su propio muro corta todos los paralelos
+ * que estén pegados a él en profundidad (el del ambiente vecino, un muro doble, un
+ * ambiente angosto usado como muro grueso), para que el paso quede libre de lado a lado.
+ * Devuelve las aristas cortadas («ambiente:arista») y el tramo de profundidad [lo, hi]
+ * medido desde la arista de la abertura hacia el interior de su ambiente.
+ */
+function openingCuts(o: OpeningWorld, rooms: Room[], thickness: number) {
+  const own = rooms.find((r) => r.id === o.roomId)!;
+  const n0 = inwardNormal(o.dir, signedArea(own.points) > 0);
+  const bands: { key: string; lo: number; hi: number }[] = [];
+  for (const room of rooms) {
+    if (!room.hasWalls || room.points.length < 3) continue;
+    const ccw = signedArea(room.points) > 0;
+    const n = room.points.length;
+    for (let i = 0; i < n; i++) {
+      const a = room.points[i];
+      const b = room.points[(i + 1) % n];
+      const L = dist(a, b);
+      if (L < 1e-4) continue;
+      const d = mul(sub(b, a), 1 / L);
+      if (Math.abs(cross(o.dir, d)) > 0.02) continue;
+      const s = dot(sub(o.center, a), d);
+      if (s <= 0 || s >= L) continue;
+      const c = dot(sub(a, o.center), n0);
+      const end = c + (dot(inwardNormal(d, ccw), n0) >= 0 ? thickness : -thickness);
+      bands.push({ key: `${room.id}:${i}`, lo: Math.min(c, end), hi: Math.max(c, end) });
+    }
+  }
+  const gap = Math.max(0.12, thickness * 0.5);
+  const maxDepth = Math.max(1, thickness * 5);
+  const cut = new Set<string>();
+  let lo = 0;
+  let hi = thickness;
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const band of bands) {
+      if (cut.has(band.key) || band.hi < lo - gap || band.lo > hi + gap) continue;
+      if (Math.max(hi, band.hi) - Math.min(lo, band.lo) > maxDepth) continue;
+      cut.add(band.key);
+      lo = Math.min(lo, band.lo);
+      hi = Math.max(hi, band.hi);
+      grew = true;
+    }
+  }
+  return { cut, lo, hi, inward: n0 };
+}
+
+/**
  * Genera las piezas sólidas de muro de un nivel, recortando vanos de puertas y
  * ventanas. Un vano también recorta los muros colineales de ambientes vecinos,
  * así una puerta en un muro compartido atraviesa ambos.
@@ -223,6 +271,7 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
   const ops = level.openings
     .map((o) => openingWorld(o, level.rooms))
     .filter((o): o is OpeningWorld => !!o);
+  const cuts = new Map(ops.map((o) => [o.id, openingCuts(o, level.rooms, thickness)]));
 
   for (const room of level.rooms) {
     if (!room.hasWalls || room.points.length < 3) continue;
@@ -271,13 +320,7 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
       };
 
       const gaps = ops
-        .filter((o) => {
-          if (Math.abs(cross(o.dir, d)) > 0.02) return false;
-          const rel = sub(o.center, a);
-          if (Math.abs(cross(d, rel)) > Math.max(0.12, thickness * 1.2)) return false;
-          const s = dot(rel, d);
-          return s > 0 && s < L;
-        })
+        .filter((o) => cuts.get(o.id)!.cut.has(`${room.id}:${i}`))
         .map((o) => {
           const s = dot(sub(o.center, a), d);
           return { s0: Math.max(0, s - o.width / 2), s1: Math.min(L, s + o.width / 2), o };
@@ -325,15 +368,16 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
     const room = level.rooms.find((r) => r.id === o.roomId);
     if (!room) continue;
     const fence = fenced(room);
-    const inward = inwardNormal(o.dir, signedArea(room.points) > 0);
-    const c = add(o.center, mul(inward, thickness / 2));
+    // la puerta va al centro de todo el grosor que atraviesa, no solo de su propio muro
+    const { lo, hi, inward } = cuts.get(o.id)!;
+    const c = add(o.center, mul(inward, fence ? thickness / 2 : (lo + hi) / 2));
     doors.push({
       id: o.id,
       a: add(c, mul(o.dir, -o.width / 2)),
       b: add(c, mul(o.dir, o.width / 2)),
       inward,
       height: Math.min(o.height, fence ? Math.min(H, room.wallHeight || FENCE_HEIGHT) : H - 0.05),
-      depth: thickness,
+      depth: fence ? thickness : hi - lo,
       style: o.door,
       fence,
     });
