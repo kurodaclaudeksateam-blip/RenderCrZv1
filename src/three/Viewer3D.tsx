@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { useStore } from '../store';
 import { area, bounds, computeWalls, interiorPoint, levelElevations, levelHeights, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
 import { LevelMesh, type BuildClock } from './Building';
-import type { Project } from '../types';
+import type { Project, Vec2 } from '../types';
+import { EditPanel, type Pick } from './EditPanel';
 import { WalkControls, walkInput } from './WalkControls';
 import { grassTexture } from './textures';
 
@@ -159,6 +160,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const [walkLevel, setWalkLevel] = useState(Math.max(0, levels.findIndex((l) => l.id === editorLevelId)));
   const [shadows, setShadows] = useState(true);
   const [xray, setXray] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [pick, setPick] = useState<Pick | null>(null);
+  const onPick = useCallback((kind: Pick['kind'], id: string) => setPick({ kind, id }), []);
   const [collisions, setCollisions] = useState(true);
   const [locked, setLocked] = useState(false);
   const [ready, setReady] = useState(false);
@@ -177,8 +181,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const totalH = elevations[elevations.length - 1] + heights[heights.length - 1];
 
   const walkLvl = levels[Math.min(walkLevel, levels.length - 1)];
-  const walkSegments = useMemo(() => {
+  const { segs: walkSegments, solids: walkSolids } = useMemo(() => {
     const segs = computeWalls(walkLvl, project.wallThickness).segments;
+    const solids: Vec2[][] = [];
     // racks, equipos y objetos altos también bloquean el paso
     for (const f of walkLvl.furniture) {
       if (NON_BLOCKING.has(f.type) || f.h < 0.45 || f.elevation > 1.2) continue;
@@ -189,8 +194,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
         localToWorld(-f.w / 2, f.d / 2, f.x, f.y, f.rotation),
       ];
       for (let i = 0; i < 4; i++) segs.push({ a: c[i], b: c[(i + 1) % 4], half: 0.02 });
+      solids.push(c);
     }
-    return segs;
+    return { segs, solids };
   }, [walkLvl, project.wallThickness]);
 
   const start = useMemo(() => {
@@ -293,6 +299,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
                 isTop={i === levels.length - 1}
                 wallOpacity={mode === 'orbit' && xray ? 0.35 : 1}
                 build={building ? buildWindows[i] : undefined}
+                onPick={editing && mode === 'orbit' ? onPick : undefined}
               />
             ) : null,
           )}
@@ -301,7 +308,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           ) : mode === 'orbit' ? (
             <OrbitControls makeDefault target={orbitTarget} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={1.5} maxDistance={size * 6} enableDamping />
           ) : (
-            <WalkControls start={start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} collisions={collisions} onLockChange={onLockChange} />
+            <WalkControls start={start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} solids={walkSolids} collisions={collisions} onLockChange={onLockChange} />
           )}
           <Snapshot onReady={onSnapReady} />
           <FirstFrame onReady={onFirstFrame} />
@@ -373,6 +380,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
             <label className="inline check">
               <input type="checkbox" checked={xray} onChange={(e) => setXray(e.target.checked)} /> Rayos X
             </label>
+            <button className={editing ? 'primary' : 'secondary'} onClick={() => { setEditing(!editing); setPick(null); }} title="Toca una puerta, pared, cerco u objeto para editarlo">
+              ✏️ <span className="hide-sm">Editar en 3D</span>
+            </button>
           </>
         ) : (
           <>
@@ -398,6 +408,8 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           📷
         </button>
       </header>
+
+      {editing && mode === 'orbit' && !shared && (pick ? <EditPanel project={project} pick={pick} onClose={() => setPick(null)} /> : <div className="edit3d hint">Toca una puerta, una pared, un cerco o un objeto para editarlo.</div>)}
 
       {!ready && !empty && !shared && <div className="viewer-loading"><span className="spinner" /> Construyendo la escena 3D…</div>}
 

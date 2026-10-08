@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import type { WallSegment } from '../geometry';
+import { pointInPolygon, type WallSegment } from '../geometry';
+import type { Vec2 } from '../types';
 
 /** Entrada compartida con los controles táctiles en pantalla. */
 export const walkInput = { forward: 0, right: 0, turn: 0, run: false };
@@ -31,16 +32,43 @@ function collide(x: number, z: number, segs: WallSegment[]) {
   return { x, z };
 }
 
+/** ¿El punto queda metido en algún muro u objeto? */
+function blocked(x: number, z: number, segs: WallSegment[]) {
+  for (const s of segs) {
+    const dx = s.b.x - s.a.x;
+    const dz = s.b.y - s.a.y;
+    const t = Math.max(0, Math.min(1, ((x - s.a.x) * dx + (z - s.a.y) * dz) / (dx * dx + dz * dz || 1e-9)));
+    if (Math.hypot(x - s.a.x - dx * t, z - s.a.y - dz * t) < RADIUS + s.half - 0.02) return true;
+  }
+  return false;
+}
+
+/**
+ * Siguiente posición con colisiones. Nunca deja al visitante encajado: si ya está
+ * dentro de un mueble o pegado a un muro (por el punto de inicio o un cambio de nivel)
+ * lo deja salir caminando, y si el paso completo no cabe (hueco estrecho o esquina)
+ * prueba deslizarse por un solo eje antes de detenerlo.
+ */
+export function step(x: number, z: number, dx: number, dz: number, segs: WallSegment[], solids: Vec2[][] = []) {
+  if (blocked(x, z, segs) || solids.some((poly) => pointInPolygon({ x, y: z }, poly))) return { x: x + dx, z: z + dz };
+  const tries = [collide(x + dx, z + dz, segs), collide(x + dx, z, segs), collide(x, z + dz, segs)];
+  for (const p of tries) if (!blocked(p.x, p.z, segs)) return p;
+  return { x, z };
+}
+
 export function WalkControls({
   start,
   eyeY,
   segments,
+  solids,
   collisions,
   onLockChange,
 }: {
   start: { x: number; z: number; yaw: number };
   eyeY: number;
   segments: WallSegment[];
+  /** contorno en planta de los objetos que bloquean el paso */
+  solids: Vec2[][];
   collisions: boolean;
   onLockChange: (locked: boolean) => void;
 }) {
@@ -133,7 +161,7 @@ export function WalkControls({
 
     let nx = pos.current.x + dx;
     let nz = pos.current.z + dz;
-    if (collisions) ({ x: nx, z: nz } = collide(nx, nz, segments));
+    if (collisions) ({ x: nx, z: nz } = step(pos.current.x, pos.current.z, dx, dz, segments, solids));
     const moving = Math.hypot(nx - pos.current.x, nz - pos.current.z) > 1e-5;
     pos.current.x = nx;
     pos.current.z = nz;

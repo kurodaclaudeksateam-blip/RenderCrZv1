@@ -10,7 +10,7 @@ const r4 = (n: number) => Math.round(n * 10000) / 10000;
 
 type RoomT = [string, number[], string, string, string, number, (string | 0)?, number?];
 type OpeningT = [number, number, number, number, number, number, number, string?];
-type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?, number?];
+type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?, number?, number?];
 type LevelT = [string, number, RoomT[], OpeningT[], FurnT[]];
 type ProjectT = [1, string, number, number, number, LevelT[], string[]?];
 
@@ -32,7 +32,7 @@ function pack(p: Project): ProjectT {
           .filter((o) => roomIndex.has(o.roomId))
           .map((o): OpeningT => [roomIndex.get(o.roomId)!, o.edge, r4(o.t), mm(o.width), mm(o.height), mm(o.sill), o.kind === 'window' ? 1 : 0, ...(o.door ? [o.door] : [])] as OpeningT),
         l.furniture.map((f): FurnT => {
-          const t: FurnT = [f.type, f.name, mm(f.x), mm(f.y), mm(f.rotation), mm(f.w), mm(f.d), mm(f.h), mm(f.elevation), f.color, f.label || 0, f.shelves ?? 0, f.empty ? 1 : 0, f.cols ?? 0, f.rows ?? 0, f.cells?.some(Boolean) ? f.cells.join(',') : 0, imageRef(f.image)];
+          const t: FurnT = [f.type, f.name, mm(f.x), mm(f.y), mm(f.rotation), mm(f.w), mm(f.d), mm(f.h), mm(f.elevation), f.color, f.label || 0, f.shelves ?? 0, f.empty ? 1 : 0, f.cols ?? 0, f.rows ?? 0, f.cells?.some(Boolean) ? f.cells.join(',') : 0, imageRef(f.image), f.showName ? 1 : 0];
           while (t.length > 10 && !t[t.length - 1]) t.pop();
           return t;
         }),
@@ -83,6 +83,7 @@ function unpack(t: ProjectT, id: string): Project {
             ...(f[14] ? { rows: f[14] } : {}),
             ...(f[15] ? { cells: f[15].split(',') } : {}),
             ...(f[16] && t[6]?.[f[16] - 1] ? { image: t[6][f[16] - 1] } : {}),
+            ...(f[17] ? { showName: true } : {}),
           }),
         ),
       };

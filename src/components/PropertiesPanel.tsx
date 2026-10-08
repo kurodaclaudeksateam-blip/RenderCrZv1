@@ -245,6 +245,10 @@ function FurnitureProps({ f }: { f: Furniture }) {
         <span className="props-icon">{cat?.icon ?? '⬜'}</span> Objeto
       </h2>
       <Text label="Nombre" value={f.name} onChange={(name) => set({ name })} />
+      <label className="check">
+        <input type="checkbox" checked={!!f.showName} onChange={(e) => set({ showName: e.target.checked })} />
+        Mostrar rótulo con el nombre
+      </label>
       {TEXT_TYPES.has(f.type) && <Text label="Texto del letrero / zona" value={f.label ?? ''} onChange={(label) => set({ label: label.toUpperCase() })} />}
       {AD_TYPES.has(f.type) && <AdImage f={f} set={set} />}
       {SHELF_TYPES.has(f.type) && (

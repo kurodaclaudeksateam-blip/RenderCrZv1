@@ -21,7 +21,7 @@ function Box({ p, s, c, metal = 0, rough = 0.7 }: { p: [number, number, number];
 }
 
 /** Hoja abatible de ancho w que parte de la bisagra (x = 0) hacia +x. */
-function Leaf({ w, h, style }: { w: number; h: number; style: DoorPlacement['style'] }) {
+function Leaf({ w, h, style }: { w: number; h: number; style: NonNullable<DoorPlacement['style']> }) {
   const c = STYLE[style];
   const t = 0.045;
   if (style === 'vidrio') {
@@ -80,11 +80,22 @@ function RollUp({ w, h, depth }: { w: number; h: number; depth: number }) {
   return <group>{parts}</group>;
 }
 
+/** Zona invisible que ocupa todo el vano, para poder tocar la puerta al editar en 3D. */
+export function DoorTarget({ d, y }: { d: DoorPlacement; y: number }) {
+  const dx = d.b.x - d.a.x;
+  const dz = d.b.y - d.a.y;
+  return (
+    <mesh position={[(d.a.x + d.b.x) / 2, y + d.height / 2, (d.a.y + d.b.y) / 2]} rotation={[0, -Math.atan2(dz, dx), 0]} scale={[Math.hypot(dx, dz), d.height, d.depth + 0.12]} geometry={BOX}>
+      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+    </mesh>
+  );
+}
+
 /**
  * Puerta dentro de su vano, entreabierta para poder pasar en el recorrido: marco
  * ajustado al grosor del muro (o postes, si es un cerco) y una o dos hojas según el ancho.
  */
-export function Door({ d, y }: { d: DoorPlacement; y: number }) {
+export function Door({ d, y }: { d: DoorPlacement & { style: NonNullable<DoorPlacement['style']> }; y: number }) {
   const dx = d.b.x - d.a.x;
   const dz = d.b.y - d.a.y;
   const w = Math.hypot(dx, dz);

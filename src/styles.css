@@ -1417,3 +1417,54 @@ details summary {
 .card-delete {
   margin-left: auto;
 }
+
+/* ---------- Tabla de nombres y edición en 3D ---------- */
+.modal.wide {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+}
+.names-table {
+  overflow: auto;
+  min-height: 80px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.names-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.names-table th,
+.names-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.names-table th {
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+  font-weight: 600;
+}
+.names-table td input:not([type='checkbox']) {
+  width: 100%;
+  min-width: 160px;
+}
+.edit3d {
+  position: absolute;
+  top: 74px;
+  right: 12px;
+  width: min(280px, calc(100% - 24px));
+  display: grid;
+  gap: 10px;
+  background: rgba(11, 18, 32, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.edit3d.hint {
+  color: #cbd5e1;
+}

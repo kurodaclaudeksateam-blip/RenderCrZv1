@@ -134,6 +134,8 @@ export interface Furniture {
   cells?: string[];
   /** imagen del anuncio (data URL ya reducida) */
   image?: string;
+  /** muestra un rótulo con el nombre sobre el objeto */
+  showName?: boolean;
 }
 
 export interface Level {

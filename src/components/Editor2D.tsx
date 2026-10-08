@@ -780,13 +780,13 @@ function RoomHandles({ room, k }: { room: Room; k: number }) {
 }
 
 function FurnitureItem({ f, k, selected, hit }: { f: Furniture; k: number; selected: boolean; hit: boolean }) {
-  const showLabel = f.w / k > 46 && f.d / k > 22 && !OWN_LABEL.has(f.type);
+  const showLabel = f.showName || (f.w / k > 46 && f.d / k > 22 && !OWN_LABEL.has(f.type));
   return (
     <g transform={`translate(${f.x} ${f.y}) rotate(${f.rotation})`} data-kind="furniture" data-id={f.id} className={hit ? 'hit grab' : ''}>
       <FurnitureSymbol f={f} k={k} />
       {selected && <rect x={-f.w / 2 - 3 * k} y={-f.d / 2 - 3 * k} width={f.w + 6 * k} height={f.d + 6 * k} fill="none" stroke="var(--accent)" strokeWidth={k * 2} strokeDasharray={`${5 * k} ${3 * k}`} rx={3 * k} />}
       {showLabel && (
-        <text y={3.5 * k} fontSize={Math.min(10 * k, f.d * 0.4)} textAnchor="middle" className="furn-label" pointerEvents="none" transform={`rotate(${-f.rotation})`}>
+        <text y={3.5 * k} fontSize={f.showName ? 10 * k : Math.min(10 * k, f.d * 0.4)} textAnchor="middle" className="furn-label" pointerEvents="none" transform={`rotate(${-f.rotation})`}>
           {f.name}
         </text>
       )}

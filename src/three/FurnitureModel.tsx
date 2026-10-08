@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react';
 import * as THREE from 'three';
-import { RoundedBox } from '@react-three/drei';
+import { Billboard, RoundedBox } from '@react-three/drei';
 import type { Furniture } from '../types';
 import { cellGrid, cellIndex } from '../geometry';
 import { imageTexture, textTexture } from './textures';
@@ -1192,12 +1192,28 @@ function mulberry(seedStr: string) {
   };
 }
 
+/** Rótulo con el nombre del objeto, siempre de frente a la cámara. */
+function NameTag({ f }: { f: Furniture }) {
+  const aspect = Math.max(2, Math.min(9, f.name.length * 0.5));
+  const h = 0.55;
+  const map = textTexture(f.name, '#ffffff', '#0f172a', aspect);
+  return (
+    <Billboard position={[0, f.h + 0.5, 0]}>
+      <mesh>
+        <planeGeometry args={[h * aspect, h]} />
+        <meshBasicMaterial map={map} toneMapped={false} />
+      </mesh>
+    </Billboard>
+  );
+}
+
 /** Mueble posicionado en el mundo (x plano → x, y plano → z). */
 export const FurnitureModel = memo(function FurnitureModel({ f, baseY }: { f: Furniture; baseY: number }) {
   const rotY = useMemo(() => (-f.rotation * Math.PI) / 180, [f.rotation]);
   return (
     <group position={[f.x, baseY + f.elevation, f.y]} rotation={[0, rotY, 0]}>
       <Model f={f} />
+      {f.showName && f.name.trim() && <NameTag f={f} />}
     </group>
   );
 });

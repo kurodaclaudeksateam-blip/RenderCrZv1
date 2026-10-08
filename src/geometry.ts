@@ -175,7 +175,8 @@ export interface DoorPlacement {
   inward: Vec2;
   height: number;
   depth: number;
-  style: DoorStyle;
+  /** sin tipo es un vano abierto, sin hojas */
+  style?: DoorStyle;
   fence: boolean;
 }
 
@@ -308,7 +309,7 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
   }
 
   for (const o of ops) {
-    if (o.kind !== 'door' || !o.door) continue;
+    if (o.kind !== 'door') continue;
     const room = level.rooms.find((r) => r.id === o.roomId);
     if (!room) continue;
     const fence = fenced(room);

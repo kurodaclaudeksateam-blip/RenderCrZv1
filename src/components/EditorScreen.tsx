@@ -6,6 +6,7 @@ import { ADS_CATEGORY, CATALOG, CATEGORIES, WALL_MATERIALS, type CatalogItem } f
 import { addFurniture, addLevel, copyLevel, pickWallMaterial, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
+import { NamesDialog } from './NamesDialog';
 import type { Tool } from '../types';
 
 const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = [
@@ -30,6 +31,7 @@ export default function EditorScreen() {
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [naming, setNaming] = useState(false);
 
   const saveNow = () => {
     if (save()) notify(`💾 "${project.name}" guardado en la nube`);
@@ -58,6 +60,7 @@ export default function EditorScreen() {
         <div className="spacer" />
         <button className="icon" onClick={undo} disabled={!past} title="Deshacer (Ctrl+Z)">↶</button>
         <button className="icon" onClick={redo} disabled={!future} title="Rehacer (Ctrl+Y)">↷</button>
+        <button className="ghost" onClick={() => setNaming(true)} title="Tabla para nombrar racks y objetos y mostrar sus rótulos">🏷 <span className="hide-sm">Nombres</span></button>
         <button className="ghost hide-sm" onClick={() => downloadProject(project)} title="Exportar como archivo JSON">⤓ Exportar</button>
         <button className="secondary" onClick={saveNow} title="Guardar en este navegador y en la nube">💾 <span className="hide-sm">Guardar</span></button>
         <button className="secondary" onClick={() => { save(); setSharing(true); }} title="Guardar y obtener la liga para compartir">🔗 <span className="hide-sm">Compartir</span></button>
@@ -95,6 +98,7 @@ export default function EditorScreen() {
           <PropertiesPanel />
         </aside>
       </div>
+      {naming && <NamesDialog onClose={() => setNaming(false)} />}
       {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
       {(leftOpen || rightOpen) && <div className="scrim" onClick={() => { setLeftOpen(false); setRightOpen(false); }} />}
     </div>
