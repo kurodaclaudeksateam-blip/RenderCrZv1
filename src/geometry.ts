@@ -443,7 +443,10 @@ export function levelHeights(levels: Level[]) {
     let need = l.height;
     for (const f of l.furniture) {
       const top = f.elevation + f.h + CLEARANCE;
-      if (top > need && above.rooms.some((r) => pointInPolygon(f, r.points))) need = top;
+      if (top <= need) continue;
+      // cuenta si el centro o cualquier esquina del objeto queda bajo la losa de arriba
+      const spots = [f, ...[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) => localToWorld((sx * f.w) / 2, (sy * f.d) / 2, f.x, f.y, f.rotation))];
+      if (spots.some((q) => above.rooms.some((r) => pointInPolygon(q, r.points)))) need = top;
     }
     return Math.round(need * 100) / 100;
   });

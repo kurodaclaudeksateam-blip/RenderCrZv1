@@ -238,7 +238,7 @@ export function LevelMesh({
       {level.furniture.map((f, i) => (
         <Reveal key={f.id} clock={clock} at={furnAt[i]} dur={0.5} pivot={[f.x, elevation + f.elevation, f.y]} mode="pop">
           <group onClick={pick('furniture', f.id)}>
-            <FurnitureModel f={f} baseY={elevation} />
+            <FurnitureModel f={f} baseY={elevation} ceil={height} />
           </group>
         </Reveal>
       ))}

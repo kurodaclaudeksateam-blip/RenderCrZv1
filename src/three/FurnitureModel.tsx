@@ -93,7 +93,7 @@ function Legs({ w, d, h, inset = 0.05, r = 0.025, c }: { w: number; d: number; h
   );
 }
 
-function Model({ f }: { f: Furniture }) {
+function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
   const { w, d, h, color: c } = f;
   const dark = shade(c, 0.6);
   const metal = '#9ca3af';
@@ -243,7 +243,7 @@ function Model({ f }: { f: Furniture }) {
       );
     case 'letrero':
     case 'letrero_pie':
-      return <Sign f={f} />;
+      return <Sign f={f} ceil={ceil} />;
     case 'zona':
       return <Zone f={f} />;
     case 'extintor':
@@ -1247,7 +1247,7 @@ function Forklift({ f }: { f: Furniture }) {
   );
 }
 
-function Sign({ f }: { f: Furniture }) {
+function Sign({ f, ceil }: { f: Furniture; ceil?: number }) {
   const { w, d, h, color } = f;
   const text = f.label || f.name;
   const hanging = f.type === 'letrero';
@@ -1255,6 +1255,8 @@ function Sign({ f }: { f: Furniture }) {
   const py = hanging ? h / 2 : h - panelH / 2;
   const t = Math.max(0.02, Math.min(d, 0.08));
   const map = textTexture(text, '#ffffff', color, w / panelH);
+  // los tirantes del letrero colgante llegan justo al techo del nivel (1 m si no hay techo conocido)
+  const rod = ceil === undefined ? 1 : Math.max(0, ceil - f.elevation - h);
   return (
     <group>
       <Bx w={w} h={panelH} d={t} y0={py - panelH / 2} c={shade(color, 0.8)} />
@@ -1267,7 +1269,7 @@ function Sign({ f }: { f: Furniture }) {
         <meshStandardMaterial map={map} roughness={0.5} emissive="#ffffff" emissiveMap={map} emissiveIntensity={0.25} />
       </mesh>
       {hanging ? (
-        [-1, 1].map((sx) => <Cyl key={sx} p={[sx * w * 0.35, h + 0.5, 0]} r={0.008} h={1} c="#6b7280" metal={0.8} />)
+        rod > 0.02 && [-1, 1].map((sx) => <Cyl key={sx} p={[sx * w * 0.35, h + rod / 2, 0]} r={0.008} h={rod} c="#6b7280" metal={0.8} />)
       ) : (
         <>
           <Cyl p={[0, (h - panelH) / 2, 0]} r={0.035} h={h - panelH} c="#374151" metal={0.6} rough={0.4} />
@@ -1349,12 +1351,13 @@ function mulberry(seedStr: string) {
 }
 
 /** Rótulo con el nombre del objeto, siempre de frente a la cámara. */
-function NameTag({ f }: { f: Furniture }) {
+function NameTag({ f, ceil }: { f: Furniture; ceil?: number }) {
   const aspect = Math.max(2, Math.min(9, f.name.length * 0.5));
   const h = 0.55;
   const map = textTexture(f.name, '#ffffff', '#0f172a', aspect);
   return (
-    <Billboard position={[0, f.h + 0.5, 0]}>
+    // sobre el objeto, pero sin pasar del techo del nivel
+    <Billboard position={[0, ceil === undefined ? f.h + 0.5 : Math.min(f.h + 0.5, Math.max(0.4, ceil - f.elevation - 0.35)), 0]}>
       <mesh>
         <planeGeometry args={[h * aspect, h]} />
         <meshBasicMaterial map={map} toneMapped={false} />
@@ -1364,12 +1367,12 @@ function NameTag({ f }: { f: Furniture }) {
 }
 
 /** Mueble posicionado en el mundo (x plano → x, y plano → z). */
-export const FurnitureModel = memo(function FurnitureModel({ f, baseY }: { f: Furniture; baseY: number }) {
+export const FurnitureModel = memo(function FurnitureModel({ f, baseY, ceil }: { f: Furniture; baseY: number; /** altura del techo del nivel sobre su piso */ ceil?: number }) {
   const rotY = useMemo(() => (-f.rotation * Math.PI) / 180, [f.rotation]);
   return (
     <group position={[f.x, baseY + f.elevation, f.y]} rotation={[0, rotY, 0]}>
-      <Model f={f} />
-      {f.showName && f.name.trim() && <NameTag f={f} />}
+      <Model f={f} ceil={ceil} />
+      {f.showName && f.name.trim() && <NameTag f={f} ceil={ceil} />}
     </group>
   );
 });
