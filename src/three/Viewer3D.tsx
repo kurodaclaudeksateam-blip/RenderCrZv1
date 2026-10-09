@@ -244,9 +244,25 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const size = Math.max(6, b.maxX - b.minX, b.maxY - b.minY);
   const totalH = elevations[elevations.length - 1] + heights[heights.length - 1];
 
+  // paradas del recorrido automático: los ambientes con objetos de cada nivel
+  // (un nivel vacío, como una azotea que solo es techo, no se recorre)
+  const tourStops = useMemo(() => {
+    const stops: { level: number; roomId: string }[] = [];
+    levels.forEach((l, level) => {
+      const things = l.furniture.filter((f) => f.type !== 'zona' && f.type !== 'alfombra');
+      for (const room of l.rooms) if (things.some((f) => pointInPolygon(f, room.points))) stops.push({ level, roomId: room.id });
+    });
+    return stops;
+  }, [levels]);
+  const tourQueue = useRef<{ level: number; roomId: string }[]>([]);
+  const lastStop = useRef('');
+  const [tourRoom, setTourRoom] = useState<string | null>(null);
+  const [lap, setLap] = useState(0);
+
   // elegir un modo a mano termina el recorrido automático
   const pickMode = (m: Mode) => {
     setTour(false);
+    setTourRoom(null);
     setMode(m);
   };
   const toggleTour = () => {
@@ -256,7 +272,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
       setMoving(null);
       setSpin(Math.random() < 0.5 ? -1 : 1);
       setMode('orbit');
+      tourQueue.current = [];
     }
+    setTourRoom(null);
     setTour(!tour);
   };
   useEffect(() => {
@@ -264,9 +282,22 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
     const timer = setTimeout(
       () => {
         if (mode === 'orbit') {
-          // camina en un nivel al azar que tenga ambientes
-          const walkable = levels.map((l, i) => (l.rooms.length ? i : -1)).filter((i) => i >= 0);
-          if (walkable.length) setWalkLevel(walkable[Math.floor(Math.random() * walkable.length)]);
+          if (!tourStops.length) {
+            // no hay nada que recorrer a pie: da otra vuelta
+            setSpin(Math.random() < 0.5 ? -1 : 1);
+            setLap((n) => n + 1);
+            return;
+          }
+          // pasa por todas las áreas antes de repetir, sin empezar por la que acaba de ver
+          if (!tourQueue.current.length) {
+            const next = [...tourStops].sort(() => Math.random() - 0.5);
+            if (next.length > 1 && next[0].roomId === lastStop.current) next.push(next.shift()!);
+            tourQueue.current = next;
+          }
+          const stop = tourQueue.current.shift()!;
+          lastStop.current = stop.roomId;
+          setWalkLevel(stop.level);
+          setTourRoom(stop.roomId);
           setMode('walk');
         } else {
           setSpin(Math.random() < 0.5 ? -1 : 1);
@@ -281,7 +312,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
       clearTimeout(timer);
       window.removeEventListener('keydown', onKey);
     };
-  }, [tour, mode, building, levels]);
+  }, [tour, mode, building, tourStops, lap]);
 
   walkLevelRef.current = walkLevel;
   const onWalkLevel = useCallback((delta: number) => setWalkLevel((l) => Math.max(0, Math.min(levels.length - 1, l + delta))), [levels.length]);
@@ -306,8 +337,10 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
 
   const start = useMemo(() => {
     const rooms = [...walkLvl.rooms].sort((a, c) => area(c.points) - area(a.points));
-    const room = rooms.find((r) => r.hasWalls) ?? rooms[0];
+    // en el recorrido automático se empieza en el área que toca; a mano, en el ambiente más grande
+    const room = (tour && walkLvl.rooms.find((r) => r.id === tourRoom)) || rooms.find((r) => r.hasWalls) || rooms[0];
     if (!room) return { x: cx, z: cz, yaw: 0 };
+    const spots: Vec2[] = [];
     // punto más despejado del ambiente: lejos de muebles y muros
     const center = interiorPoint(room.points);
     const rb = bounds(room.points);
@@ -329,8 +362,11 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           bestScore = score;
           best = p;
         }
+        if (score > 0.8) spots.push(p);
       }
     }
+    // el automático arranca cada vez en otro punto despejado del área
+    if (tour && spots.length) best = spots[Math.floor(Math.random() * spots.length)];
     // mirar hacia el centro del ambiente
     const yaw = Math.atan2(-(center.x - best.x), -(center.y - best.y));
     return { x: best.x, z: best.y, yaw: Math.hypot(center.x - best.x, center.y - best.y) > 0.3 ? yaw : 0 };

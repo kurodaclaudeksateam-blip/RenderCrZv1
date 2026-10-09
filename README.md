@@ -43,7 +43,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - Deshacer y rehacer, atajos de teclado y diseño adaptable a móvil.
 - **Nombres y rótulos**: cada objeto puede mostrar un rótulo con su nombre (plano, 3D y recorrido). El botón 🏷 *Nombres* abre una tabla con los racks (o todos los objetos) para nombrarlos, numerarlos y encender sus rótulos sin cambiar su orden.
 - **Vista 3D** (Three.js / React Three Fiber)
-  - **Recorrido automático** (🎬): alterna sin parar una vuelta de 360° en la vista 3D, en sentido al azar, con una caminata de varios metros por un nivel al azar; termina al pulsar Salir, Esc o elegir Vista 3D o Recorrer.
+  - **Recorrido automático** (🎬): alterna sin parar una vuelta de 360° en la vista 3D, en sentido al azar, con una caminata de varios metros que va pasando por las distintas áreas y niveles que tienen objetos (un nivel vacío no se recorre); termina al pulsar Salir, Esc o elegir Vista 3D o Recorrer.
   - **Techo**: casilla para ver la cubierta de los ambientes que no tienen otro nivel encima.
   - En el **recorrido** se sube y baja caminando por escaleras y rampas; al llegar arriba se pasa al nivel superior.
   - **Editar en 3D**: con el botón ✏️ se toca una puerta, pared, cerco u objeto y se cambia ahí mismo su tipo, medidas, color o nombre. Al tocar una pared o cerco se le puede **agregar** una puerta, marco, arco o ventana en ese punto, y cada puerta se puede **deslizar** por su pared o **mover** a otra: el hueco anterior se rellena solo. También se cambian ahí la altura y el grosor de las paredes, el material de un solo tramo y las medidas, el giro y la posición de cualquier objeto (se mueve tocando el lugar nuevo).
