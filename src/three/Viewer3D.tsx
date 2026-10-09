@@ -171,7 +171,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
     const target = movingRef.current;
     // con «mover» activo, el siguiente toque reubica el objeto (en cualquier punto) o la puerta (sobre una pared o cerco)
     if (target?.kind === 'furniture') {
-      moveFurnitureTo(target.id, point);
+      if (!moveFurnitureTo(target.id, point)) useStore.getState().notify('Ese lugar está ocupado por otro objeto');
       setPick({ kind: 'furniture', id: target.id });
       setMoving(null);
       return;

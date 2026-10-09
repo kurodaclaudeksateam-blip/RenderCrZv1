@@ -312,9 +312,13 @@ export function computeWalls(level: Level, thickness: number, height = level.hei
         s <= 1e-6 ? inner[i] : s >= L - 1e-6 ? inner[(i + 1) % n] : add(outer(s), mul(nrm, thickness));
       const quad = (s0: number, s1: number, f0 = 0, f1 = 1) => {
         if (f0 === 0 && f1 === 1) return [outer(s0), outer(s1), innerAt(s1), innerAt(s0)];
+        // franja interior del muro (cercos, vidrio): se toma entre la cara exterior y la interior
+        // ya ingleteada, para que los tramos se encuentren en las esquinas sin dejar hueco
         const o0 = outer(s0);
         const o1 = outer(s1);
-        return [add(o0, mul(nrm, thickness * f0)), add(o1, mul(nrm, thickness * f0)), add(o1, mul(nrm, thickness * f1)), add(o0, mul(nrm, thickness * f1))];
+        const i0 = innerAt(s0);
+        const i1 = innerAt(s1);
+        return [lerp(o0, i0, f0), lerp(o1, i1, f0), lerp(o1, i1, f1), lerp(o0, i0, f1)];
       };
       const solid = (s0: number, s1: number, y0: number, y1: number) => {
         if (s1 - s0 < 1e-4 || y1 - y0 < 1e-4) return;
@@ -456,3 +460,41 @@ export function levelElevations(levels: Level[]) {
 }
 
 export const SLAB = 0.15;
+
+// ---------------------------------------------------------------------------
+// Objetos que no se atraviesan
+// ---------------------------------------------------------------------------
+
+type Solid = { type: string; x: number; y: number; w: number; d: number; h: number; rotation: number; elevation: number };
+
+/** Objetos planos sobre los que sí se puede poner otro encima. */
+const FLAT = new Set(['zona', 'alfombra']);
+
+function corners(f: Solid, shrink: number) {
+  const w = Math.max(0.01, f.w - shrink) / 2;
+  const d = Math.max(0.01, f.d - shrink) / 2;
+  return [localToWorld(-w, -d, f.x, f.y, f.rotation), localToWorld(w, -d, f.x, f.y, f.rotation), localToWorld(w, d, f.x, f.y, f.rotation), localToWorld(-w, d, f.x, f.y, f.rotation)];
+}
+
+/** ¿Dos objetos ocupan el mismo espacio? Compara sus contornos en planta (ejes separadores) y su altura. */
+export function solidsOverlap(a: Solid, b: Solid) {
+  if (FLAT.has(a.type) || FLAT.has(b.type)) return false;
+  if (a.elevation + a.h <= b.elevation + 0.01 || b.elevation + b.h <= a.elevation + 0.01) return false;
+  const pa = corners(a, 0.04);
+  const pb = corners(b, 0.04);
+  for (const poly of [pa, pb]) {
+    for (let i = 0; i < 2; i++) {
+      const ax = norm(sub(poly[i + 1], poly[i]));
+      const proj = (pts: Vec2[]) => pts.map((p) => dot(p, ax));
+      const ra = proj(pa);
+      const rb = proj(pb);
+      if (Math.max(...ra) <= Math.min(...rb) || Math.max(...rb) <= Math.min(...ra)) return false;
+    }
+  }
+  return true;
+}
+
+/** ¿El objeto chocaría con algún otro de la lista (sin contarse a sí mismo)? */
+export function collides<T extends Solid & { id: string }>(f: T, others: T[]) {
+  return others.some((o) => o.id !== f.id && solidsOverlap(f, o));
+}

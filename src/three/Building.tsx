@@ -102,10 +102,29 @@ function fenceModel(a: Vec2, b: Vec2, h: number, color: string, mesh: boolean): 
 
 function Floor({ room, y }: { room: Room; y: number }) {
   const geo = useDisposable(() => flat(room.points, y), [room.points, y]);
-  const map = floorTexture(room.floor);
+  // imagen propia del piso: ajustada al contorno del ambiente o repetida como mosaico
+  const image = useMemo(() => {
+    if (!room.floorImage) return null;
+    const t = new THREE.TextureLoader().load(room.floorImage);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    const xs = room.points.map((p) => p.x);
+    const ys = room.points.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxY = Math.max(...ys);
+    const tw = room.floorTile || Math.max(...xs) - minX || 1;
+    const th = room.floorTile || maxY - Math.min(...ys) || 1;
+    // la geometría usa (x, −y) en metros como coordenadas de textura
+    t.repeat.set(1 / tw, 1 / th);
+    t.offset.set(-minX / tw, maxY / th);
+    return t;
+  }, [room.floorImage, room.floorTile, room.points]);
+  useEffect(() => () => image?.dispose(), [image]);
+  const map = image ?? floorTexture(room.floor);
   return (
     <mesh geometry={geo} receiveShadow>
-      <meshStandardMaterial map={map} color={room.floorColor} roughness={room.floor === 'marmol' || room.floor === 'ceramica' ? 0.35 : 0.8} side={THREE.DoubleSide} />
+      <meshStandardMaterial key={image ? 'img' : 'tex'} map={map} color={image ? '#ffffff' : room.floorColor} roughness={room.floor === 'marmol' || room.floor === 'ceramica' ? 0.35 : 0.8} side={THREE.DoubleSide} />
     </mesh>
   );
 }

@@ -35,6 +35,10 @@ export interface Room {
   wallHeight?: number;
   /** grosor de las paredes; sin valor se usa el del proyecto */
   wallThickness?: number;
+  /** imagen que cubre el piso (data URL ya reducida) */
+  floorImage?: string;
+  /** lado del mosaico en metros; sin valor la imagen se ajusta al ambiente */
+  floorTile?: number;
   /** ajustes por tramo, en el orden de las aristas (punto i → punto i+1) */
   sides?: (WallSide | null)[];
 }
@@ -78,6 +82,9 @@ export type FurnitureType =
   | 'tarima_custom'
   | 'cerco'
   | 'cerco_malla'
+  | 'barandal'
+  | 'barrera'
+  | 'mueble_tapa'
   | 'anuncio_torre'
   | 'anuncio_cuadro'
   | 'anuncio_poste'

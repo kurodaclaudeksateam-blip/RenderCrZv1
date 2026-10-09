@@ -5,6 +5,7 @@ import {
   add,
   area,
   bounds,
+  collides,
   computeWalls,
   dist,
   fmt,
@@ -42,6 +43,7 @@ type Drag =
   | { type: 'pan'; sx: number; sy: number; cam: Cam; moved: boolean }
   | { type: 'furniture'; id: string; off: Vec2; moved: boolean }
   | { type: 'rotate'; id: string; moved: boolean }
+  | { type: 'resize'; id: string; side: 'n' | 's' | 'e' | 'w'; moved: boolean }
   | { type: 'vertex'; roomId: string; index: number; moved: boolean }
   | { type: 'room'; id: string; start: Vec2; orig: Vec2[]; furn: { id: string; x: number; y: number }[]; moved: boolean }
   | { type: 'opening'; id: string; moved: boolean }
@@ -185,6 +187,7 @@ export default function Editor2D() {
   // alcance para atinarle a un muro: 0.6 m o 24 px, lo que sea mayor (con el plano alejado 0.6 m son muy pocos píxeles)
   const wallReach = Math.max(0.6, 24 * k);
   const openingPreset = useStore((st) => st.openingPreset);
+  const avoidOverlap = useStore((st) => st.avoidOverlap);
   const openingHover = useMemo(() => {
     if ((tool !== 'door' && tool !== 'dock' && tool !== 'window') || !cursor) return null;
     return nearestEdge(level.rooms.filter((r) => r.hasWalls), cursor, wallReach);
@@ -286,6 +289,8 @@ export default function Editor2D() {
     if (tool === 'select') {
       if (kind === 'rotate') {
         drag.current = { type: 'rotate', id, moved: false };
+      } else if (kind === 'resize') {
+        drag.current = { type: 'resize', id, side: target!.dataset.side as 'n' | 's' | 'e' | 'w', moved: false };
       } else if (kind === 'vertex') {
         const index = Number(target!.dataset.index);
         if (e.altKey) removeVertex(id, index);
@@ -360,13 +365,55 @@ export default function Editor2D() {
     d.moved = true;
 
     if (d.type === 'furniture') {
-      const p = snapGrid(sub(raw, d.off));
+      let p = snapGrid(sub(raw, d.off));
+      const cur = level.furniture.find((x) => x.id === d.id);
+      // los objetos no se atraviesan: si el lugar está ocupado se desliza por un eje o se queda (Alt lo permite)
+      if (cur && avoidOverlap && !e.altKey && !collides(cur, level.furniture)) {
+        const free = (q: Vec2) => !collides({ ...cur, x: q.x, y: q.y }, level.furniture);
+        if (!free(p)) {
+          // avanza hasta tocar al otro objeto y, desde ahí, se desliza por el eje que quede libre
+          let lo = 0;
+          let hi = 1;
+          for (let i = 0; i < 8; i++) {
+            const mid = (lo + hi) / 2;
+            if (free(v(cur.x + (p.x - cur.x) * mid, cur.y + (p.y - cur.y) * mid))) lo = mid;
+            else hi = mid;
+          }
+          const q = v(cur.x + (p.x - cur.x) * lo, cur.y + (p.y - cur.y) * lo);
+          p = free(v(p.x, q.y)) ? v(p.x, q.y) : free(v(q.x, p.y)) ? v(q.x, p.y) : q;
+        }
+      }
       mutate((_, l) => {
         const f = l.furniture.find((x) => x.id === d.id);
         if (f) {
           f.x = p.x;
           f.y = p.y;
         }
+      }, false);
+    } else if (d.type === 'resize') {
+      const f = level.furniture.find((x) => x.id === d.id);
+      if (!f) return;
+      // se estira el lado arrastrado y el opuesto se queda en su lugar
+      const r = (f.rotation * Math.PI) / 180;
+      const cos = Math.cos(r);
+      const sin = Math.sin(r);
+      const lx = (raw.x - f.x) * cos + (raw.y - f.y) * sin;
+      const ly = -(raw.x - f.x) * sin + (raw.y - f.y) * cos;
+      const horizontal = d.side === 'e' || d.side === 'w';
+      const sign = d.side === 'e' || d.side === 's' ? 1 : -1;
+      const old = horizontal ? f.w : f.d;
+      let size = Math.max(0.05, sign * (horizontal ? lx : ly) + old / 2);
+      if (snapOn) size = Math.max(gridSize, Math.round(size / gridSize) * gridSize);
+      const shift = (sign * (size - old)) / 2;
+      const dx = horizontal ? shift * cos : -shift * sin;
+      const dy = horizontal ? shift * sin : shift * cos;
+      mutate((_, l) => {
+        const ff = l.furniture.find((x) => x.id === d.id);
+        if (!ff) return;
+        if (horizontal) ff.w = size;
+        else ff.d = size;
+        ff.x += dx;
+        ff.y += dy;
       }, false);
     } else if (d.type === 'rotate') {
       const f = level.furniture.find((x) => x.id === d.id);
@@ -541,6 +588,20 @@ export default function Editor2D() {
               className={tool === 'select' ? 'hit' : ''}
             />
           ))}
+          {/* imagen del piso, recortada al contorno del ambiente */}
+          {level.rooms
+            .filter((r) => r.floorImage)
+            .map((r) => {
+              const b = bounds(r.points);
+              return (
+                <g key={`img${r.id}`} pointerEvents="none">
+                  <clipPath id={`floor-${r.id}`}>
+                    <polygon points={pts(r.points)} />
+                  </clipPath>
+                  <image href={r.floorImage} x={b.minX} y={b.minY} width={b.maxX - b.minX} height={b.maxY - b.minY} preserveAspectRatio="none" clipPath={`url(#floor-${r.id})`} opacity={0.85} />
+                </g>
+              );
+            })}
           {level.rooms.filter((r) => r.floor === 'concreto' && !r.hasWalls).map((r) => (
             <polygon key={`h${r.id}`} points={pts(r.points)} fill="url(#hatch)" pointerEvents="none" />
           ))}
@@ -624,6 +685,36 @@ export default function Editor2D() {
                 return (
                   <>
                     <line {...seg(base, h)} stroke="var(--accent)" strokeWidth={k * 1.5} />
+                    {/* asas para cambiar el largo y el fondo arrastrando */}
+                    {(
+                      [
+                        ['e', selFurn.w / 2, 0],
+                        ['w', -selFurn.w / 2, 0],
+                        ['s', 0, selFurn.d / 2],
+                        ['n', 0, -selFurn.d / 2],
+                      ] as const
+                    ).map(([side, x, y]) => {
+                      const c = localToWorld(x, y, selFurn.x, selFurn.y, selFurn.rotation);
+                      return (
+                        <rect
+                          key={side}
+                          data-kind="resize"
+                          data-id={selFurn.id}
+                          data-side={side}
+                          x={c.x - 5 * k}
+                          y={c.y - 5 * k}
+                          width={10 * k}
+                          height={10 * k}
+                          rx={2 * k}
+                          fill="var(--panel)"
+                          stroke="var(--accent)"
+                          strokeWidth={k * 2}
+                          className="hit grab"
+                        >
+                          <title>Arrastra para cambiar la medida</title>
+                        </rect>
+                      );
+                    })}
                     <circle data-kind="rotate" data-id={selFurn.id} cx={h.x} cy={h.y} r={7 * k} fill="var(--panel)" stroke="var(--accent)" strokeWidth={k * 2} className="hit grab" />
                     <text x={h.x} y={h.y + 3.5 * k} fontSize={10 * k} textAnchor="middle" pointerEvents="none" fill="var(--accent)">
                       ⟳

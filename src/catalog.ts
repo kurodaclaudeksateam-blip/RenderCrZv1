@@ -20,6 +20,8 @@ export interface CatalogItem {
 
 /** Los anuncios tienen su propia sección en el panel, fuera de las categorías. */
 export const ADS_CATEGORY = 'Anuncios';
+/** Cercos, barandales y barreras: también en su propia sección. */
+export const FENCES_CATEGORY = 'Cercos';
 
 export const CATEGORIES = ['Almacenaje', 'Carga', 'Equipos', 'Señalización', 'Zonas', 'Seguridad', 'Oficina', 'Servicios', 'Hogar'];
 
@@ -31,6 +33,8 @@ export const CATALOG: CatalogItem[] = [
   { type: 'rack_custom', label: 'Rack a medida', icon: '🧩', category: 'Almacenaje', w: 2.7, d: 1.1, h: 4.5, color: '#f97316', shelves: 3, cols: 2 },
   { type: 'rack_tubos', label: 'Rack para tuberías', icon: '🧵', category: 'Almacenaje', w: 6.0, d: 1.0, h: 2.4, color: '#1e3a8a', shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] },
   { type: 'rack_tubos_v', label: 'Rack vertical para tuberías', icon: '🎋', category: 'Almacenaje', w: 3.0, d: 0.8, h: 3.2, color: '#1e3a8a', shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] },
+  { type: 'mueble_tapa', label: 'Mueble con tapa a medida', icon: '🧰', category: 'Almacenaje', w: 1.2, d: 0.6, h: 0.9, color: '#8b5e3c' },
+  { type: 'mueble_tapa', label: 'Contenedor con tapa', icon: '🗃️', category: 'Almacenaje', w: 2.0, d: 1.2, h: 1.2, color: '#2563eb' },
   { type: 'estanteria_metal', label: 'Anaquel metálico', icon: '🗄️', category: 'Almacenaje', w: 1.2, d: 0.5, h: 2.1, color: '#94a3b8', shelves: 5 },
   { type: 'estanteria_metal', label: 'Anaquel picking', icon: '🗄️', category: 'Almacenaje', w: 2.0, d: 0.6, h: 2.4, color: '#64748b', shelves: 6 },
   { type: 'cantilever', label: 'Cantilever', icon: '🪜', category: 'Almacenaje', w: 3.0, d: 1.2, h: 3.5, color: '#16a34a', shelves: 4 },
@@ -71,9 +75,15 @@ export const CATALOG: CatalogItem[] = [
   { type: 'extintor', label: 'Extintor', icon: '🧯', category: 'Seguridad', w: 0.25, d: 0.25, h: 0.75, color: '#dc2626' },
   { type: 'cono', label: 'Cono', icon: '🔺', category: 'Seguridad', w: 0.35, d: 0.35, h: 0.7, color: '#f97316' },
   { type: 'bolardo', label: 'Bolardo', icon: '🟡', category: 'Seguridad', w: 0.2, d: 0.2, h: 1.0, color: '#facc15' },
-  { type: 'cerco', label: 'Cerco metálico blanco', icon: '🚧', category: 'Seguridad', w: 2.4, d: 0.06, h: 1.8, color: '#f8fafc' },
-  { type: 'cerco_malla', label: 'Cerco de malla metálica', icon: '🚧', category: 'Seguridad', w: 2.4, d: 0.06, h: 2.0, color: '#cbd5e1' },
-  { type: 'malla', label: 'Malla divisoria', icon: '🚧', category: 'Seguridad', w: 3.0, d: 0.06, h: 2.4, color: '#facc15' },
+  { type: 'cerco', label: 'Cerco metálico blanco', icon: '🚧', category: 'Cercos', w: 2.4, d: 0.06, h: 1.8, color: '#f8fafc' },
+  { type: 'cerco_malla', label: 'Cerco de malla metálica', icon: '🚧', category: 'Cercos', w: 2.4, d: 0.06, h: 2.0, color: '#cbd5e1' },
+  { type: 'barandal', label: 'Barandal amarillo a medida', icon: '🟨', category: 'Cercos', w: 3.0, d: 0.08, h: 1.1, color: '#facc15', shelves: 2 },
+  { type: 'barandal', label: 'Barandal rojo', icon: '🟥', category: 'Cercos', w: 3.0, d: 0.08, h: 1.1, color: '#dc2626', shelves: 2 },
+  { type: 'barandal', label: 'Barandal azul', icon: '🟦', category: 'Cercos', w: 3.0, d: 0.08, h: 1.1, color: '#2563eb', shelves: 2 },
+  { type: 'barandal', label: 'Barandal gris', icon: '⬜', category: 'Cercos', w: 3.0, d: 0.08, h: 1.1, color: '#9ca3af', shelves: 2 },
+  { type: 'cerco', label: 'Cerco de barrotes amarillo', icon: '🚧', category: 'Cercos', w: 2.4, d: 0.06, h: 1.8, color: '#facc15' },
+  { type: 'barrera', label: 'Barrera de protección', icon: '🛑', category: 'Cercos', w: 3.0, d: 0.2, h: 0.5, color: '#facc15' },
+  { type: 'malla', label: 'Malla divisoria', icon: '🚧', category: 'Cercos', w: 3.0, d: 0.06, h: 2.4, color: '#facc15' },
   { type: 'columna', label: 'Columna', icon: '▮', category: 'Seguridad', w: 0.4, d: 0.4, h: 7.0, color: '#d4d4d4' },
   { type: 'sofa', label: 'Sofá', icon: '🛋️', category: 'Hogar', w: 2.1, d: 0.9, h: 0.85, color: '#6b7a8f' },
   { type: 'sillon', label: 'Sillón', icon: '💺', category: 'Hogar', w: 0.9, d: 0.85, h: 0.85, color: '#a0785a' },

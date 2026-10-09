@@ -1,5 +1,5 @@
 import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, OPENING_PRESETS, WALL_MATERIALS, type OpeningPreset } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide } from './geometry';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
 import type { Furniture, Level, OpeningKind, Room, Vec2, WallMaterial, WallSide } from './types';
@@ -362,9 +362,17 @@ export function addCorner(roomId: string) {
 }
 
 /** Desde la vista 3D: lleva un objeto al punto que se tocó. */
-export function moveFurnitureTo(id: string, point: Vec2) {
+export function moveFurnitureTo(id: string, point: Vec2): boolean {
+  const level = st().project?.levels.find((l) => l.furniture.some((x) => x.id === id));
+  const cur = level?.furniture.find((x) => x.id === id);
+  if (!level || !cur) return false;
+  const x = Math.round(point.x * 100) / 100;
+  const y = Math.round(point.y * 100) / 100;
+  // no se deja caer dentro de otro objeto
+  if (st().avoidOverlap && collides({ ...cur, x, y }, level.furniture)) return false;
   st().mutate((p) => {
-    const f = p.levels.flatMap((l) => l.furniture).find((x) => x.id === id);
-    if (f) Object.assign(f, { x: Math.round(point.x * 100) / 100, y: Math.round(point.y * 100) / 100 });
+    const f = p.levels.flatMap((l) => l.furniture).find((o) => o.id === id);
+    if (f) Object.assign(f, { x, y });
   });
+  return true;
 }

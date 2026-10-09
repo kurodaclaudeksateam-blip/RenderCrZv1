@@ -76,13 +76,13 @@ const AD_TYPES = new Set(['anuncio_torre', 'anuncio_cuadro', 'anuncio_poste']);
 const AD_MAX_SIDE = 640;
 
 /** Reduce la imagen elegida y la devuelve en data URL como WebP al 70 % de calidad, para que el proyecto pese poco. */
-function shrinkImage(file: File): Promise<string> {
+function shrinkImage(file: File, maxSide = AD_MAX_SIDE): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const k = Math.min(1, AD_MAX_SIDE / Math.max(img.width, img.height));
+      const k = Math.min(1, maxSide / Math.max(img.width, img.height));
       const c = document.createElement('canvas');
       c.width = Math.max(1, Math.round(img.width * k));
       c.height = Math.max(1, Math.round(img.height * k));
@@ -293,6 +293,16 @@ function FurnitureProps({ f }: { f: Furniture }) {
       </label>
       {TEXT_TYPES.has(f.type) && <Text label="Texto del letrero / zona" value={f.label ?? ''} onChange={(label) => set({ label: label.toUpperCase() })} />}
       {AD_TYPES.has(f.type) && <AdImage f={f} set={set} />}
+      {f.type === 'barandal' && <Num label="Travesaños" value={f.shelves ?? 2} step={1} min={1} max={6} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />}
+      {f.type === 'mueble_tapa' && (
+        <label className="field">
+          <span>Tapa</span>
+          <select value={f.empty ? 'abierta' : 'cerrada'} onChange={(e) => set({ empty: e.target.value === 'abierta' })}>
+            <option value="cerrada">Cerrada</option>
+            <option value="abierta">Abierta</option>
+          </select>
+        </label>
+      )}
       {SHELF_TYPES.has(f.type) && (
         <Num label="Niveles de carga" value={f.shelves ?? 4} step={1} min={1} max={12} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />
       )}
@@ -420,6 +430,34 @@ function RoomProps({ r }: { r: Room }) {
           })}
         </div>
       </details>
+      <div className="ad-image">
+        {r.floorImage && <img src={r.floorImage} alt="Imagen del piso" />}
+        <div className="row wrap">
+          <label className="secondary small file-button">
+            🖼️ {r.floorImage ? 'Cambiar imagen del piso' : 'Imagen para el piso'}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                try {
+                  set({ floorImage: await shrinkImage(file, 1024) });
+                } catch {
+                  useStore.getState().notify('⚠️ No se pudo leer la imagen');
+                }
+              }}
+            />
+          </label>
+          {r.floorImage && (
+            <button className="secondary small" onClick={() => set({ floorImage: undefined, floorTile: undefined })}>
+              Quitar imagen
+            </button>
+          )}
+        </div>
+        {r.floorImage && <Num label="Mosaico: lado en metros (0 = ajustar al ambiente)" value={r.floorTile ?? 0} min={0} max={100} onChange={(n) => set({ floorTile: n || undefined })} />}
+      </div>
       <div className="grid2">
         <Color label="Color piso" value={r.floorColor} onChange={(floorColor) => set({ floorColor })} />
         <Color label="Color muros" value={r.wallColor} onChange={(wallColor) => set({ wallColor })} />
@@ -505,7 +543,8 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
   const snap = useStore((s) => s.snap);
   const ghost = useStore((s) => s.showGhost);
   const autosave = useStore((s) => s.autosave);
-  const { setGrid, toggleSnap, toggleGhost, setAutosave } = useStore.getState();
+  const { setGrid, toggleSnap, toggleGhost, setAutosave, setAvoidOverlap } = useStore.getState();
+  const avoidOverlap = useStore((s) => s.avoidOverlap);
   const totalArea = level.rooms.reduce((a, r) => a + area(r.points), 0);
   const realHeight = levelHeights(project.levels)[project.levels.indexOf(level)] ?? level.height;
   const positions = level.furniture.reduce((n, f) => n + palletPositions(f), 0);
@@ -553,6 +592,9 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
       </label>
       <label className="check">
         <input type="checkbox" checked={autosave} onChange={(e) => setAutosave(e.target.checked)} /> Autoguardado
+      </label>
+      <label className="check" title="Al mover un objeto no se mete dentro de otro; con Alt presionado sí">
+        <input type="checkbox" checked={avoidOverlap} onChange={(e) => setAvoidOverlap(e.target.checked)} /> Los objetos no se atraviesan
       </label>
 
       <div className="help">

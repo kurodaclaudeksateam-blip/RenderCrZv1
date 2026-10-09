@@ -100,6 +100,16 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           {f.type === 'anuncio_poste' && <circle cx={0} cy={y0 + Math.max(d, 0.1) / 2} r={Math.max(0.12, w * 0.05)} fill={line} />}
         </g>
       );
+    case 'mueble_tapa':
+      return (
+        <g>
+          {base}
+          <rect x={x0 + w * 0.06} y={y0 + d * 0.1} width={w * 0.88} height={d * 0.8} rx={Math.min(w, d) * 0.05} fill="none" stroke={line} strokeWidth={sw} opacity={0.7} />
+          <line x1={-w * 0.1} x2={w * 0.1} y1={-y0 - d * 0.04} y2={-y0 - d * 0.04} stroke={line} strokeWidth={sw * 2} />
+        </g>
+      );
+    case 'barandal':
+    case 'barrera':
     case 'cerco':
     case 'cerco_malla': {
       const posts = Math.max(1, Math.round(w / 2.4));

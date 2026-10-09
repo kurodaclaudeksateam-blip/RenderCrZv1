@@ -22,6 +22,8 @@ interface EditorState {
   dirty: boolean;
   savedAt: number | null;
   autosave: boolean;
+  /** impide que un objeto se meta dentro de otro al moverlo */
+  avoidOverlap: boolean;
   toast: string | null;
 
   openProject: (p: Project, screen?: Screen) => void;
@@ -36,6 +38,7 @@ interface EditorState {
   toggleSnap: () => void;
   toggleGhost: () => void;
   setAutosave: (b: boolean) => void;
+  setAvoidOverlap: (b: boolean) => void;
   /** Guarda el estado actual en el historial (para empezar un arrastre). */
   checkpoint: () => void;
   /** Aplica un cambio sobre una copia del proyecto. */
@@ -82,6 +85,7 @@ export const useStore = create<EditorState>((set, get) => ({
   dirty: false,
   savedAt: null,
   autosave: readPref('autosave', true),
+  avoidOverlap: readPref('avoidOverlap', true),
   toast: null,
 
   openProject: (p, screen = 'editor') =>
@@ -105,6 +109,10 @@ export const useStore = create<EditorState>((set, get) => ({
   toggleGhost: () => {
     writePref('ghost', !get().showGhost);
     set({ showGhost: !get().showGhost });
+  },
+  setAvoidOverlap: (avoidOverlap) => {
+    writePref('avoidOverlap', avoidOverlap);
+    set({ avoidOverlap });
   },
   setAutosave: (autosave) => {
     writePref('autosave', autosave);

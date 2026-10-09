@@ -117,6 +117,12 @@ function Model({ f }: { f: Furniture }) {
       return <Fence f={f} />;
     case 'cerco_malla':
       return <MeshFence f={f} />;
+    case 'barandal':
+      return <Handrail f={f} />;
+    case 'barrera':
+      return <Barrier f={f} />;
+    case 'mueble_tapa':
+      return <LidBox f={f} />;
     case 'anuncio_torre':
     case 'anuncio_cuadro':
       return <LedAd f={f} />;
@@ -1014,6 +1020,63 @@ function PoleAd({ f }: { f: Furniture }) {
           <LedFace f={f} w={pw} h={ph} y={py} z={s * (d / 2 + 0.006)} back={s < 0} />
         </group>
       ))}
+    </group>
+  );
+}
+
+/** Barandal industrial a medida: postes con placa, pasamanos, travesaños (f.shelves) y rodapié. */
+function Handrail({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const t = Math.max(0.04, Math.min(d, 0.06));
+  const panels = Math.max(1, Math.round(w / 1.5));
+  const rails = Math.max(1, Math.min(6, Math.round(f.shelves ?? 2)));
+  const parts: React.ReactNode[] = [];
+  for (let i = 0; i <= panels; i++) {
+    const x = Math.max(-w / 2 + t / 2, Math.min(w / 2 - t / 2, -w / 2 + (i * w) / panels));
+    parts.push(<Bx key={`p${i}`} x={x} w={t} h={h} d={t} c={color} metal={0.4} rough={0.45} />);
+    parts.push(<Bx key={`b${i}`} x={x} w={t * 2.6} h={0.012} d={t * 2.6} c={shade(color, 0.7)} metal={0.4} rough={0.5} />);
+  }
+  // pasamanos arriba y travesaños repartidos hasta el rodapié
+  for (let k = 0; k < rails; k++) parts.push(<Bx key={`r${k}`} w={w} h={t} d={t} y0={h - t - (k * (h - 0.16)) / rails} c={color} metal={0.4} rough={0.45} />);
+  parts.push(<Bx key="toe" w={w} h={0.1} d={0.012} y0={0.012} c={shade(color, 0.85)} metal={0.4} rough={0.5} />);
+  return <group>{parts}</group>;
+}
+
+/** Barrera de protección baja contra golpes de montacargas: postes robustos y dos largueros. */
+function Barrier({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const post = Math.max(0.1, Math.min(d, 0.16));
+  const panels = Math.max(1, Math.round(w / 1.5));
+  const parts: React.ReactNode[] = [];
+  for (let i = 0; i <= panels; i++) {
+    const x = Math.max(-w / 2 + post / 2, Math.min(w / 2 - post / 2, -w / 2 + (i * w) / panels));
+    parts.push(<Bx key={`p${i}`} x={x} w={post} h={h} d={post} c={color} metal={0.3} rough={0.5} />);
+    parts.push(<Bx key={`b${i}`} x={x} w={post * 1.8} h={0.015} d={post * 1.8} c="#1f2937" rough={0.6} />);
+    parts.push(<Bx key={`s${i}`} x={x} w={post + 0.004} h={0.06} d={post + 0.004} y0={h * 0.72} c="#111827" rough={0.6} />);
+  }
+  for (const y of [h * 0.3, h - 0.14]) parts.push(<Bx key={`r${y}`} w={w} h={0.1} d={post * 0.7} y0={y} c={color} metal={0.3} rough={0.5} />);
+  return <group>{parts}</group>;
+}
+
+/** Mueble o contenedor a medida con tapa; `empty` lo muestra con la tapa abierta. */
+function LidBox({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const t = Math.min(0.03, w * 0.08, d * 0.08);
+  const lid = Math.min(0.05, h * 0.12);
+  const body = h - lid;
+  const dark = shade(color, 0.8);
+  return (
+    <group>
+      <Bx w={w} h={t} d={d} c={dark} />
+      <Bx z={-d / 2 + t / 2} w={w} h={body} d={t} c={color} />
+      <Bx z={d / 2 - t / 2} w={w} h={body} d={t} c={color} />
+      <Bx x={-w / 2 + t / 2} w={t} h={body} d={d} c={color} />
+      <Bx x={w / 2 - t / 2} w={t} h={body} d={d} c={color} />
+      <Bx z={d / 2 + 0.008} w={Math.min(0.14, w * 0.2)} h={0.025} d={0.016} y0={body * 0.8} c="#d1d5db" metal={0.7} rough={0.3} />
+      {/* la tapa gira sobre la arista del fondo */}
+      <group position={[0, body, -d / 2]} rotation={[f.empty ? -1.75 : 0, 0, 0]}>
+        <Bx z={d / 2} w={w + 0.02} h={lid} d={d + 0.02} c={dark} />
+      </group>
     </group>
   );
 }

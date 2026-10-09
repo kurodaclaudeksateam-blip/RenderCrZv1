@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCurrentLevel, useStore } from '../store';
 import Editor2D from './Editor2D';
 import PropertiesPanel from './PropertiesPanel';
-import { ADS_CATEGORY, CATALOG, CATEGORIES, OPENING_PRESETS, WALL_MATERIALS, type CatalogItem } from '../catalog';
+import { ADS_CATEGORY, FENCES_CATEGORY, CATALOG, CATEGORIES, OPENING_PRESETS, WALL_MATERIALS, type CatalogItem } from '../catalog';
 import { addFurniture, addLevel, copyLevel, pickOpening, pickWallMaterial, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
@@ -88,6 +88,7 @@ export default function EditorScreen() {
           <LevelsSection />
           <WallsSection />
           <OpeningsSection onPick={() => setLeftOpen(false)} />
+          <FencesSection onAdd={() => setLeftOpen(false)} />
           <AdsSection onAdd={() => setLeftOpen(false)} />
           <CatalogSection onAdd={() => setLeftOpen(false)} />
         </aside>
@@ -288,6 +289,21 @@ function OpeningsSection({ onPick }: { onPick: () => void }) {
 const CATALOG_ITEMS = CATALOG.map((c, i) => ({ ...c, key: i }));
 
 /** Torres y cuadros LED para rótulos; la imagen se sube en las propiedades del anuncio. */
+/** Cercos, barandales y barreras a medida: se estiran arrastrando sus asas o desde sus propiedades. */
+function FencesSection({ onAdd }: { onAdd: () => void }) {
+  return (
+    <section className="catalog">
+      <h3>Cercos y barandales</h3>
+      <div className="catalog-grid">
+        {CATALOG_ITEMS.filter((c) => c.category === FENCES_CATEGORY).map((c) => (
+          <CatalogButton key={c.key} c={c} onAdd={onAdd} />
+        ))}
+      </div>
+      <p className="muted small">Agrégalo y estíralo a la medida con las asas; el color se cambia en sus propiedades.</p>
+    </section>
+  );
+}
+
 function AdsSection({ onAdd }: { onAdd: () => void }) {
   return (
     <section className="catalog">
