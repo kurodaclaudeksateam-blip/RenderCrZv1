@@ -1588,3 +1588,19 @@ details summary {
     width: 100%;
   }
 }
+
+/* ---------- QR de compartir ---------- */
+.share-qr {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+.share-qr svg {
+  width: 148px;
+  height: 148px;
+  flex: none;
+  border-radius: 8px;
+}
+.share-qr p {
+  margin: 0 0 8px;
+}

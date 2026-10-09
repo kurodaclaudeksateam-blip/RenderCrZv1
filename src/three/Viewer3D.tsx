@@ -85,6 +85,8 @@ function Snapshot({ onReady }: { onReady: (fn: () => string) => void }) {
 }
 
 /** Duración de la animación en la que el proyecto se arma desde cero. */
+/** Lo que tarda la vuelta completa de la vista 3D en el recorrido automático. */
+const TOUR_ORBIT_SECONDS = 16;
 const BUILD_SECONDS = 10;
 const BUILD_START = 0.6;
 const BUILD_END = 9.2;
@@ -157,6 +159,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const heights = useMemo(() => levelHeights(levels), [levels]);
 
   const [mode, setMode] = useState<Mode>('orbit');
+  // recorrido automático: alterna una vuelta en vista 3D con una caminata, hasta que se salga
+  const [tour, setTour] = useState(false);
+  const [spin, setSpin] = useState(1);
   const [maxLevel, setMaxLevel] = useState(levels.length - 1);
   const [walkLevel, setWalkLevel] = useState(Math.max(0, levels.findIndex((l) => l.id === editorLevelId)));
   const [shadows, setShadows] = useState(true);
@@ -238,6 +243,45 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const cz = (b.minY + b.maxY) / 2;
   const size = Math.max(6, b.maxX - b.minX, b.maxY - b.minY);
   const totalH = elevations[elevations.length - 1] + heights[heights.length - 1];
+
+  // elegir un modo a mano termina el recorrido automático
+  const pickMode = (m: Mode) => {
+    setTour(false);
+    setMode(m);
+  };
+  const toggleTour = () => {
+    if (!tour) {
+      setEditing(false);
+      setPick(null);
+      setMoving(null);
+      setSpin(Math.random() < 0.5 ? -1 : 1);
+      setMode('orbit');
+    }
+    setTour(!tour);
+  };
+  useEffect(() => {
+    if (!tour || building) return;
+    const timer = setTimeout(
+      () => {
+        if (mode === 'orbit') {
+          // camina en un nivel al azar que tenga ambientes
+          const walkable = levels.map((l, i) => (l.rooms.length ? i : -1)).filter((i) => i >= 0);
+          if (walkable.length) setWalkLevel(walkable[Math.floor(Math.random() * walkable.length)]);
+          setMode('walk');
+        } else {
+          setSpin(Math.random() < 0.5 ? -1 : 1);
+          setMode('orbit');
+        }
+      },
+      mode === 'orbit' ? TOUR_ORBIT_SECONDS * 1000 : 9000 + Math.random() * 6000,
+    );
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setTour(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [tour, mode, building, levels]);
 
   walkLevelRef.current = walkLevel;
   const onWalkLevel = useCallback((delta: number) => setWalkLevel((l) => Math.max(0, Math.min(levels.length - 1, l + delta))), [levels.length]);
@@ -367,9 +411,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           {building ? (
             <BuildDirector clock={clock} target={orbitTarget} end={orbitCam} levels={levels.length} bar={barRef} onStep={setStep} onDone={finishBuild} />
           ) : mode === 'orbit' ? (
-            <OrbitControls makeDefault target={orbitTarget} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={1.5} maxDistance={size * 6} enableDamping />
+            <OrbitControls makeDefault autoRotate={tour} autoRotateSpeed={(spin * 60) / TOUR_ORBIT_SECONDS} target={orbitTarget} maxPolarAngle={Math.PI / 2 - 0.02} minDistance={1.5} maxDistance={size * 6} enableDamping />
           ) : (
-            <WalkControls start={start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} solids={walkSolids} collisions={collisions} ground={walkGround} onLevel={onWalkLevel} onLockChange={onLockChange} />
+            <WalkControls auto={tour} start={tour ? { ...start, yaw: start.yaw + (Math.random() - 0.5) * 1.4 } : start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} solids={walkSolids} collisions={collisions} ground={walkGround} onLevel={onWalkLevel} onLockChange={onLockChange} />
           )}
           <Snapshot onReady={onSnapReady} />
           <FirstFrame onReady={onFirstFrame} />
@@ -400,13 +444,16 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           <strong className="viewer-title">{project.name}</strong>
           <div className="spacer" />
           <div className="seg">
-            <button className={mode === 'orbit' ? 'active' : ''} onClick={() => setMode('orbit')}>
+            <button className={mode === 'orbit' ? 'active' : ''} onClick={() => pickMode('orbit')}>
               🧊 Vista 3D
             </button>
-            <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>
+            <button className={mode === 'walk' ? 'active' : ''} onClick={() => pickMode('walk')}>
               🚶 Recorrer
             </button>
           </div>
+          <button className={tour ? 'primary' : 'secondary'} onClick={toggleTour} title="Alterna solo entre la vista 3D girando y una caminata, hasta que salgas">
+            {tour ? '⏹ Salir' : '🎬 Automático'}
+          </button>
         </header>
       )}
 
@@ -416,13 +463,17 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
         </button>
         <strong className="viewer-title">{project.name}</strong>
         <div className="seg">
-          <button className={mode === 'orbit' ? 'active' : ''} onClick={() => setMode('orbit')}>
+          <button className={mode === 'orbit' ? 'active' : ''} onClick={() => pickMode('orbit')}>
             🧊 <span className="hide-sm">Vista volumen</span>
           </button>
-          <button className={mode === 'walk' ? 'active' : ''} onClick={() => setMode('walk')}>
+          <button className={mode === 'walk' ? 'active' : ''} onClick={() => pickMode('walk')}>
             🚶 <span className="hide-sm">Recorrido virtual</span>
           </button>
         </div>
+        <button className={tour ? 'primary' : 'secondary'} onClick={toggleTour} title="Alterna solo entre la vista 3D girando y una caminata, hasta que salgas">
+          {tour ? '⏹ ' : '🎬 '}
+          <span className="hide-sm">{tour ? 'Salir del automático' : 'Recorrido automático'}</span>
+        </button>
         <div className="spacer" />
         {mode === 'orbit' ? (
           <>
@@ -499,11 +550,13 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
         </div>
       )}
 
-      {mode === 'orbit' && !empty && !building && <div className="viewer-hint">Arrastra para girar · Clic derecho para desplazar · Rueda para zoom</div>}
+      {tour && !building && <div className="viewer-hint">🎬 Recorrido automático · elige Vista 3D o Recorrer para tomar el control, o pulsa Salir</div>}
+
+      {mode === 'orbit' && !empty && !building && !tour && <div className="viewer-hint">Arrastra para girar · Clic derecho para desplazar · Rueda para zoom</div>}
 
       {mode === 'walk' && (
         <>
-          {!locked && (
+          {!locked && !tour && (
             <div className="viewer-hint walk">
               <b>Recorrido virtual</b> — Clic en la escena para mirar con el mouse · <kbd>W A S D</kbd> moverse · <kbd>Shift</kbd> correr ·{' '}
               <kbd>← →</kbd> girar · <kbd>RePág/AvPág</kbd> cambiar de nivel · <kbd>Esc</kbd> soltar el mouse

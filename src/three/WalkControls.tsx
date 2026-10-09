@@ -64,6 +64,7 @@ export function WalkControls({
   collisions,
   ground,
   onLevel,
+  auto = false,
   onLockChange,
 }: {
   start: { x: number; z: number; yaw: number };
@@ -75,6 +76,8 @@ export function WalkControls({
   /** altura del suelo bajo el visitante (escaleras y rampas) y, si toca, cambio de nivel */
   ground?: (x: number, z: number) => { h: number; go?: number };
   onLevel?: (delta: number) => void;
+  /** camina solo: avanza, deambula y gira cuando algo le cierra el paso */
+  auto?: boolean;
   onLockChange: (locked: boolean) => void;
 }) {
   const { camera, gl } = useThree();
@@ -84,6 +87,7 @@ export function WalkControls({
   const keys = useRef(new Set<string>());
   const dragging = useRef<{ x: number; y: number } | null>(null);
   const bob = useRef(0);
+  const pilot = useRef({ turn: 0, left: 0, wander: 2, stuck: 0 });
 
   useEffect(() => {
     const el = gl.domElement;
@@ -147,11 +151,27 @@ export function WalkControls({
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.05);
     const k = keys.current;
-    const fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + walkInput.forward;
+    let fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + walkInput.forward;
     const strafe = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + walkInput.right;
-    const turn = (k.has('ArrowLeft') ? 1 : 0) - (k.has('ArrowRight') ? 1 : 0) + walkInput.turn;
+    let turn = (k.has('ArrowLeft') ? 1 : 0) - (k.has('ArrowRight') ? 1 : 0) + walkInput.turn;
     const run = k.has('ShiftLeft') || k.has('ShiftRight') || walkInput.run;
 
+    if (auto) {
+      const a = pilot.current;
+      fwd = 1;
+      a.wander -= dt;
+      if (a.left > 0) {
+        // girando: avanza despacio para rodear el obstáculo
+        a.left -= dt;
+        turn = a.turn;
+        fwd = 0.35;
+      } else if (a.wander <= 0) {
+        a.turn = Math.random() < 0.5 ? -1 : 1;
+        a.left = 0.3 + Math.random() * 0.6;
+        a.wander = 2 + Math.random() * 3;
+      }
+      pitch.current += (-0.05 - pitch.current) * Math.min(1, dt * 3);
+    }
     yaw.current += turn * dt * 1.8;
     const speed = run ? 3.4 : 1.5;
     const sin = Math.sin(yaw.current);
@@ -168,6 +188,16 @@ export function WalkControls({
     let nz = pos.current.z + dz;
     if (collisions) ({ x: nx, z: nz } = step(pos.current.x, pos.current.z, dx, dz, segments, solids));
     const moving = Math.hypot(nx - pos.current.x, nz - pos.current.z) > 1e-5;
+    if (auto) {
+      // si casi no avanzó, algo lo detiene: gira hacia un lado al azar
+      const a = pilot.current;
+      a.stuck = Math.hypot(nx - pos.current.x, nz - pos.current.z) < speed * dt * 0.3 ? a.stuck + dt : 0;
+      if (a.stuck > 0.2 && a.left <= 0) {
+        a.turn = Math.random() < 0.5 ? -1 : 1;
+        a.left = 0.5 + Math.random() * 0.8;
+        a.stuck = 0;
+      }
+    }
     pos.current.x = nx;
     pos.current.z = nz;
     const g = ground?.(nx, nz);
