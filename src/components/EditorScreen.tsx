@@ -14,9 +14,6 @@ const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = [
   { id: 'select', icon: '➤', label: 'Seleccionar / mover', key: 'V' },
   { id: 'room', icon: '⬠', label: 'Ambiente irregular', key: 'P' },
   { id: 'rect', icon: '▭', label: 'Ambiente rectangular', key: 'B' },
-  { id: 'door', icon: '🚪', label: 'Puerta', key: 'D' },
-  { id: 'dock', icon: '🚛', label: 'Portón / andén', key: 'G' },
-  { id: 'window', icon: '🪟', label: 'Ventana', key: 'W' },
   { id: 'pan', icon: '✋', label: 'Desplazar', key: 'H' },
 ];
 
@@ -74,7 +71,7 @@ export default function EditorScreen() {
 
       <div className="editor-body">
         <aside className={`left-panel ${leftOpen ? 'open' : ''}`}>
-          <section>
+          <section className="tools-bar">
             <h3>Herramientas</h3>
             <div className="tool-grid">
               {TOOLS.map((t) => (
@@ -108,6 +105,39 @@ export default function EditorScreen() {
       {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
       {(leftOpen || rightOpen) && <div className="scrim" onClick={() => { setLeftOpen(false); setRightOpen(false); }} />}
     </div>
+  );
+}
+
+/** Sección plegable del panel; recuerda si quedó abierta. */
+function Fold({ id, title, extra, open: initial = false, className = '', children }: { id: string; title: string; extra?: React.ReactNode; open?: boolean; className?: string; children: React.ReactNode }) {
+  const key = `rendercrz:pref:fold:${id}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem(key);
+      return saved === null ? initial : saved === '1';
+    } catch {
+      return initial;
+    }
+  });
+  const toggle = () => {
+    setOpen(!open);
+    try {
+      localStorage.setItem(key, open ? '0' : '1');
+    } catch {
+      /* sin acceso */
+    }
+  };
+  return (
+    <section className={`fold ${open ? 'open' : ''} ${className}`}>
+      <h3>
+        <button type="button" className="fold-head" onClick={toggle} aria-expanded={open}>
+          <span className="fold-arrow">▸</span>
+          {title}
+        </button>
+        {open && extra}
+      </h3>
+      {open && children}
+    </section>
   );
 }
 
@@ -145,9 +175,11 @@ function LevelsSection() {
   };
 
   return (
-    <section>
-      <h3>
-        Niveles
+    <Fold
+      id="niveles"
+      title="Niveles"
+      open
+      extra={
         <label className="inline-field" title="Cantidad de niveles del proyecto">
           <input
             key={project.levels.length}
@@ -159,7 +191,8 @@ function LevelsSection() {
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
           />
         </label>
-      </h3>
+      }
+    >
       <ul className="levels">
         {[...project.levels].reverse().map((l) => {
           const idx = project.levels.indexOf(l);
@@ -199,7 +232,7 @@ function LevelsSection() {
           ⧉ Copiar nivel
         </button>
       </div>
-    </section>
+    </Fold>
   );
 }
 
@@ -233,8 +266,7 @@ function WallsSection() {
   const room = selection?.kind === 'room' ? level?.rooms.find((r) => r.id === selection.id) : undefined;
   const active = room ? (room.wallMaterial ?? 'liso') : current;
   return (
-    <section>
-      <h3>Tipos de pared</h3>
+    <Fold id="paredes" title="Tipos de pared">
       <div className="tool-grid">
         {WALL_MATERIALS.map((m) => (
           <button key={m.id} className={`tool ${active === m.id ? 'active' : ''}`} onClick={() => pickWallMaterial(m.id)} title={`Pared de ${m.label.toLowerCase()}`}>
@@ -248,7 +280,7 @@ function WallsSection() {
       <p className="muted small">
         {room ? `Se aplica a «${room.name}».` : 'Selecciona un ambiente para cambiar sus paredes, o elige un tipo y dibuja: los ambientes nuevos salen con esa pared.'}
       </p>
-    </section>
+    </Fold>
   );
 }
 
@@ -259,8 +291,7 @@ function OpeningsSection({ onPick }: { onPick: () => void }) {
   const selection = useStore((s) => s.selection);
   const room = selection?.kind === 'room' ? level?.rooms.find((r) => r.id === selection.id && r.hasWalls) : undefined;
   return (
-    <section>
-      <h3>Puertas y marcos</h3>
+    <Fold id="puertas" title="Puertas y marcos">
       <div className="tool-grid">
         {OPENING_PRESETS.map((p) => (
           <button
@@ -282,7 +313,7 @@ function OpeningsSection({ onPick }: { onPick: () => void }) {
           ? `Se coloca al centro de la pared más larga de «${room.name}»; después arrástrala a su lugar.`
           : 'Elige una y toca la pared o cerco donde va: queda centrada en su grosor y abre el paso. Con un ambiente seleccionado se coloca sola en su pared más larga.'}
       </p>
-    </section>
+    </Fold>
   );
 }
 
@@ -292,29 +323,27 @@ const CATALOG_ITEMS = CATALOG.map((c, i) => ({ ...c, key: i }));
 /** Cercos, barandales y barreras a medida: se estiran arrastrando sus asas o desde sus propiedades. */
 function FencesSection({ onAdd }: { onAdd: () => void }) {
   return (
-    <section className="catalog">
-      <h3>Cercos y barandales</h3>
+    <Fold id="cercos" title="Cercos y barandales" className="catalog">
       <div className="catalog-grid">
         {CATALOG_ITEMS.filter((c) => c.category === FENCES_CATEGORY).map((c) => (
           <CatalogButton key={c.key} c={c} onAdd={onAdd} />
         ))}
       </div>
       <p className="muted small">Agrégalo y estíralo a la medida con las asas; el color se cambia en sus propiedades.</p>
-    </section>
+    </Fold>
   );
 }
 
 function AdsSection({ onAdd }: { onAdd: () => void }) {
   return (
-    <section className="catalog">
-      <h3>Anuncios y rótulos</h3>
+    <Fold id="anuncios" title="Anuncios y rótulos" className="catalog">
       <div className="catalog-grid">
         {CATALOG_ITEMS.filter((c) => c.category === ADS_CATEGORY).map((c) => (
           <CatalogButton key={c.key} c={c} onAdd={onAdd} />
         ))}
       </div>
       <p className="muted small">Agrega un anuncio y, en sus propiedades, sube la imagen que rellena el letrero.</p>
-    </section>
+    </Fold>
   );
 }
 
@@ -323,8 +352,7 @@ function CatalogSection({ onAdd }: { onAdd: () => void }) {
   const [q, setQ] = useState('');
   const items = CATALOG_ITEMS.filter((c) => (q ? c.label.toLowerCase().includes(q.toLowerCase()) : c.category === cat));
   return (
-    <section className="catalog">
-      <h3>Objetos de almacén</h3>
+    <Fold id="objetos" title="Objetos de almacén" className="catalog" open>
       <input className="search" placeholder="Buscar rack, letrero, zona…" value={q} onChange={(e) => setQ(e.target.value)} />
       {!q && (
         <div className="chips">
@@ -340,6 +368,6 @@ function CatalogSection({ onAdd }: { onAdd: () => void }) {
           <CatalogButton key={c.key} c={c} onAdd={onAdd} />
         ))}
       </div>
-    </section>
+    </Fold>
   );
 }

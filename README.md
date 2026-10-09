@@ -9,6 +9,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
 - **Proyectos con nombre** guardados en la nube (Supabase) y en `localStorage` como copia inmediata: crear, abrir, duplicar, eliminar, exportar/importar JSON. Autoguardado opcional. Al entrar se sincroniza el navegador con la nube.
 - **Compartir**: el botón 🔗 guarda el proyecto y entrega una liga `/v/<clave>` que se abre **sin contraseña**. Quien la abre ve cómo el proyecto se arma desde cero en 10 s (piso, muros, racks y equipos, nivel por nivel) y después solo puede elegir **Vista 3D** o **Recorrer**; no puede editar.
 - **Editor 2D**
+  - Panel izquierdo con las herramientas siempre a la vista y el resto en secciones plegables (niveles, tipos de pared, puertas y marcos, cercos y barandales, anuncios, objetos); cada cosa aparece en una sola sección.
   - Ambientes irregulares por vértices (clic a clic) o rectangulares (arrastrar).
   - Editar vértices arrastrando, agregar vértices con doble clic en una arista y borrar con Alt+clic.
   - Ajuste a cuadrícula y a vértices existentes, ángulos de 45° con Shift, cotas en metros y áreas.

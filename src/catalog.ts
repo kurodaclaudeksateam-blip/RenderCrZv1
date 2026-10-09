@@ -111,7 +111,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'silla_oficina', label: 'Silla oficina', icon: '🪑', category: 'Oficina', w: 0.6, d: 0.6, h: 1.1, color: '#222222' },
   { type: 'planta', label: 'Planta', icon: '🪴', category: 'Hogar', w: 0.5, d: 0.5, h: 1.2, color: '#3f8f4a' },
   { type: 'lampara', label: 'Lámpara pie', icon: '💡', category: 'Hogar', w: 0.4, d: 0.4, h: 1.6, color: '#f5deb3' },
-  { type: 'escalera', label: 'Escalera', icon: '🪜', category: 'Oficina', w: 1.0, d: 3.2, h: 2.7, color: '#b08968' },
+  { type: 'escalera', label: 'Escalera de obra', icon: '🪜', category: 'Equipos', w: 1.0, d: 3.2, h: 2.7, color: '#b08968' },
 ];
 
 /** Tuberías del rack para tuberías: cada nivel guarda «material:diámetro en metros». */
@@ -147,8 +147,8 @@ export const WALL_MATERIALS: { id: WallMaterial; label: string; icon: string; co
   { id: 'lamina', label: 'Lámina metálica', icon: '🏭', color: '#94a3b8' },
   { id: 'madera', label: 'Madera', icon: '🪵', color: '#a47148' },
   { id: 'vidrio', label: 'Vidrio', icon: '🪟', color: '#cfeaff' },
-  { id: 'malla', label: 'Cerco de malla metálica', icon: '🕸️', color: '#cbd5e1' },
-  { id: 'cerco', label: 'Cerco de barrotes', icon: '🚧', color: '#f8fafc' },
+  { id: 'malla', label: 'Perímetro de malla', icon: '🕸️', color: '#cbd5e1' },
+  { id: 'cerco', label: 'Perímetro de barrotes', icon: '🚧', color: '#f8fafc' },
 ];
 
 export const isFence = (m?: WallMaterial) => m === 'malla' || m === 'cerco';
