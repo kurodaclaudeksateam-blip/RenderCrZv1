@@ -50,7 +50,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - En el **recorrido** se sube y baja caminando por escaleras y rampas; al llegar arriba se pasa al nivel superior.
   - **Editar en 3D**: con el botón ✏️ se toca una puerta, pared, cerco u objeto y se cambia ahí mismo su tipo, medidas, color o nombre. Al tocar una pared o cerco se le puede **agregar** una puerta, marco, arco o ventana en ese punto, y cada puerta se puede **deslizar** por su pared o **mover** a otra: el hueco anterior se rellena solo. También se cambian ahí la altura y el grosor de las paredes, el material de un solo tramo y las medidas, el giro y la posición de cualquier objeto (se mueve tocando el lugar nuevo).
   - **Vista volumen**: órbita, filtro de niveles visibles, modo rayos X, sombras y captura PNG.
-  - **Marca de agua**: el logotipo «powered by Cerezo» (`public/logo-cerezo.png`) va abajo a la derecha de la vista 3D, también en la liga compartida y en la captura PNG.
+  - **Marca de agua**: el logotipo «powered by Cerezo» (`public/logo-cerezo.jpg`) va abajo a la derecha de la vista 3D, también en la liga compartida y en la captura PNG.
   - **Recorrido virtual**: primera persona con WASD/flechas y mouse (pointer lock), con colisión contra muros, racks y equipos, cambio de nivel y controles táctiles.
   - Racks con largueros y pallets cargados, letreros con texto, zonas pintadas en el piso, montacargas y equipos 3D paramétricos.
   - Pisos con texturas procedurales (epóxico industrial, concreto, cerámica, madera, alfombra, mármol).
