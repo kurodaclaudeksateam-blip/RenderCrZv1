@@ -1,8 +1,18 @@
 import { create } from 'zustand';
-import type { Level, Project, Selection, Tool, WallMaterial } from './types';
+import type { Level, Project, Selection, Tool, Vec2, WallMaterial } from './types';
 import { persist } from './cloud';
 
 export type Screen = 'home' | 'editor' | 'viewer';
+
+/** Rótulo con profundidad en preparación: se le quita el fondo a la imagen antes de colocarlo. */
+export interface CutoutRequest {
+  /** imagen ya elegida; sin ella el diálogo la pide */
+  file?: File;
+  /** dónde va el rótulo nuevo (por defecto, el centro de la vista) */
+  pos?: Vec2;
+  /** en vez de crear un rótulo, cambia la imagen de este */
+  replaceId?: string;
+}
 
 interface EditorState {
   screen: Screen;
@@ -25,6 +35,7 @@ interface EditorState {
   /** impide que un objeto se meta dentro de otro al moverlo */
   avoidOverlap: boolean;
   toast: string | null;
+  cutout: CutoutRequest | null;
 
   openProject: (p: Project, screen?: Screen) => void;
   closeProject: () => void;
@@ -39,6 +50,7 @@ interface EditorState {
   toggleGhost: () => void;
   setAutosave: (b: boolean) => void;
   setAvoidOverlap: (b: boolean) => void;
+  setCutout: (c: CutoutRequest | null) => void;
   /** Guarda el estado actual en el historial (para empezar un arrastre). */
   checkpoint: () => void;
   /** Aplica un cambio sobre una copia del proyecto. */
@@ -87,10 +99,11 @@ export const useStore = create<EditorState>((set, get) => ({
   autosave: readPref('autosave', true),
   avoidOverlap: readPref('avoidOverlap', true),
   toast: null,
+  cutout: null,
 
   openProject: (p, screen = 'editor') =>
     set({ project: p, levelId: p.levels[0]?.id ?? null, selection: null, tool: 'select', past: [], future: [], dirty: false, savedAt: p.updatedAt, screen }),
-  closeProject: () => set({ project: null, levelId: null, selection: null, past: [], future: [], screen: 'home' }),
+  closeProject: () => set({ project: null, levelId: null, selection: null, past: [], future: [], screen: 'home', cutout: null }),
   setScreen: (screen) => set({ screen }),
   // las herramientas genéricas de puerta y ventana no llevan un tipo elegido
   setTool: (tool) => set({ tool, openingPreset: null }),
@@ -118,6 +131,7 @@ export const useStore = create<EditorState>((set, get) => ({
     writePref('autosave', autosave);
     set({ autosave });
   },
+  setCutout: (cutout) => set({ cutout }),
 
   checkpoint: () => {
     const { project, past } = get();

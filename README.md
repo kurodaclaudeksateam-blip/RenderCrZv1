@@ -23,7 +23,8 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - **Los objetos no se atraviesan** al moverlos (se desactiva en la configuración o manteniendo Alt).
   - **Imagen de piso**: cada ambiente puede llevar una imagen como textura, ajustada al ambiente o en mosaico.
   - **Rack vertical para tuberías**: los tubos van de pie en compartimentos, con base encajonada y tope superior con barandal.
-  - **Rack para tuberías**: rack alargado de brazos; en cada nivel se elige la tubería (metal, cobre, PVC o ABS) y su diámetro (de ½″ a 8″).
+  - **Rack para tuberías**: rack alargado de brazos; en cada nivel se elige la tubería (acero, galvanizado, cobre, PVC, CPVC, ABS, PPR, PEX rojo y azul, conduit, polietileno para gas o agua tratada) y su diámetro (de ½″ a 8″).
+  - **Base redonda con picos**: base circular con picos y poste central con argolla para la tubería suelta. En cada pico se elige la tubería, su diámetro y si va en **pedacería** (tramos de pie alrededor del pico) o en **rollo** (ensartado en el pico). El catálogo trae dos ejemplos cargados con tubos de distintos tipos y colores.
   - **Resumen** (📊): ambientes con área y perímetro, objetos por tipo, posiciones de pallet y zonas; se descarga para Excel (CSV) o se imprime/guarda en PDF junto con el plano.
   - Sección **Tipos de pared** en el panel: elige el material y se aplica al ambiente seleccionado y a los que dibujes después.
   - **Materiales de muro** por ambiente: liso pintado, ladrillo, block, concreto, lámina metálica, madera, vidrio, cerco de malla metálica y cerco de barrotes (con altura propia).
@@ -34,6 +35,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
     - **Equipos**: rampa de descarga curva, escalera metálica, montacargas, transpaleta, banda transportadora, mesa de embalaje, báscula.
     - **Señalización**: letreros colgantes y de pie con texto editable (pasillos, andenes, salidas).
     - **Anuncios**: torres de anuncio, rótulos en poste (tubo largo con el rótulo rectangular arriba) y cuadros con luz LED (rectangulares o cuadrados). Se les puede **subir una imagen** que rellena el letrero por ambas caras; sin imagen muestran su texto.
+    - **Rótulo con profundidad**: al elegirlo pide una imagen (un logotipo o dibujo), le **quita el fondo** y la deja como objeto con relieve: la figura recortada, con el grosor que se indique y el canto del color que se elija. Se mueve, gira y eleva como cualquier objeto. El fondo se quita en el navegador (la imagen no se envía a ningún servicio): se borra el color que toca las orillas, se ajusta la tolerancia, se toca cualquier zona que sobre para borrarla y se pueden vaciar los huecos de las letras. Funciona mejor con fondos parejos.
     - **Zonas** de piso rotuladas: recepción, despacho, picking, cuarentena, devoluciones, pasillo peatonal.
     - **Seguridad**: extintores, conos, bolardos, cerco metálico blanco, cerco de malla metálica, malla divisoria, columnas.
     - También oficina, servicios y mobiliario residencial.
@@ -51,7 +53,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - **Recorrido virtual**: primera persona con WASD/flechas y mouse (pointer lock), con colisión contra muros, racks y equipos, cambio de nivel y controles táctiles.
   - Racks con largueros y pallets cargados, letreros con texto, zonas pintadas en el piso, montacargas y equipos 3D paramétricos.
   - Pisos con texturas procedurales (epóxico industrial, concreto, cerámica, madera, alfombra, mármol).
-- **Ejemplo incluido**: centro de distribución con 4 secciones de distinto tipo de pared (almacenaje, picking y empaque, recepción y despacho, oficinas y servicios), patio con jaula de malla y mezzanine. Usa los 56 tipos de objeto del catálogo y las cuatro clases de puerta.
+- **Ejemplo incluido**: centro de distribución con 4 secciones de distinto tipo de pared (almacenaje, picking y empaque, recepción y despacho, oficinas y servicios), patio con jaula de malla y mezzanine. Usa todos los tipos de objeto del catálogo (salvo el rótulo con profundidad, que necesita una imagen) y las cuatro clases de puerta.
 
 ## Desarrollo
 
@@ -76,7 +78,7 @@ Opcionalmente se pueden definir `VITE_SUPABASE_URL` y `VITE_SUPABASE_KEY` (llave
 
 Los proyectos viven en la tabla `public.crz_proyectos` del mismo proyecto Supabase (script en `supabase/crz_proyectos.sql`). Igual que `crz_acceso`, la tabla no es legible desde la API: la app usa funciones `crz_*`. Al iniciar sesión, `crz_iniciar_sesion` devuelve un token (12 h) que autoriza listar, guardar y eliminar; `crz_proyecto_compartido(share_id)` es la única función pública y solo lee el proyecto de esa liga.
 
-**Peso**: cada proyecto se guarda en formato compacto (`src/codec.ts`): tuplas en vez de objetos, medidas redondeadas al milímetro, sin ids internos y comprimido con deflate. El almacén de ejemplo (84 objetos, 2 niveles) pasa de 16.3 KB en JSON a **2.4 KB**; la casa de ejemplo, de 7.9 KB a 1.5 KB. Las imágenes de anuncios se reducen a 640 px y se comprimen en WebP al 70 % de calidad y se guardan una sola vez aunque varios anuncios usen la misma. El límite por proyecto es de 600 KB.
+**Peso**: cada proyecto se guarda en formato compacto (`src/codec.ts`): tuplas en vez de objetos, medidas redondeadas al milímetro, sin ids internos y comprimido con deflate. El almacén de ejemplo (84 objetos, 2 niveles) pasa de 16.3 KB en JSON a **2.4 KB**; la casa de ejemplo, de 7.9 KB a 1.5 KB. Las imágenes de anuncios se reducen a 640 px y se comprimen en WebP al 70 % de calidad (las de los rótulos con profundidad, en WebP con transparencia y recortadas a la figura) y se guardan una sola vez aunque varios anuncios usen la misma. El límite por proyecto es de 600 KB.
 
 ### Papelera
 

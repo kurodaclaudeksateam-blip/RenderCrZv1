@@ -30,8 +30,10 @@ import {
   duplicateSelection,
   editorView,
   insertVertex,
+  needsImage,
   nudgeSelection,
   removeVertex,
+  requestCutout,
   rotateSelection,
 } from '../actions';
 import type { Furniture, Level, Room, Vec2 } from '../types';
@@ -196,7 +198,8 @@ export default function Editor2D() {
   // --- teclado --------------------------------------------------------------
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e)) return;
+      // con el diálogo del rótulo abierto los atajos no deben tocar el plano
+      if (isTyping(e) || useStore.getState().cutout) return;
       const ctrl = e.ctrlKey || e.metaKey;
       if (e.code === 'Space') {
         spaceDown.current = e.type === 'keydown';
@@ -511,7 +514,10 @@ export default function Editor2D() {
     e.preventDefault();
     const key = e.dataTransfer.getData('text/x-furniture');
     const item = key ? catalogItem(key) : null;
-    if (item) addFurniture(item, snapGrid(toWorld(e.clientX, e.clientY)));
+    if (!item) return;
+    const pos = snapGrid(toWorld(e.clientX, e.clientY));
+    if (needsImage(item)) requestCutout({ pos }, false);
+    else addFurniture(item, pos);
   };
 
   // --- render ---------------------------------------------------------------

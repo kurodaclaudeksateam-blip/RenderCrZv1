@@ -211,7 +211,8 @@ export function sampleProject(name: string): Project {
 /**
  * Centro de distribución de ejemplo: cuatro secciones con distinto tipo de pared
  * (almacenaje, picking y empaque, recepción y despacho, oficinas y servicios),
- * patio con jaula de malla y mezzanine. Usa todos los tipos de objeto del catálogo.
+ * patio con jaula de malla y mezzanine. Usa todos los tipos de objeto del catálogo,
+ * salvo el rótulo con profundidad, que necesita una imagen.
  */
 export function sampleWarehouse(name: string): Project {
   const p = newProject(name, 2, 7.5);
@@ -311,6 +312,8 @@ export function sampleWarehouse(name: string): Project {
     f('mueble_tapa', 'Mueble con tapa', 41.6, 12.5, 1.2, 0.6, 0.9, '#8b5e3c', 0, { empty: true }),
     f('rack_tubos', 'Rack para tuberías', 40, 18.6, 5, 1, 2.4, '#1e3a8a', 0, { shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] }),
     f('rack_tubos_v', 'Rack vertical para tuberías', 34.4, 19.3, 3, 0.8, 3.2, '#1e3a8a', 180, { shelves: 4, cells: ['pvc:0.1', 'abs:0.075', 'cobre:0.05', 'metal:0.1'] }),
+    f('base_tubos', 'Base con picos · pedacería', 39.2, 15.6, 1.2, 1.2, 1.2, '#1e3a8a', 0, { shelves: 8, cells: ['pvc:0.05', 'cobre:0.025', 'ppr:0.05', 'conduit:0.025', 'abs:0.075', 'cpvc:0.025', 'galv:0.05', 'gas:0.025'] }),
+    f('base_tubos', 'Base con picos · rollos', 41.2, 15.6, 1.4, 1.4, 1, '#1e3a8a', 0, { shelves: 6, cells: ['pexr:0.013:r', 'pexa:0.013:r', 'gas:0.025:r', 'morado:0.025:r', 'cobre:0.013:r', 'conduit:0.025:r'] }),
     f('letrero', 'Letrero picking', 40, 7.6, 3, 0.05, 0.8, '#ca8a04', 0, { label: 'PICKING', elevation: 4.5 }),
     f('extintor', 'Extintor', 49.55, 10, 0.25, 0.25, 0.75, '#dc2626'),
   ];
