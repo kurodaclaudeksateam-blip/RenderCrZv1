@@ -207,11 +207,13 @@ kbd {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding-bottom: 12vh;
+  padding-bottom: 6vh;
   pointer-events: none;
   opacity: 0;
   transform: translateY(20px);
   transition: opacity 0.8s, transform 0.8s;
+  /* oscurece la base de la obra para que el nombre se lea */
+  background: linear-gradient(to top, rgba(5, 11, 22, 0.88), rgba(5, 11, 22, 0.5) 30%, transparent 55%);
 }
 .intro-overlay.show {
   opacity: 1;
@@ -219,7 +221,7 @@ kbd {
   pointer-events: auto;
 }
 .intro-logo {
-  font-size: clamp(40px, 9vw, 84px);
+  font-size: clamp(34px, 7vw, 64px);
   font-weight: 800;
   letter-spacing: -0.03em;
   text-shadow: 0 0 40px rgba(56, 189, 248, 0.55);
@@ -233,7 +235,7 @@ kbd {
 }
 .intro-tag {
   color: #b6c6e3;
-  margin: 6px 0 28px;
+  margin: 4px 0 18px;
   text-align: center;
   padding: 0 16px;
 }
@@ -257,6 +259,45 @@ kbd {
   50% {
     box-shadow: 0 0 50px rgba(56, 189, 248, 0.8);
   }
+}
+/* logotipo «powered by Cerezo»: aparece en el centro exacto al terminar la obra */
+.intro-brand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: min(30vh, 280px);
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 60px rgba(0, 0, 0, 0.65), 0 0 90px rgba(56, 189, 248, 0.35);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition: opacity 0.9s 0.15s, transform 0.9s 0.15s cubic-bezier(0.2, 1.4, 0.4, 1);
+  pointer-events: none;
+  user-select: none;
+}
+.intro-brand.show {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+.intro-hud {
+  position: absolute;
+  left: 18px;
+  top: 14px;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+  text-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+}
+.intro-hud small {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #7dd3fc;
+}
+.intro-hud b {
+  font-size: clamp(18px, 3.2vw, 30px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #e2f2ff;
 }
 .intro-skip {
   position: absolute;
@@ -918,6 +959,24 @@ details summary {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 8px 10px;
+}
+/* marca de agua de la vista 3D */
+.viewer-mark {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: clamp(84px, 10vw, 140px);
+  border-radius: 12px;
+  opacity: 0.85;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  user-select: none;
+}
+@media (pointer: coarse) {
+  /* en el recorrido táctil deja libres los botones de subir y bajar */
+  .viewer.mode-walk .viewer-mark {
+    bottom: 150px;
+  }
 }
 .viewer-title {
   max-width: 220px;

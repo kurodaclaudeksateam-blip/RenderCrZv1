@@ -10,6 +10,7 @@ import { EditPanel, type MoveTarget, type Pick } from './EditPanel';
 import { moveFurnitureTo, moveOpeningTo } from '../actions';
 import { WalkControls, walkInput } from './WalkControls';
 import { grassTexture } from './textures';
+import { BrandLogo, withWatermark } from '../components/BrandLogo';
 
 type Mode = 'orbit' | 'walk';
 
@@ -388,9 +389,10 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const onFirstFrame = useCallback(() => setReady(true), []);
   const onSnapReady = useCallback((fn: () => string) => (snapRef.current = fn), []);
 
-  const screenshot = () => {
-    const url = snapRef.current();
-    if (!url) return;
+  const screenshot = async () => {
+    const shot = snapRef.current();
+    if (!shot) return;
+    const url = await withWatermark(shot);
     const a = document.createElement('a');
     a.href = url;
     a.download = `${project.name || 'render'}-3d.png`;
@@ -414,7 +416,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const empty = allPts.length === 0;
 
   return (
-    <div className="viewer">
+    <div className={`viewer mode-${mode}`}>
       <Canvas
         key={mode}
         shadows={shadows}
@@ -455,6 +457,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           <FirstFrame onReady={onFirstFrame} />
         </Suspense>
       </Canvas>
+      <BrandLogo className="viewer-mark" />
 
       {building && (
         <div className="build-intro">

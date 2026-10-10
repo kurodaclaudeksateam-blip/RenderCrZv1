@@ -1,205 +1,269 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import { randomPlan } from '../random';
+import { DURATION, T0, T1, TOP, randomBuild, type Build, type TubeSpec } from '../builds';
+import { BrandLogo } from './BrandLogo';
 
-const DURATION = 5; // segundos
+// Cada carga arma una obra distinta (ver builds.ts): trazo de luz en planta, la obra sube
+// pieza a pieza con su grúa y su frente iluminado, y al terminar la recorre una onda de luz.
 
-// Cada carga genera un plano irregular y una paleta distintos
-interface Plan {
-  rooms: [number, number][][];
-  cx: number;
-  cz: number;
-  hue: number;
-  scale: number;
-}
+type Clock = React.MutableRefObject<number>;
 
-function makePlan(): Plan {
-  const rooms = randomPlan();
-  const pts = rooms.flat();
-  const xs = pts.map((q) => q[0]);
-  const ys = pts.map((q) => q[1]);
-  const w = Math.max(...xs) - Math.min(...xs);
-  const d = Math.max(...ys) - Math.min(...ys);
-  return {
-    rooms,
-    cx: (Math.max(...xs) + Math.min(...xs)) / 2,
-    cz: (Math.max(...ys) + Math.min(...ys)) / 2,
-    hue: Math.random(),
-    scale: Math.max(w, d) / 11,
-  };
-}
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+const smooth = (from: number, to: number, x: number) => {
+  const k = clamp01((x - from) / (to - from));
+  return k * k * (3 - 2 * k);
+};
 
-const WALL = 2.6;
+const UNIT = new THREE.BoxGeometry(1, 1, 1);
+const UP = new THREE.Vector3(0, 1, 0);
 
-interface TubeSpec {
-  curve: THREE.Curve<THREE.Vector3>;
-  color: THREE.Color;
-  start: number; // segundos
-  dur: number;
-  radius: number;
-}
-
-function buildTubes({ rooms, cx: CX, cz: CZ, hue }: Plan): TubeSpec[] {
-  const tubes: TubeSpec[] = [];
-  const seen = new Set<string>();
-  const verts = new Map<string, THREE.Vector3>();
-  let i = 0;
-  const edges: [THREE.Vector3, THREE.Vector3][] = [];
-  for (const room of rooms) {
-    room.forEach((p, k) => {
-      const q = room[(k + 1) % room.length];
-      const key = [p.join(','), q.join(',')].sort().join('|');
-      if (seen.has(key)) return;
-      seen.add(key);
-      const a = new THREE.Vector3(p[0] - CX, 0, p[1] - CZ);
-      const b = new THREE.Vector3(q[0] - CX, 0, q[1] - CZ);
-      edges.push([a, b]);
-      verts.set(p.join(','), a);
-      verts.set(q.join(','), b);
-    });
-  }
-  const n = edges.length;
-  // 1) contorno del plano a ras de piso: tubos de colores que se dibujan en cadena
-  edges.forEach(([a, b]) => {
-    tubes.push({
-      curve: new THREE.LineCurve3(a, b),
-      color: new THREE.Color().setHSL((hue + (i / n) * 0.85) % 1, 0.9, 0.58),
-      start: 0.15 + (i / n) * 1.9,
-      dur: 0.7,
-      radius: 0.09,
-    });
-    i++;
-  });
-  // 2) columnas que suben desde cada vértice
-  [...verts.values()].forEach((v, k, arr) => {
-    tubes.push({
-      curve: new THREE.LineCurve3(v, v.clone().setY(WALL)),
-      color: new THREE.Color().setHSL((hue + 0.5 + (k / arr.length) * 0.4) % 1, 0.95, 0.62),
-      start: 2.3 + (k / arr.length) * 0.6,
-      dur: 0.6,
-      radius: 0.06,
-    });
-  });
-  // 3) contorno superior
-  edges.forEach(([a, b], k) => {
-    tubes.push({
-      curve: new THREE.LineCurve3(a.clone().setY(WALL), b.clone().setY(WALL)),
-      color: new THREE.Color().setHSL((hue + 0.75 + (k / n) * 0.3) % 1, 0.9, 0.62),
-      start: 3.0 + (k / n) * 0.9,
-      dur: 0.5,
-      radius: 0.07,
-    });
-  });
-  // 4) arcos de "trazado" que flotan sobre el plano
-  for (let k = 0; k < 6; k++) {
-    const a = edges[(k * 5) % n][0];
-    const b = edges[(k * 7 + 3) % n][1];
-    const mid = a.clone().lerp(b, 0.5).setY(3.5 + k * 0.4);
-    tubes.push({
-      curve: new THREE.QuadraticBezierCurve3(a.clone().setY(0.1), mid, b.clone().setY(0.1)),
-      color: new THREE.Color().setHSL((hue + k / 6) % 1, 1, 0.65),
-      start: 0.6 + k * 0.35,
-      dur: 1.2,
-      radius: 0.025,
-    });
-  }
-  return tubes;
-}
-
-function Tube({ spec, clock }: { spec: TubeSpec; clock: React.MutableRefObject<number> }) {
-  const segs = spec.curve instanceof THREE.LineCurve3 ? 24 : 64;
-  const radial = 12;
-  const geo = useMemo(() => new THREE.TubeGeometry(spec.curve, segs, spec.radius, radial, false), [spec, segs]);
+function Tube({ spec, clock }: { spec: TubeSpec; clock: Clock }) {
+  const segs = spec.segments ?? (spec.curve instanceof THREE.LineCurve3 ? 24 : 64);
+  const radial = spec.radial ?? 12;
+  const geo = useMemo(() => new THREE.TubeGeometry(spec.curve, segs, spec.radius, radial, false), [spec, segs, radial]);
   const tip = useRef<THREE.Mesh>(null);
   const mat = useRef<THREE.MeshStandardMaterial>(null);
-  const total = segs * radial * 6;
 
   useEffect(() => () => geo.dispose(), [geo]);
 
   useFrame(() => {
-    const t = Math.min(1, Math.max(0, (clock.current - spec.start) / spec.dur));
-    const e = 1 - Math.pow(1 - t, 3);
-    geo.setDrawRange(0, Math.floor((total * e) / (radial * 6)) * radial * 6);
+    const t = clamp01((clock.current - spec.start) / spec.dur);
+    const e = spec.linear ? t : 1 - Math.pow(1 - t, 3);
+    geo.setDrawRange(0, Math.floor(segs * e) * radial * 6);
     if (tip.current) {
       tip.current.visible = t > 0 && t < 1;
-      tip.current.position.copy(spec.curve.getPoint(e));
+      spec.curve.getPoint(e, tip.current.position);
     }
-    if (mat.current) mat.current.emissiveIntensity = 0.6 + (1 - t) * 1.6;
+    if (mat.current) mat.current.emissiveIntensity = 0.55 + (1 - t) * 0.9;
   });
 
   return (
     <group>
-      <mesh geometry={geo}>
+      <mesh geometry={geo} frustumCulled={false}>
         <meshStandardMaterial ref={mat} color={spec.color} emissive={spec.color} emissiveIntensity={1} roughness={0.3} metalness={0.2} />
       </mesh>
       <mesh ref={tip} visible={false}>
-        <sphereGeometry args={[spec.radius * 2.2, 16, 16]} />
-        <meshBasicMaterial color="#ffffff" />
+        <sphereGeometry args={[spec.radius * 2.2, 10, 10]} />
+        <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </mesh>
     </group>
   );
 }
 
-function FloorGlow({ clock, plan }: { clock: React.MutableRefObject<number>; plan: Plan }) {
-  const mats = useRef<THREE.MeshBasicMaterial[]>([]);
-  const geos = useMemo(
-    () =>
-      plan.rooms.map((r) => {
-        const s = new THREE.Shape(r.map(([x, y]) => new THREE.Vector2(x - plan.cx, -(y - plan.cz))));
-        const g = new THREE.ShapeGeometry(s);
-        g.rotateX(-Math.PI / 2);
-        return g;
-      }),
-    [plan],
+/** Todas las piezas de la obra en una sola malla instanciada: caen, crecen y destellan al colocarse. */
+function Blocks({ build, clock }: { build: Build; clock: Clock }) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
+  const tmp = useMemo(
+    () => ({ m: new THREE.Matrix4(), p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3(), c: new THREE.Color(), last: new Float32Array(build.blocks.length).fill(-1), pulsing: false }),
+    [build],
   );
+
   useFrame(() => {
-    mats.current.forEach((m, i) => {
-      const t = Math.min(1, Math.max(0, (clock.current - 1.6 - i * 0.25) / 1));
-      m.opacity = t * 0.22;
+    const im = mesh.current;
+    if (!im) return;
+    const t = clock.current;
+    const { m, p, q, s, c, last } = tmp;
+    // al terminar, una onda de luz recorre la obra de abajo arriba
+    const wave = ((t - TOP) / (DURATION - TOP - 0.1)) * build.height * 1.15;
+    const band = build.height * 0.12;
+    const pulsing = t > TOP && t < DURATION + 0.3;
+    const sweep = pulsing || tmp.pulsing;
+    tmp.pulsing = pulsing;
+    let dirty = false;
+    build.blocks.forEach((b, i) => {
+      const k = clamp01((t - b.start) / b.dur);
+      // las piezas ya colocadas solo se tocan mientras pasa la onda
+      if (k === last[i] && !(sweep && k === 1)) return;
+      last[i] = k;
+      dirty = true;
+      if (k === 0) {
+        im.setMatrixAt(i, m.makeScale(0, 0, 0));
+        return;
+      }
+      const e = 1 - Math.pow(1 - k, 3);
+      p.set(b.x, b.y, b.z);
+      s.set(b.sx, b.sy, b.sz);
+      if (b.mode === 'rise') {
+        s.y = Math.max(0.001, b.sy * e);
+        p.y = b.y - b.sy / 2 + s.y / 2;
+      } else if (b.mode === 'grow') {
+        s.x = Math.max(0.001, b.sx * e);
+        s.z = Math.max(0.001, b.sz * e);
+      } else {
+        // cae y rebota un poco
+        p.y += (k < 0.75 ? 1 - Math.pow(k / 0.75, 2) : Math.sin(((k - 0.75) / 0.25) * Math.PI) * 0.06) * (b.fall ?? 3);
+      }
+      im.setMatrixAt(i, m.compose(p, q.setFromAxisAngle(UP, b.ry), s));
+      const glow = (b.flash ?? 1) * (1 - k) * (1 - k) * 5 + (pulsing ? Math.max(0, 1 - Math.abs(b.y - wave) / band) * 2.2 : 0);
+      im.setColorAt(i, c.copy(b.color).multiplyScalar(1 + glow));
     });
+    if (!dirty) return;
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={mesh} args={[UNIT, undefined, build.blocks.length]} frustumCulled={false}>
+      <meshStandardMaterial roughness={0.42} metalness={0.15} emissive="#0a1a33" />
+    </instancedMesh>
+  );
+}
+
+const CRANE = new THREE.MeshStandardMaterial({ color: '#facc15', emissive: '#facc15', emissiveIntensity: 0.45, roughness: 0.5 });
+
+/** Grúa torre en lo alto de la obra: sube con ella y se desmonta al colocar el remate. */
+function Crane({ build, at, clock }: { build: Build; at: [number, number]; clock: Clock }) {
+  const body = useRef<THREE.Group>(null);
+  const jib = useRef<THREE.Group>(null);
+  const size = Math.min(1.4, Math.max(0.9, build.height * 0.014));
+  useFrame(() => {
+    const t = clock.current;
+    const k = smooth(T0 - 0.1, T0 + 0.3, t) * (1 - smooth(T1, T1 + 0.4, t));
+    if (!body.current || !jib.current) return;
+    body.current.visible = k > 0.01;
+    body.current.scale.setScalar(k * size);
+    body.current.position.set(at[0], Math.min(build.front(t), build.roof), at[1]);
+    jib.current.rotation.y = t * 1.4 + at[0];
   });
   return (
-    <>
-      {geos.map((g, i) => (
-        <mesh key={i} geometry={g} position={[0, 0.01, 0]}>
-          <meshBasicMaterial
-            ref={(m) => {
-              if (m) mats.current[i] = m;
-            }}
-            color={new THREE.Color().setHSL((plan.hue + i / plan.rooms.length) % 1, 0.8, 0.6)}
-            transparent
-            opacity={0}
-            side={THREE.DoubleSide}
-            depthWrite={false}
-          />
+    <group ref={body} visible={false}>
+      <mesh geometry={UNIT} material={CRANE} position={[0, 2.5, 0]} scale={[0.35, 5, 0.35]} />
+      <group ref={jib} position={[0, 5, 0]}>
+        <mesh geometry={UNIT} material={CRANE} position={[2.6, 0, 0]} scale={[8.4, 0.22, 0.3]} />
+        <mesh geometry={UNIT} material={CRANE} position={[-1.3, -0.2, 0]} scale={[0.9, 0.7, 0.7]} />
+        <mesh geometry={UNIT} material={CRANE} position={[0, 0.7, 0]} scale={[0.25, 1.4, 0.25]} />
+        <mesh geometry={UNIT} material={CRANE} position={[5.6, -1.3, 0]} scale={[0.05, 2.6, 0.05]} />
+        <mesh geometry={UNIT} material={CRANE} position={[5.6, -2.7, 0]} scale={[0.35, 0.3, 0.35]} />
+      </group>
+    </group>
+  );
+}
+
+/** Reflector que gira alrededor del frente de obra e ilumina lo recién colocado. */
+function FrontLight({ build, clock }: { build: Build; clock: Clock }) {
+  const light = useRef<THREE.PointLight>(null);
+  const r = Math.min(16, build.radius * 1.3);
+  useFrame(() => {
+    const t = clock.current;
+    if (!light.current) return;
+    light.current.position.set(Math.cos(t * 1.7) * r, build.front(t) + 3, Math.sin(t * 1.7) * r);
+    light.current.intensity = 500 * (1 - 0.6 * smooth(TOP, DURATION, t));
+  });
+  return <pointLight ref={light} color="#bfe9ff" intensity={500} decay={2} />;
+}
+
+/** Balizas rojas que parpadean en la punta cuando la obra queda terminada. */
+function Beacons({ build, clock }: { build: Build; clock: Clock }) {
+  const group = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (group.current) group.current.visible = clock.current > TOP && (clock.current * 1.6) % 1 < 0.55;
+  });
+  return (
+    <group ref={group} visible={false}>
+      {build.beacons.map((p, i) => (
+        <mesh key={i} position={p}>
+          <sphereGeometry args={[Math.max(0.35, build.height * 0.007), 12, 12]} />
+          <meshBasicMaterial color="#ff4d4d" toneMapped={false} fog={false} />
         </mesh>
       ))}
+    </group>
+  );
+}
+
+const RING = new THREE.RingGeometry(0.965, 1, 96).rotateX(-Math.PI / 2);
+
+/** Anillo de luz que se abre sobre el suelo desde la obra. */
+function Shockwave({ build, clock, at }: { build: Build; clock: Clock; at: number }) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const mat = useRef<THREE.MeshBasicMaterial>(null);
+  const color = useMemo(() => new THREE.Color().setHSL((build.hue + 0.45) % 1, 1, 0.65), [build]);
+  useFrame(() => {
+    const k = clamp01((clock.current - at) / 1.1);
+    if (!mesh.current || !mat.current) return;
+    mesh.current.visible = k > 0 && k < 1;
+    const r = build.radius * (0.6 + k * 7);
+    mesh.current.scale.set(r, 1, r);
+    mat.current.opacity = (1 - k) * 0.9;
+  });
+  return (
+    <mesh ref={mesh} geometry={RING} position={[0, 0.06, 0]} visible={false}>
+      <meshBasicMaterial ref={mat} color={color} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} side={THREE.DoubleSide} />
+    </mesh>
+  );
+}
+
+function Ground({ water }: { water?: boolean }) {
+  return (
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
+        <planeGeometry args={[3000, 3000]} />
+        {water ? <meshStandardMaterial color="#0a2a4d" roughness={0.3} metalness={0.25} /> : <meshStandardMaterial color="#060d1a" roughness={0.95} />}
+      </mesh>
+      {!water && <gridHelper args={[420, 60, '#1e3a5f', '#13233a']} position={[0, 0.01, 0]} />}
     </>
   );
 }
 
-function Scene({ clock, plan }: { clock: React.MutableRefObject<number>; plan: Plan }) {
-  const tubes = useMemo(() => buildTubes(plan), [plan]);
-  const group = useRef<THREE.Group>(null);
-  useFrame(({ camera }, dt) => {
-    clock.current += dt;
+function Scene({ build, clock, hud, bar, onDone }: { build: Build; clock: Clock; hud: React.RefObject<HTMLElement | null>; bar: React.RefObject<HTMLDivElement | null>; onDone: () => void }) {
+  const shown = useRef(-1);
+  const finished = useRef(false);
+  useFrame(({ camera, scene }, dt) => {
+    // el reloj es el de la animación: si la pestaña estuvo oculta o un cuadro tardó, la obra no se salta
+    clock.current += Math.min(dt, 0.1);
     const t = clock.current;
-    // cámara: comienza cenital y baja en espiral hacia una vista en perspectiva
-    const k = Math.min(1, t / DURATION);
-    const e = k * k * (3 - 2 * k);
-    const ang = -0.6 + t * 0.35;
-    const r = (17 - e * 2) * plan.scale;
-    const h = (20 - e * 9) * plan.scale;
-    camera.position.set(Math.sin(ang) * r * e + 0.001, h, Math.cos(ang) * r * e + 0.001 + (1 - e) * 0.5);
-    camera.lookAt(0, -2.2 * e * plan.scale, 0);
+    if (bar.current) bar.current.style.transform = `scaleX(${clamp01(t / DURATION)})`;
+    if (t >= DURATION && !finished.current) {
+      finished.current = true;
+      onDone();
+    }
+    const { height: H, radius: R } = build;
+    const cam = camera as THREE.PerspectiveCamera;
+    // distancia desde la que cabe toda la obra, a lo alto y a lo ancho (en celular se aleja más)
+    const far = Math.max(H * 1.8, (R / (Math.tan((cam.fov * Math.PI) / 360) * cam.aspect)) * 1.15);
+    const f = build.front(t);
+    // tres tomas: la planta desde arriba, el frente de obra visto desde abajo y la obra completa
+    const follow = smooth(0.3, 1.4, t);
+    const reveal = smooth(T1 - 1.7, DURATION - 0.2, t);
+    const mix = (plan: number, front: number, full: number) => lerp(lerp(plan, front, follow), full, reveal);
+    const d = build.water ? mix(far * 0.95, far * 0.85, far) : mix(R * 1.6, R * 3 + f * 0.9, far);
+    const y = build.water ? mix(H * 0.9, H * 0.4, Math.max(H * 0.42, far * 0.2)) : mix(R * 3, Math.max(10, R * 0.9, f * 0.45), Math.max(H * 0.42, far * 0.2));
+    const look = build.water ? mix(H * 0.2, H * 0.36, H * 0.33) : mix(0, f * 0.8, H * 0.33);
+    const ang = build.angle + t * build.spin;
+    camera.position.set(Math.sin(ang) * d, y, Math.cos(ang) * d);
+    camera.lookAt(0, look, 0);
+    const fog = scene.fog as THREE.Fog | null;
+    if (fog) {
+      fog.near = Math.max(d, far * 0.6) * 0.9;
+      fog.far = Math.max(d, far * 0.6) * 3.4;
+    }
+
+    // contador de pisos (o tramos) colocados; al terminar deja el dato de la obra
+    let n = Math.max(0, shown.current);
+    while (n > 0 && build.marks[n - 1] > t) n--;
+    while (n < build.marks.length && build.marks[n] <= t) n++;
+    const key = t >= TOP ? build.marks.length + 1 : n;
+    if (key !== shown.current && hud.current) {
+      shown.current = key;
+      hud.current.textContent = t >= TOP ? build.summary : `${build.unit} ${String(n).padStart(3, '0')} / ${build.marks.length}`;
+    }
   });
   return (
-    <group ref={group}>
-      <gridHelper args={[60, 60, '#1e3a5f', '#13233a']} position={[0, -0.01, 0]} />
-      <FloorGlow clock={clock} plan={plan} />
-      {tubes.map((s, i) => (
+    <group>
+      <Ground water={build.water} />
+      <Blocks build={build} clock={clock} />
+      {build.tubes.map((s, i) => (
         <Tube key={i} spec={s} clock={clock} />
+      ))}
+      {build.cranes.map((at, i) => (
+        <Crane key={i} build={build} at={at} clock={clock} />
+      ))}
+      <FrontLight build={build} clock={clock} />
+      <Beacons build={build} clock={clock} />
+      {[0.2, TOP, TOP + 0.3].map((at) => (
+        <Shockwave key={at} build={build} clock={clock} at={at} />
       ))}
     </group>
   );
@@ -207,14 +271,12 @@ function Scene({ clock, plan }: { clock: React.MutableRefObject<number>; plan: P
 
 export default function Intro({ onStart }: { onStart: () => void }) {
   const clock = useRef(0);
-  const plan = useMemo(makePlan, []);
+  const hud = useRef<HTMLElement>(null);
+  const build = useMemo(randomBuild, []);
   const [done, setDone] = useState(false);
   const [leaving, setLeaving] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDone(true), DURATION * 1000);
-    return () => clearTimeout(t);
-  }, []);
+  const bar = useRef<HTMLDivElement>(null);
+  const finish = useCallback(() => setDone(true), []);
 
   const start = () => {
     setLeaving(true);
@@ -223,15 +285,24 @@ export default function Intro({ onStart }: { onStart: () => void }) {
 
   return (
     <div className={`intro ${leaving ? 'leaving' : ''}`}>
-      <Canvas dpr={[1, 2]} camera={{ fov: 45, position: [0, 20, 0.5] }}>
+      <Canvas dpr={[1, 2]} camera={{ fov: 45, near: 0.5, far: 1600, position: [0, build.radius * 3, build.radius * 1.6] }}>
         <color attach="background" args={['#050b16']} />
-        <fog attach="fog" args={['#050b16', 18, 45]} />
-        <ambientLight intensity={0.4} />
-        <pointLight position={[0, 8, 0]} intensity={60} color="#7dd3fc" />
-        <pointLight position={[8, 4, 8]} intensity={40} color="#f0abfc" />
-        <Scene clock={clock} plan={plan} />
+        <fog attach="fog" args={['#050b16', 100, 400]} />
+        <Stars radius={520} depth={90} count={2200} factor={9} saturation={0.4} fade speed={0.5} />
+        <ambientLight intensity={0.35} />
+        <hemisphereLight args={['#9cc9ff', '#0b1220', 0.7]} />
+        <directionalLight position={[60, 90, 40]} intensity={1.5} color="#cfe8ff" />
+        <directionalLight position={[-70, 30, -60]} intensity={0.9} color="#f0abfc" />
+        <Scene build={build} clock={clock} hud={hud} bar={bar} onDone={finish} />
       </Canvas>
 
+      <div className="intro-hud">
+        <small>
+          {done ? 'Obra terminada' : 'Construyendo'} · {build.name}
+        </small>
+        <b ref={hud}>{`${build.unit} 000 / ${build.marks.length}`}</b>
+      </div>
+      <BrandLogo className={`intro-brand ${done ? 'show' : ''}`} />
       <div className={`intro-overlay ${done ? 'show' : ''}`}>
         <div className="intro-logo">
           Render<span>CrZ</span>
@@ -246,7 +317,7 @@ export default function Intro({ onStart }: { onStart: () => void }) {
           Saltar ›
         </button>
       )}
-      <div className="intro-progress" style={{ animationDuration: `${DURATION}s` }} />
+      <div ref={bar} className="intro-progress" style={{ animation: 'none', transform: 'scaleX(0)' }} />
     </div>
   );
 }
