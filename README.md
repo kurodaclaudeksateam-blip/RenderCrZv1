@@ -4,7 +4,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
 
 ## Funciones
 
-- **Intro animada** de 5 s: tubos de colores trazan un plano **aleatorio** (distinto en cada carga) y lo levantan en 3D, con botón **Iniciar**.
+- **Intro animada** de 6 s: cada carga arma una obra **distinta** con medidas y colores al azar —una megatorre escalonada de unos 160 pisos, una torre torcida, torres gemelas con puente, un puente atirantado o una ciudad entera—. Tubos de luz trazan la planta, la obra sube piso a piso con su grúa y un contador, y al terminar la recorre una onda de luz; después aparecen el logotipo «powered by Cerezo» en el centro y el botón **Iniciar**. Nunca repite la misma obra dos veces seguidas y con `?obra=megatorre|torcida|gemelas|puente|ciudad` se elige una.
 - **Login** con animación de 4 s en la que se construye un almacén aleatorio (losa, columnas, muros con andenes, racks, pallets y cerchas). Solo pide una contraseña, que se verifica en Supabase.
 - **Proyectos con nombre** guardados en la nube (Supabase) y en `localStorage` como copia inmediata: crear, abrir, duplicar, eliminar, exportar/importar JSON. Autoguardado opcional. Al entrar se sincroniza el navegador con la nube.
 - **Compartir**: el diálogo incluye el **código QR** de la liga (se puede descargar como PNG).
@@ -50,6 +50,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - En el **recorrido** se sube y baja caminando por escaleras y rampas; al llegar arriba se pasa al nivel superior.
   - **Editar en 3D**: con el botón ✏️ se toca una puerta, pared, cerco u objeto y se cambia ahí mismo su tipo, medidas, color o nombre. Al tocar una pared o cerco se le puede **agregar** una puerta, marco, arco o ventana en ese punto, y cada puerta se puede **deslizar** por su pared o **mover** a otra: el hueco anterior se rellena solo. También se cambian ahí la altura y el grosor de las paredes, el material de un solo tramo y las medidas, el giro y la posición de cualquier objeto (se mueve tocando el lugar nuevo).
   - **Vista volumen**: órbita, filtro de niveles visibles, modo rayos X, sombras y captura PNG.
+  - **Marca de agua**: el logotipo «powered by Cerezo» (`public/logo-cerezo.png`) va abajo a la derecha de la vista 3D, también en la liga compartida y en la captura PNG.
   - **Recorrido virtual**: primera persona con WASD/flechas y mouse (pointer lock), con colisión contra muros, racks y equipos, cambio de nivel y controles táctiles.
   - Racks con largueros y pallets cargados, letreros con texto, zonas pintadas en el piso, montacargas y equipos 3D paramétricos.
   - Pisos con texturas procedurales (epóxico industrial, concreto, cerámica, madera, alfombra, mármol).
