@@ -102,6 +102,25 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           {f.type === 'anuncio_poste' && <circle cx={0} cy={y0 + Math.max(d, 0.1) / 2} r={Math.max(0.12, w * 0.05)} fill={line} />}
         </g>
       );
+    case 'escalera_vertical':
+    case 'escalera_jaula': {
+      // el muro queda del lado del fondo; la jaula sobresale al frente
+      const lw = Math.min(w, 0.6);
+      const lz = y0 + Math.min(0.2, d * 0.4);
+      return (
+        <g>
+          <line x1={x0} x2={-x0} y1={y0} y2={y0} stroke={line} strokeWidth={sw * 2.5} />
+          {f.type === 'escalera_jaula' && <ellipse cx={0} cy={(lz - y0) / 2} rx={w / 2} ry={Math.max(0.1, (-y0 - lz) / 2)} fill={color} fillOpacity={0.2} stroke={line} strokeWidth={sw} />}
+          <rect x={-lw / 2} y={lz - 0.03} width={lw} height={0.06} fill={color} stroke={line} strokeWidth={sw} />
+          {[-lw / 2, lw / 2].map((x) => (
+            <g key={x}>
+              <circle cx={x} cy={lz} r={0.04} fill={line} />
+              <line x1={x} x2={x} y1={y0} y2={lz} stroke={line} strokeWidth={sw} />
+            </g>
+          ))}
+        </g>
+      );
+    }
     case 'mueble_tapa':
       return (
         <g>

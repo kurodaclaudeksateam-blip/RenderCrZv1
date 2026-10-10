@@ -32,7 +32,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
     - **Almacenaje**: rack selectivo, rack doble fondo, rack bajo, anaqueles metálicos y de picking, cantilever, contenedores. Racks y anaqueles pueden ir **con cajas o sin cajas**.
     - **Rack a medida** y **tarima a medida**: defines medidas, niveles y posiciones, y colocas cada caja donde quieras con el color que quieras.
     - **Carga**: pallets vacíos, pallets con carga, cajas, bultos.
-    - **Equipos**: rampa de descarga curva, escalera metálica, montacargas, transpaleta, banda transportadora, mesa de embalaje, báscula.
+    - **Equipos**: rampa de descarga curva, escalera metálica, escalera vertical con pasamanos de salida, escalera vertical con jaula de protección, montacargas, transpaleta, banda transportadora, mesa de embalaje, báscula.
     - **Señalización**: letreros colgantes y de pie con texto editable (pasillos, andenes, salidas).
     - **Anuncios**: torres de anuncio, rótulos en poste (tubo largo con el rótulo rectangular arriba) y cuadros con luz LED (rectangulares o cuadrados). Se les puede **subir una imagen** que rellena el letrero por ambas caras; sin imagen muestran su texto.
     - **Rótulo con profundidad**: al elegirlo pide una imagen (un logotipo o dibujo), le **quita el fondo** y la deja como objeto con relieve: la figura recortada, con el grosor que se indique y el canto del color que se elija. Se mueve, gira y eleva como cualquier objeto. El fondo se quita en el navegador (la imagen no se envía a ningún servicio): se borra el color que toca las orillas, se ajusta la tolerancia, se toca cualquier zona que sobre para borrarla y se pueden vaciar los huecos de las letras. Funciona mejor con fondos parejos.

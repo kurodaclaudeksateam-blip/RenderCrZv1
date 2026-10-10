@@ -76,6 +76,8 @@ export type FurnitureType =
   | 'bascula'
   | 'malla'
   | 'rampa_curva'
+  | 'escalera_vertical'
+  | 'escalera_jaula'
   | 'rack_custom'
   | 'rack_tubos'
   | 'rack_tubos_v'

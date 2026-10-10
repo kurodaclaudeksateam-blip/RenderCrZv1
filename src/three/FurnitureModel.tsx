@@ -115,6 +115,9 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
       return <CurvedRamp f={f} />;
     case 'escalera_metal':
       return <MetalStairs f={f} />;
+    case 'escalera_vertical':
+    case 'escalera_jaula':
+      return <VerticalLadder f={f} />;
     case 'cerco':
       return <Fence f={f} />;
     case 'cerco_malla':
@@ -1227,6 +1230,59 @@ function LidBox({ f }: { f: Furniture }) {
       </group>
     </group>
   );
+}
+
+/**
+ * Escalera vertical (marina) fija al muro que queda a su espalda. Sube hasta `h`, donde un
+ * soporte la une al muro o plataforma y los largueros siguen 1.1 m como pasamanos de salida.
+ * La versión con jaula lleva además la protección circular (aros y pletinas) desde 2.2 m.
+ */
+function VerticalLadder({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const caged = f.type === 'escalera_jaula';
+  const rail = 0.045;
+  const back = -d / 2;
+  // plano de la escalera, separado del muro
+  const z0 = back + Math.min(0.2, d * 0.4);
+  const half = Math.min(w, 0.6) / 2 - rail / 2;
+  const top = h + 1.1;
+  const steel = '#9ca3af';
+  const parts: React.ReactNode[] = [];
+  for (const x of [-half, half]) {
+    // larguero y pasamanos de salida: sube, vuelve hacia el muro y baja al nivel de llegada
+    parts.push(<Bx key={`r${x}`} x={x} z={z0} w={rail} h={top} d={rail} c={color} metal={0.5} rough={0.4} />);
+    parts.push(<Beam key={`t${x}`} a={[x, top - rail / 2, z0]} b={[x, top - rail / 2, back]} t={rail} c={color} />);
+    parts.push(<Beam key={`d${x}`} a={[x, top, back + rail / 2]} b={[x, h, back + rail / 2]} t={rail} c={color} />);
+    // soporte de llegada y anclajes al muro
+    parts.push(<Beam key={`s${x}`} a={[x, h - 0.02, z0]} b={[x, h - 0.02, back]} t={rail * 1.3} c={shade(color, 0.7)} />);
+    for (let y = 1.2; y < h - 0.6; y += 1.5) parts.push(<Beam key={`a${x}-${y}`} a={[x, y, z0]} b={[x, y, back]} t={0.03} c={shade(color, 0.7)} />);
+  }
+  for (let y = 0.3; y <= h + 0.01; y += 0.3) parts.push(<Bx key={`p${y}`} z={z0} w={half * 2} h={0.025} d={0.03} y0={y - 0.0125} c={steel} metal={0.7} rough={0.4} />);
+  parts.push(<Bx key="plate" z={(z0 + back) / 2} w={half * 2 + rail} h={0.03} d={z0 - back} y0={h - 0.03} c={steel} metal={0.6} rough={0.5} />);
+
+  if (caged) {
+    const r = Math.max(0.3, Math.min(0.45, (d / 2 - z0) / 2 + 0.05, w / 2 + 0.08));
+    const cz = z0 + r - 0.05;
+    const from = Math.min(2.2, h * 0.5);
+    const hoops = Math.max(2, Math.round((top - from) / 0.9) + 1);
+    for (let i = 0; i < hoops; i++) {
+      const y = from + (i * (top - from)) / (hoops - 1);
+      parts.push(
+        <mesh key={`h${i}`} position={[0, y, cz]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <torusGeometry args={[r, 0.014, 6, 24]} />
+          <Mat c={color} metal={0.5} rough={0.4} />
+        </mesh>,
+      );
+    }
+    // pletinas verticales que unen los aros por el frente y los costados
+    for (const a of [0.25, 0.75, 1.25, 1.75, 2.25].map((k) => (k * Math.PI) / 2.5 - Math.PI / 2)) {
+      const x = Math.sin(a) * r;
+      const z = cz + Math.cos(a) * r;
+      if (z < z0 + 0.05) continue;
+      parts.push(<Bx key={`v${a}`} x={x} z={z} w={0.03} h={top - from} d={0.008} y0={from} c={color} metal={0.5} rough={0.4} />);
+    }
+  }
+  return <group>{parts}</group>;
 }
 
 /** Cerco de malla metálica: postes cada 2.4 m, largueros y paños de malla. */

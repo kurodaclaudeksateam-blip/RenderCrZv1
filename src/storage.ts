@@ -285,6 +285,7 @@ export function sampleWarehouse(name: string): Project {
     f('montacargas', 'Montacargas 1', 14, 9.3, 1.2, 3.2, 2.2, '#facc15', 90),
     ...([['PASILLO 1', 4], ['PASILLO 2', 9.3], ['PASILLO 3', 15]] as const).map(([t, y]) => f('letrero', `Letrero ${t}`, 2.8, y, 1.8, 0.05, 0.6, '#1d4ed8', 90, { label: t, elevation: 4.5 })),
     f('extintor', 'Extintor', 0.45, 18.5, 0.25, 0.25, 0.75, '#dc2626'),
+    f('escalera_jaula', 'Escalera con jaula', 27, 19.3, 0.75, 0.95, 6, '#facc15', 180),
     f('barrera', 'Barrera de protección', 2.3, 14.5, 4, 0.2, 0.5, '#facc15', 90),
   ];
 
@@ -308,6 +309,7 @@ export function sampleWarehouse(name: string): Project {
     f('malla', 'Malla cuarentena', 46, 13.9, 6.5, 0.06, 2.4, '#facc15'),
     f('cerco', 'Cerco blanco', 42.7, 16.5, 5, 0.06, 1.8, '#f8fafc', 90),
     f('pallet_carga', 'Pallet en cuarentena', 46, 17, 1.2, 1, 1.3, '#b88a58'),
+    f('escalera_vertical', 'Escalera vertical', 31, 19.55, 0.6, 0.45, 3, '#facc15', 180),
     f('barandal', 'Barandal amarillo', 40, 8.3, 12, 0.08, 1.1, '#facc15', 0, { shelves: 2 }),
     f('mueble_tapa', 'Mueble con tapa', 41.6, 12.5, 1.2, 0.6, 0.9, '#8b5e3c', 0, { empty: true }),
     f('rack_tubos', 'Rack para tuberías', 40, 18.6, 5, 1, 2.4, '#1e3a8a', 0, { shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] }),
