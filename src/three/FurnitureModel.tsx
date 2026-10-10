@@ -122,6 +122,8 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
       return <Fence f={f} />;
     case 'cerco_malla':
       return <MeshFence f={f} />;
+    case 'techo_malla':
+      return <MeshRoof f={f} />;
     case 'barandal':
       return <Handrail f={f} />;
     case 'barrera':
@@ -1283,6 +1285,26 @@ function VerticalLadder({ f }: { f: Furniture }) {
     }
   }
   return <group>{parts}</group>;
+}
+
+/** Tapa horizontal de malla metálica: marco, travesaños y paño de malla. Su altura es la elevación del objeto. */
+function MeshRoof({ f }: { f: Furniture }) {
+  const { w, d, color } = f;
+  const t = Math.max(0.03, Math.min(f.h, 0.06));
+  const bars = Math.max(0, Math.round(w / 1.2) - 1);
+  const parts: React.ReactNode[] = [];
+  for (const z of [-d / 2 + t / 2, d / 2 - t / 2]) parts.push(<Bx key={`x${z}`} z={z} w={w} h={t} d={t} c={color} metal={0.6} rough={0.4} />);
+  for (const x of [-w / 2 + t / 2, w / 2 - t / 2]) parts.push(<Bx key={`z${x}`} x={x} w={t} h={t} d={d} c={color} metal={0.6} rough={0.4} />);
+  for (let i = 1; i <= bars; i++) parts.push(<Bx key={`b${i}`} x={-w / 2 + (i * w) / (bars + 1)} w={t * 0.7} h={t * 0.7} d={d} c={color} metal={0.6} rough={0.4} />);
+  return (
+    <group>
+      {parts}
+      <mesh position={[0, t / 2, 0]}>
+        <boxGeometry args={[w - t, 0.008, d - t, Math.max(4, Math.round(w / 0.09)), 1, Math.max(4, Math.round(d / 0.09))]} />
+        <meshStandardMaterial color={shade(color, 0.85)} wireframe metalness={0.7} roughness={0.35} />
+      </mesh>
+    </group>
+  );
 }
 
 /** Cerco de malla metálica: postes cada 2.4 m, largueros y paños de malla. */

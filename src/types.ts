@@ -85,6 +85,7 @@ export type FurnitureType =
   | 'tarima_custom'
   | 'cerco'
   | 'cerco_malla'
+  | 'techo_malla'
   | 'barandal'
   | 'barrera'
   | 'mueble_tapa'

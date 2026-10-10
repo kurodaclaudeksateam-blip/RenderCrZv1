@@ -88,6 +88,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'barandal', label: 'Barandal gris', icon: '⬜', category: 'Cercos', w: 3.0, d: 0.08, h: 1.1, color: '#9ca3af', shelves: 2 },
   { type: 'cerco', label: 'Cerco de barrotes amarillo', icon: '🚧', category: 'Cercos', w: 2.4, d: 0.06, h: 1.8, color: '#facc15' },
   { type: 'barrera', label: 'Barrera de protección', icon: '🛑', category: 'Cercos', w: 3.0, d: 0.2, h: 0.5, color: '#facc15' },
+  { type: 'techo_malla', label: 'Techo de malla metálica', icon: '🕸️', category: 'Cercos', w: 4.0, d: 3.0, h: 0.05, color: '#cbd5e1', elevation: 2.4 },
   { type: 'malla', label: 'Malla divisoria', icon: '🚧', category: 'Cercos', w: 3.0, d: 0.06, h: 2.4, color: '#facc15' },
   { type: 'columna', label: 'Columna', icon: '▮', category: 'Seguridad', w: 0.4, d: 0.4, h: 7.0, color: '#d4d4d4' },
   { type: 'sofa', label: 'Sofá', icon: '🛋️', category: 'Hogar', w: 2.1, d: 0.9, h: 0.85, color: '#6b7a8f' },

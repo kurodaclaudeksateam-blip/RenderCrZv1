@@ -121,6 +121,16 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
         </g>
       );
     }
+    case 'techo_malla':
+      // se dibuja calado para que se vea lo que queda debajo
+      return (
+        <g>
+          {/* solo el borde responde al mouse, para poder seleccionar lo que hay debajo */}
+          <rect x={x0} y={y0} width={w} height={d} fill={color} fillOpacity={0.12} stroke={line} strokeWidth={sw * 1.4} strokeDasharray={`${5 * k} ${3 * k}`} pointerEvents="stroke" />
+          <rect x={x0} y={y0} width={w} height={d} fill="none" stroke="transparent" strokeWidth={10 * k} pointerEvents="stroke" />
+          <path d={`M ${x0} ${y0} L ${-x0} ${-y0} M ${-x0} ${y0} L ${x0} ${-y0}`} stroke={line} strokeWidth={sw * 0.7} opacity={0.35} pointerEvents="none" />
+        </g>
+      );
     case 'mueble_tapa':
       return (
         <g>

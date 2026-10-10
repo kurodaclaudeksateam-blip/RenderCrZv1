@@ -327,13 +327,13 @@ const CATALOG_ITEMS = CATALOG.map((c, i) => ({ ...c, key: i }));
 /** Cercos, barandales y barreras a medida: se estiran arrastrando sus asas o desde sus propiedades. */
 function FencesSection({ onAdd }: { onAdd: () => void }) {
   return (
-    <Fold id="cercos" title="Cercos y barandales" className="catalog">
+    <Fold id="cercos" title="Cercos, mallas y barandales" className="catalog">
       <div className="catalog-grid">
         {CATALOG_ITEMS.filter((c) => c.category === FENCES_CATEGORY).map((c) => (
           <CatalogButton key={c.key} c={c} onAdd={onAdd} />
         ))}
       </div>
-      <p className="muted small">Agrégalo y estíralo a la medida con las asas; el color se cambia en sus propiedades.</p>
+      <p className="muted small">Agrégalo y estíralo a la medida con las asas; el color se cambia en sus propiedades. El techo de malla se sube o baja con su «Elevación».</p>
     </Fold>
   );
 }

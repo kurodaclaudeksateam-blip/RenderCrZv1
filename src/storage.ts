@@ -383,6 +383,7 @@ export function sampleWarehouse(name: string): Project {
     ...[[38, 38], [40, 38.6], [42, 39.6]].map(([x, y]) => f('cono', 'Cono', x, y, 0.35, 0.35, 0.7, '#f97316')),
     ...[[3, 39], [4.6, 39], [6.2, 39], [3, 43], [4.6, 43]].map(([x, y]) => f('pallet', 'Pallets vacíos', x, y, 1.2, 1, 0.15, '#c8a26b')),
     f('contenedor', 'Contenedor plástico', 10, 43, 0.6, 0.4, 0.32, '#2563eb'),
+    f('techo_malla', 'Techo de malla', 7, 41, 12, 8, 0.05, '#cbd5e1', 0, { elevation: 2.4 }),
     f('caja', 'Bulto genérico', 10.5, 39.5, 1, 1, 1, '#94a3b8'),
   ];
 
