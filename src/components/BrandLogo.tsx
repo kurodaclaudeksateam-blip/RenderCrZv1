@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
-/** Logotipo «powered by Cerezo»: el archivo vive en public/logo-cerezo.png. */
-export const LOGO_URL = '/logo-cerezo.png';
+/** Logotipo «powered by Cerezo»: el archivo vive en public/logo-cerezo.jpg. */
+export const LOGO_URL = '/logo-cerezo.jpg';
 
 /** El logotipo como imagen; si el archivo no está en el sitio no se muestra nada. */
 export function BrandLogo({ className }: { className?: string }) {
