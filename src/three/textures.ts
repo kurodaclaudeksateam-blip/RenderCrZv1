@@ -284,3 +284,177 @@ export function textTexture(text: string, fg: string, bg: string | null, aspect:
   cache.set(key, t);
   return t;
 }
+
+// ---------------------------------------------------------------------------
+// Rótulo con profundidad: figura recortada de una imagen con transparencia
+// ---------------------------------------------------------------------------
+
+/** Alfa a partir del cual un punto de la imagen forma parte de la figura. */
+export const CUTOUT_ALPHA = 0.4;
+
+export interface CutoutAsset {
+  /** la imagen, con el color extendido bajo la transparencia para que el borde no se aclare */
+  map: THREE.Texture;
+  /** la silueta en blanco: pinta el reverso de un solo color */
+  mask: THREE.Texture;
+  /** canto de la figura en un cubo unitario centrado; se escala a ancho × alto × profundidad */
+  sides: THREE.BufferGeometry;
+}
+
+const cutouts = new Map<string, CutoutAsset>();
+const cutoutLoads = new Map<string, Promise<CutoutAsset>>();
+
+/** Figura ya preparada de una imagen, o null si todavía no se ha cargado. */
+export function cutoutAsset(src: string) {
+  return cutouts.get(src) ?? null;
+}
+
+export function loadCutout(src: string) {
+  let load = cutoutLoads.get(src);
+  if (!load) {
+    load = pixelsOf(src).then((img) => {
+      const asset = buildCutout(img);
+      cutouts.set(src, asset);
+      return asset;
+    });
+    cutoutLoads.set(src, load);
+  }
+  return load;
+}
+
+function pixelsOf(src: string): Promise<ImageData> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const g = c.getContext('2d', { willReadFrequently: true })!;
+      g.drawImage(img, 0, 0);
+      resolve(g.getImageData(0, 0, c.width, c.height));
+    };
+    img.onerror = () => reject(new Error('Imagen inválida'));
+    img.src = src;
+  });
+}
+
+function dataTexture(bytes: Uint8Array, w: number, h: number) {
+  const t = new THREE.DataTexture(bytes, w, h, THREE.RGBAFormat);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.anisotropy = 8;
+  t.needsUpdate = true;
+  return t;
+}
+
+/** Lados de la celda que cruza el contorno en cada caso de «marching squares»: 0 arriba, 1 derecha, 2 abajo, 3 izquierda. */
+const CONTOUR: number[][][] = [[], [[3, 2]], [[2, 1]], [[3, 1]], [[0, 1]], [[0, 3], [2, 1]], [[0, 2]], [[0, 3]], [[0, 3]], [[0, 2]], [[0, 1], [3, 2]], [[0, 1]], [[3, 1]], [[2, 1]], [[3, 2]], []];
+
+function buildCutout({ width: W, height: H, data }: ImageData): CutoutAsset {
+  const N = W * H;
+
+  // 1) El color de la figura se extiende unos pixeles bajo la transparencia: al filtrar la
+  //    textura el borde se mezcla con ese color y no con el del fondo que se borró.
+  const rgb = new Uint8ClampedArray(data);
+  const stamp = new Uint8Array(N); // 0 = sin color; k = lo recibió en la pasada k - 1
+  const mean = [0, 0, 0];
+  let solid = 0;
+  for (let i = 0; i < N; i++) {
+    if (data[i * 4 + 3] < 128) continue;
+    stamp[i] = 1;
+    solid++;
+    for (let c = 0; c < 3; c++) mean[c] += data[i * 4 + c];
+  }
+  for (let pass = 1; pass <= 8; pass++) {
+    for (let i = 0; i < N; i++) {
+      if (stamp[i]) continue;
+      const x = i % W;
+      let n = 0;
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i - W, i + W]) {
+        if (j < 0 || j >= N || !stamp[j] || stamp[j] > pass) continue;
+        n++;
+        r += rgb[j * 4];
+        g += rgb[j * 4 + 1];
+        b += rgb[j * 4 + 2];
+      }
+      if (!n) continue;
+      rgb[i * 4] = r / n;
+      rgb[i * 4 + 1] = g / n;
+      rgb[i * 4 + 2] = b / n;
+      stamp[i] = pass + 1;
+    }
+  }
+  // las filas van invertidas: en la textura la primera fila es la de abajo
+  const image = new Uint8Array(N * 4);
+  const silhouette = new Uint8Array(N * 4);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      const o = ((H - 1 - y) * W + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        image[o + c] = stamp[i] ? rgb[i * 4 + c] : mean[c] / Math.max(1, solid);
+        silhouette[o + c] = 255;
+      }
+      image[o + 3] = silhouette[o + 3] = data[i * 4 + 3];
+    }
+  }
+
+  // 2) Canto: el contorno de la figura sobre una rejilla reducida, con un marco vacío
+  //    alrededor para que también se cierre donde la figura toca la orilla de la imagen.
+  const s = Math.max(1, Math.ceil(Math.max(W, H) / 200));
+  const gw = Math.ceil(W / s);
+  const gh = Math.ceil(H / s);
+  const fw = gw + 2;
+  const fh = gh + 2;
+  const field = new Float32Array(fw * fh);
+  for (let gy = 0; gy < gh; gy++) {
+    for (let gx = 0; gx < gw; gx++) {
+      let sum = 0;
+      let n = 0;
+      for (let y = gy * s; y < Math.min(H, gy * s + s); y++) {
+        for (let x = gx * s; x < Math.min(W, gx * s + s); x++) {
+          sum += data[(y * W + x) * 4 + 3];
+          n++;
+        }
+      }
+      field[(gy + 1) * fw + gx + 1] = sum / n / 255;
+    }
+  }
+  const T = CUTOUT_ALPHA;
+  const ux = (fx: number) => Math.min(0.5, Math.max(-0.5, ((fx - 0.5) * s) / W - 0.5));
+  const uy = (fy: number) => Math.min(0.5, Math.max(-0.5, 0.5 - ((fy - 0.5) * s) / H));
+  const pos: number[] = [];
+  for (let y = 0; y < fh - 1; y++) {
+    for (let x = 0; x < fw - 1; x++) {
+      const tl = field[y * fw + x];
+      const tr = field[y * fw + x + 1];
+      const bl = field[(y + 1) * fw + x];
+      const br = field[(y + 1) * fw + x + 1];
+      const segments = CONTOUR[(tl >= T ? 8 : 0) | (tr >= T ? 4 : 0) | (br >= T ? 2 : 0) | (bl >= T ? 1 : 0)];
+      if (!segments.length) continue;
+      const cut = (a: number, b: number) => (T - a) / (b - a);
+      // punto donde el contorno cruza cada lado de la celda
+      const cross = (side: number) => (side === 0 ? [x + cut(tl, tr), y] : side === 1 ? [x + 1, y + cut(tr, br)] : side === 2 ? [x + cut(bl, br), y + 1] : [x, y + cut(tl, bl)]);
+      for (const [from, to] of segments) {
+        const [ax, ay] = cross(from);
+        const [bx, by] = cross(to);
+        const x0 = ux(ax);
+        const y0 = uy(ay);
+        const x1 = ux(bx);
+        const y1 = uy(by);
+        if (x0 === x1 && y0 === y1) continue;
+        pos.push(x0, y0, 0.5, x1, y1, 0.5, x1, y1, -0.5, x0, y0, 0.5, x1, y1, -0.5, x0, y0, -0.5);
+      }
+    }
+  }
+  const sides = new THREE.BufferGeometry();
+  sides.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  sides.computeVertexNormals();
+
+  return { map: dataTexture(image, W, H), mask: dataTexture(silhouette, W, H), sides };
+}

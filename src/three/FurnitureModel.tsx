@@ -1,10 +1,10 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { Billboard, RoundedBox } from '@react-three/drei';
 import type { Furniture } from '../types';
 import { cellGrid, cellIndex } from '../geometry';
-import { parsePipe } from '../catalog';
-import { imageTexture, textTexture } from './textures';
+import { parsePipe, pipeStandLayout } from '../catalog';
+import { CUTOUT_ALPHA, cutoutAsset, imageTexture, loadCutout, textTexture } from './textures';
 
 type V3 = [number, number, number];
 
@@ -107,6 +107,8 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
       return <PipeRack f={f} />;
     case 'rack_tubos_v':
       return <VerticalPipeRack f={f} />;
+    case 'base_tubos':
+      return <PipeStand f={f} />;
     case 'tarima_custom':
       return <CustomPallet f={f} />;
     case 'rampa_curva':
@@ -128,6 +130,8 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
       return <LedAd f={f} />;
     case 'anuncio_poste':
       return <PoleAd f={f} />;
+    case 'anuncio_relieve':
+      return <CutoutSign f={f} />;
     case 'estanteria_metal':
       return <MetalShelf f={f} />;
     case 'cantilever':
@@ -814,6 +818,91 @@ function VerticalPipeRack({ f }: { f: Furniture }) {
   return <group>{parts}</group>;
 }
 
+// disco unitario acostado, visto desde arriba: la boca de un tubo
+const UNIT_DISC = new THREE.CircleGeometry(0.5, 12).rotateX(-Math.PI / 2);
+
+/** Rollo de tubería flexible: vueltas apiladas alrededor de un pico. */
+function Coil({ p, R, r, turns, layers, mat }: { p: V3; R: number; r: number; turns: number; layers: number; mat: THREE.Material }) {
+  const rings = useMemo(() => Array.from({ length: layers }, (_, l) => new THREE.TorusGeometry(R - l * r * 1.9, r, 5, 18).rotateX(Math.PI / 2)), [R, r, layers]);
+  useEffect(() => () => rings.forEach((g) => g.dispose()), [rings]);
+  return (
+    <group position={p}>
+      {rings.flatMap((g, l) => Array.from({ length: turns }, (_, t) => <mesh key={`${l}-${t}`} position={[0, r + t * r * 1.94, 0]} geometry={g} material={mat} castShadow />))}
+    </group>
+  );
+}
+
+/**
+ * Base redonda con picos para tubería suelta. Cada pico lleva lo que diga f.cells
+ * («material:diámetro»): pedacería de pie alrededor del pico o, con «:r», rollos ensartados.
+ */
+function PipeStand({ f }: { f: Furniture }) {
+  const { h, color } = f;
+  const { R, n, ring, slot, pegs } = pipeStandLayout(f);
+  const plate = Math.min(0.06, h * 0.12);
+  const top = h - plate;
+  const pegH = top * 0.7;
+  const pegR = Math.max(0.008, Math.min(0.02, slot * 0.14));
+  const dark = shade(color, 0.75);
+  const steel = { metal: 0.5, rough: 0.45 };
+  const pegMat = sharedMat({ c: '#cbd5e1', metal: 0.8, rough: 0.3 });
+  const hole = sharedMat({ c: '#0b0f17', rough: 0.9 });
+  const parts: React.ReactNode[] = [
+    <Cyl key="plate" p={[0, plate / 2, 0]} r={R} h={plate} c={color} seg={48} {...steel} />,
+    <Cyl key="mat" p={[0, plate + 0.004, 0]} r={R * 0.94} h={0.008} c={dark} seg={48} rough={0.9} />,
+  ];
+  // poste central con argolla para izar la base; solo si los picos le dejan sitio
+  const post = Math.min(0.035, (ring - slot) * 0.7);
+  if (n >= 3 && post >= 0.012) {
+    parts.push(<Cyl key="post" p={[0, plate + (top - 0.1) / 2, 0]} r={post} h={top - 0.1} c={color} {...steel} />);
+    parts.push(
+      <mesh key="eye" position={[0, h - 0.06, 0]} castShadow>
+        <torusGeometry args={[0.046, 0.014, 8, 20]} />
+        <Mat c={color} {...steel} />
+      </mesh>,
+    );
+  }
+  pegs.forEach((peg, k) => {
+    const x = peg.x;
+    const z = peg.y;
+    parts.push(<Cyl key={`foot${k}`} p={[x, plate + 0.012, z]} r={pegR * 2.4} h={0.024} c={dark} seg={14} {...steel} />);
+    parts.push(<mesh key={`peg${k}`} position={[x, plate + pegH / 2, z]} scale={[pegR * 2, pegH, pegR * 2]} geometry={UNIT_PIPE_UP} material={pegMat} castShadow />);
+    parts.push(<Cyl key={`tip${k}`} p={[x, plate + pegH + pegR * 1.5, z]} r={pegR * 0.15} r2={pegR} h={pegR * 3} c="#cbd5e1" metal={0.8} rough={0.3} seg={10} />);
+    const pipe = parsePipe(f.cells?.[k]);
+    if (!pipe) return;
+    const mat = sharedMat({ c: pipe.material.color, metal: pipe.material.metal, rough: pipe.material.rough });
+    const pr = pipe.d / 2;
+    const rnd = mulberry(`${f.id}:${k}`);
+    if (pipe.coil) {
+      const coilR = Math.max(pegR + pr * 3, slot - pr);
+      const layers = Math.max(1, Math.min(2, Math.floor((coilR - pegR - pr) / (pr * 1.9))));
+      const turns = Math.max(2, Math.min(5, Math.round(0.12 / pipe.d)));
+      const coilH = turns * pr * 1.94 + pr * 0.4;
+      const count = Math.max(1, Math.min(Math.floor((pegH - 0.03) / coilH), 2 + Math.floor(rnd() * 2)));
+      for (let i = 0; i < count; i++) parts.push(<Coil key={`coil${k}-${i}`} p={[x, plate + 0.01 + i * coilH, z]} R={coilR} r={pr} turns={turns} layers={layers} mat={mat} />);
+      return;
+    }
+    // pedacería: un tramo ensartado en el pico (si cabe) y más tramos de pie a su alrededor
+    const spots: [number, number][] = pr >= pegR + 0.004 ? [[0, 0]] : [];
+    for (let i = 1; i <= 2; i++) {
+      const rr = Math.max(i * pipe.d, pegR + pr + 0.003 + (i - 1) * pipe.d);
+      if (rr + pr > slot) break;
+      const m = Math.min(i * 6, Math.floor((2 * Math.PI * rr) / pipe.d));
+      for (let j = 0; j < m; j++) {
+        const a = (j / m) * 2 * Math.PI + i * 0.5;
+        if (rnd() < 0.82) spots.push([rr * Math.cos(a), rr * Math.sin(a)]);
+      }
+    }
+    if (!spots.length) spots.push([0, 0]);
+    spots.forEach(([sx, sz], j) => {
+      const len = top * (0.3 + 0.7 * rnd());
+      parts.push(<mesh key={`p${k}-${j}`} position={[x + sx, plate + len / 2, z + sz]} scale={[pipe.d, len, pipe.d]} geometry={UNIT_PIPE_UP} material={mat} castShadow />);
+      if (pr >= 0.02) parts.push(<mesh key={`h${k}-${j}`} position={[x + sx, plate + len + 0.0015, z + sz]} scale={[pipe.d * 0.76, 1, pipe.d * 0.76]} geometry={UNIT_DISC} material={hole} />);
+    });
+  });
+  return <group>{parts}</group>;
+}
+
 /** Rack a medida: la carga de cada posición la decide el usuario (f.cells). */
 function CustomRack({ f }: { f: Furniture }) {
   const { w, d, h, color } = f;
@@ -1020,6 +1109,65 @@ function PoleAd({ f }: { f: Furniture }) {
           <LedFace f={f} w={pw} h={ph} y={py} z={s * (d / 2 + 0.006)} back={s < 0} />
         </group>
       ))}
+    </group>
+  );
+}
+
+const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
+
+/** Figura recortada de la imagen de un rótulo con profundidad; null mientras se prepara. */
+function useCutout(src?: string) {
+  const [asset, setAsset] = useState(() => (src ? cutoutAsset(src) : null));
+  useEffect(() => {
+    let alive = true;
+    setAsset(src ? cutoutAsset(src) : null);
+    if (src && !cutoutAsset(src)) loadCutout(src).then((a) => alive && setAsset(a), () => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [src]);
+  return asset;
+}
+
+/**
+ * Rótulo con profundidad: la figura de una imagen sin fondo, con el grosor del objeto
+ * (su profundidad) y el canto de su color. El reverso repite la imagen o, con «empty», va liso.
+ */
+function CutoutSign({ f }: { f: Furniture }) {
+  const { w, h, color } = f;
+  const d = Math.max(0.005, f.d);
+  const asset = useCutout(f.image);
+  if (!asset) {
+    // sin imagen (o mientras se prepara) queda una placa con el aviso
+    const map = textTexture(f.image ? 'PREPARANDO…' : 'ADJUNTA UNA IMAGEN', '#ffffff', '#334155', w / h);
+    return (
+      <group>
+        <Bx w={w} h={h} d={d} c={color} />
+        {[1, -1].map((s) => (
+          <mesh key={s} position={[0, h / 2, s * (d / 2 + 0.002)]} rotation={[0, s < 0 ? Math.PI : 0, 0]}>
+            <planeGeometry args={[w, h]} />
+            <meshStandardMaterial map={map} roughness={0.6} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+  return (
+    <group position={[0, h / 2, 0]}>
+      <mesh scale={[w, h, d]} geometry={asset.sides} castShadow receiveShadow>
+        <meshStandardMaterial color={color} roughness={0.55} metalness={0.25} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 0, d / 2]} scale={[w, h, 1]} geometry={UNIT_PLANE} castShadow>
+        <meshStandardMaterial map={asset.map} emissiveMap={asset.map} emissive="#ffffff" emissiveIntensity={0.25} roughness={0.5} alphaTest={CUTOUT_ALPHA} alphaToCoverage />
+      </mesh>
+      {/* el reverso es la misma cara vista por detrás: comparte la silueta */}
+      <mesh position={[0, 0, -d / 2]} scale={[w, h, 1]} geometry={UNIT_PLANE}>
+        {f.empty ? (
+          <meshStandardMaterial map={asset.mask} color={color} roughness={0.55} metalness={0.25} alphaTest={CUTOUT_ALPHA} alphaToCoverage side={THREE.BackSide} />
+        ) : (
+          <meshStandardMaterial map={asset.map} emissiveMap={asset.map} emissive="#ffffff" emissiveIntensity={0.25} roughness={0.5} alphaTest={CUTOUT_ALPHA} alphaToCoverage side={THREE.BackSide} />
+        )}
+      </mesh>
     </group>
   );
 }

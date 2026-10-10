@@ -1604,3 +1604,55 @@ details summary {
 .share-qr p {
   margin: 0 0 8px;
 }
+
+/* ---------- Rótulo con profundidad y base con picos ---------- */
+.modal.cutout {
+  overflow: auto;
+}
+.cutout-drop {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 36px 20px;
+  white-space: normal;
+  background: var(--panel-2);
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+}
+.cutout-drop:hover {
+  border-color: var(--accent);
+}
+.cutout-drop-icon {
+  font-size: 40px;
+}
+.cutout-stage,
+.ad-image img.cutout-thumb {
+  /* cuadros: lo que se ve aquí es transparente */
+  background: repeating-conic-gradient(#cbd5e1 0% 25%, #f8fafc 0% 50%) 50% / 18px 18px;
+}
+.cutout-stage {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.cutout-stage canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 38vh;
+  cursor: crosshair;
+}
+.cutout input[type='range'] {
+  padding: 0;
+  accent-color: var(--accent);
+}
+.pipe-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  vertical-align: -1px;
+}

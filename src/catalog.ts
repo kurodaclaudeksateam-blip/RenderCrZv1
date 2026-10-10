@@ -33,6 +33,8 @@ export const CATALOG: CatalogItem[] = [
   { type: 'rack_custom', label: 'Rack a medida', icon: '🧩', category: 'Almacenaje', w: 2.7, d: 1.1, h: 4.5, color: '#f97316', shelves: 3, cols: 2 },
   { type: 'rack_tubos', label: 'Rack para tuberías', icon: '🧵', category: 'Almacenaje', w: 6.0, d: 1.0, h: 2.4, color: '#1e3a8a', shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] },
   { type: 'rack_tubos_v', label: 'Rack vertical para tuberías', icon: '🎋', category: 'Almacenaje', w: 3.0, d: 0.8, h: 3.2, color: '#1e3a8a', shelves: 4, cells: ['metal:0.1', 'cobre:0.05', 'pvc:0.1', 'abs:0.075'] },
+  { type: 'base_tubos', label: 'Base con picos · pedacería', icon: '🌵', category: 'Almacenaje', w: 1.2, d: 1.2, h: 1.2, color: '#1e3a8a', shelves: 8, cells: ['pvc:0.05', 'cobre:0.025', 'ppr:0.05', 'conduit:0.025', 'abs:0.075', 'cpvc:0.025', 'galv:0.05', 'gas:0.025'] },
+  { type: 'base_tubos', label: 'Base con picos · rollos', icon: '🌀', category: 'Almacenaje', w: 1.4, d: 1.4, h: 1.0, color: '#1e3a8a', shelves: 6, cells: ['pexr:0.013:r', 'pexa:0.013:r', 'gas:0.025:r', 'morado:0.025:r', 'cobre:0.013:r', 'conduit:0.025:r'] },
   { type: 'mueble_tapa', label: 'Mueble con tapa a medida', icon: '🧰', category: 'Almacenaje', w: 1.2, d: 0.6, h: 0.9, color: '#8b5e3c' },
   { type: 'mueble_tapa', label: 'Contenedor con tapa', icon: '🗃️', category: 'Almacenaje', w: 2.0, d: 1.2, h: 1.2, color: '#2563eb' },
   { type: 'estanteria_metal', label: 'Anaquel metálico', icon: '🗄️', category: 'Almacenaje', w: 1.2, d: 0.5, h: 2.1, color: '#94a3b8', shelves: 5 },
@@ -60,6 +62,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'anuncio_poste', label: 'Rótulo en poste alto', icon: '🪧', category: 'Anuncios', w: 5.0, d: 0.4, h: 14.0, color: '#111827', text: 'TU ANUNCIO' },
   { type: 'anuncio_cuadro', label: 'Cuadro LED rectangular', icon: '🖼️', category: 'Anuncios', w: 2.4, d: 0.12, h: 1.4, color: '#111827', elevation: 1.6, text: 'TU ANUNCIO' },
   { type: 'anuncio_cuadro', label: 'Cuadro LED cuadrado', icon: '🖼️', category: 'Anuncios', w: 1.5, d: 0.12, h: 1.5, color: '#111827', elevation: 1.6, text: 'TU ANUNCIO' },
+  { type: 'anuncio_relieve', label: 'Rótulo con profundidad', icon: '✂️', category: 'Anuncios', w: 2.0, d: 0.12, h: 1.2, color: '#1f2937' },
   // --- Señalización
   { type: 'letrero', label: 'Letrero colgante', icon: '🪧', category: 'Señalización', w: 1.8, d: 0.05, h: 0.6, color: '#1d4ed8', elevation: 4.0, text: 'PASILLO A' },
   { type: 'letrero', label: 'Letrero salida', icon: '🚪', category: 'Señalización', w: 1.0, d: 0.05, h: 0.35, color: '#16a34a', elevation: 2.4, text: 'SALIDA' },
@@ -114,12 +117,23 @@ export const CATALOG: CatalogItem[] = [
   { type: 'escalera', label: 'Escalera de obra', icon: '🪜', category: 'Equipos', w: 1.0, d: 3.2, h: 2.7, color: '#b08968' },
 ];
 
-/** Tuberías del rack para tuberías: cada nivel guarda «material:diámetro en metros». */
+/**
+ * Tuberías de los racks y de la base con picos: cada posición guarda «material:diámetro en metros».
+ * En la base con picos un tercer dato «:r» indica que va en rollo en vez de en tramos de pie.
+ */
 export const PIPE_MATERIALS = [
   { id: 'metal', label: 'Metal (acero)', color: '#9ca3af', metal: 0.85, rough: 0.35 },
+  { id: 'galv', label: 'Acero galvanizado', color: '#d6dbe1', metal: 0.9, rough: 0.22 },
   { id: 'cobre', label: 'Cobre', color: '#b87333', metal: 0.9, rough: 0.3 },
-  { id: 'pvc', label: 'PVC', color: '#f1f5f9', metal: 0, rough: 0.6 },
-  { id: 'abs', label: 'ABS', color: '#1f2937', metal: 0, rough: 0.55 },
+  { id: 'pvc', label: 'PVC (blanco)', color: '#f1f5f9', metal: 0, rough: 0.6 },
+  { id: 'cpvc', label: 'CPVC (crema)', color: '#e9d8a6', metal: 0, rough: 0.55 },
+  { id: 'abs', label: 'ABS (negro)', color: '#1f2937', metal: 0, rough: 0.55 },
+  { id: 'ppr', label: 'PPR termofusión (verde)', color: '#16a34a', metal: 0, rough: 0.5 },
+  { id: 'pexr', label: 'PEX agua caliente (rojo)', color: '#dc2626', metal: 0, rough: 0.45 },
+  { id: 'pexa', label: 'PEX agua fría (azul)', color: '#2563eb', metal: 0, rough: 0.45 },
+  { id: 'conduit', label: 'Conduit eléctrico (naranja)', color: '#f97316', metal: 0, rough: 0.55 },
+  { id: 'gas', label: 'Polietileno para gas (amarillo)', color: '#facc15', metal: 0, rough: 0.5 },
+  { id: 'morado', label: 'Agua tratada (morado)', color: '#7c3aed', metal: 0, rough: 0.5 },
 ];
 
 export const PIPE_SIZES = [
@@ -133,10 +147,27 @@ export const PIPE_SIZES = [
 ];
 
 export function parsePipe(cell?: string) {
-  const [id, d] = (cell ?? '').split(':');
+  const [id, d, shape] = (cell ?? '').split(':');
   const material = PIPE_MATERIALS.find((m) => m.id === id);
   const size = Number(d);
-  return material && size > 0 ? { material, d: size } : null;
+  return material && size > 0 ? { material, d: size, coil: shape === 'r' } : null;
+}
+
+/**
+ * Reparto de la base redonda con picos, igual en el plano y en 3D: los picos van en un
+ * círculo y cada uno dispone de un hueco de radio `slot` para sus tubos o su rollo.
+ */
+export function pipeStandLayout(f: { w: number; d: number; shelves?: number }) {
+  const R = Math.min(f.w, f.d) / 2;
+  const n = Math.max(1, Math.min(12, Math.round(f.shelves ?? 6)));
+  // el círculo que deja el hueco más amplio: cada hueco toca a sus vecinos y a la orilla
+  const ring = n === 1 ? 0 : R / (1 + Math.sin(Math.PI / n));
+  const slot = Math.max(0.03, R - ring - 0.012);
+  const pegs = Array.from({ length: n }, (_, i) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
+    return { x: ring * Math.cos(a), y: ring * Math.sin(a) };
+  });
+  return { R, n, ring, slot, pegs };
 }
 
 export const WALL_MATERIALS: { id: WallMaterial; label: string; icon: string; color: string }[] = [

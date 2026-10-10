@@ -79,6 +79,7 @@ export type FurnitureType =
   | 'rack_custom'
   | 'rack_tubos'
   | 'rack_tubos_v'
+  | 'base_tubos'
   | 'tarima_custom'
   | 'cerco'
   | 'cerco_malla'
@@ -88,6 +89,7 @@ export type FurnitureType =
   | 'anuncio_torre'
   | 'anuncio_cuadro'
   | 'anuncio_poste'
+  | 'anuncio_relieve'
   | 'escalera_metal'
   // señalización y zonas
   | 'letrero'
@@ -146,14 +148,14 @@ export interface Furniture {
   label?: string;
   /** niveles de carga en racks y estanterías */
   shelves?: number;
-  /** racks y anaqueles sin carga (solo la estructura) */
+  /** racks y anaqueles sin carga (solo la estructura); en el rótulo con profundidad, reverso liso */
   empty?: boolean;
   /** rack y tarima a medida: posiciones a lo ancho y a lo fondo */
   cols?: number;
   rows?: number;
   /** color de la caja de cada posición ('' = vacía); ver cellIndex */
   cells?: string[];
-  /** imagen del anuncio (data URL ya reducida) */
+  /** imagen del anuncio (data URL ya reducida); en el rótulo con profundidad ya viene sin fondo */
   image?: string;
   /** muestra un rótulo con el nombre sobre el objeto */
   showName?: boolean;

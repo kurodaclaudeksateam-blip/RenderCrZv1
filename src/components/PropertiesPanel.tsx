@@ -2,7 +2,7 @@ import { useCurrentLevel, useStore } from '../store';
 import { useState } from 'react';
 import { area, cellGrid, cellIndex, dist, fmt, levelHeights, perimeter } from '../geometry';
 import { CATALOG, DOOR_STYLES, FLOOR_MATERIALS, PIPE_MATERIALS, PIPE_SIZES, WALL_MATERIALS, isFence, parsePipe } from '../catalog';
-import { addCorner, deleteSelection, duplicateSelection, rotateSelection, setWallSide, updateFurniture } from '../actions';
+import { addCorner, deleteSelection, duplicateSelection, requestCutout, rotateSelection, setWallSide, updateFurniture } from '../actions';
 import type { DoorStyle, FloorMaterial, Furniture, Level, Opening, Project, Room, WallMaterial } from '../types';
 
 /** Campo numérico que confirma con Enter o al salir. */
@@ -133,6 +133,121 @@ function AdImage({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) =>
     </div>
   );
 }
+
+/** Rótulo con profundidad: su imagen sin fondo, la proporción y cómo se ve por detrás. */
+function CutoutImage({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) => void }) {
+  // devuelve el alto a la proporción de la imagen, por si se estiró el rótulo
+  const fit = () => {
+    const img = new Image();
+    img.onload = () => img.naturalWidth && set({ h: Math.round(((f.w * img.naturalHeight) / img.naturalWidth) * 100) / 100 });
+    img.src = f.image!;
+  };
+  return (
+    <div className="ad-image">
+      {f.image && <img className="cutout-thumb" src={f.image} alt="Imagen del rótulo, sin fondo" />}
+      <div className="row wrap">
+        <button className="secondary small" onClick={() => requestCutout({ replaceId: f.id })}>
+          ✂️ {f.image ? 'Cambiar imagen' : 'Adjuntar imagen'}
+        </button>
+        {f.image && (
+          <button className="secondary small" onClick={fit} title="Ajusta el alto a la proporción de la imagen">
+            ⤢ Proporción original
+          </button>
+        )}
+      </div>
+      <label className="field">
+        <span>Parte de atrás</span>
+        <select value={f.empty ? 'lisa' : 'imagen'} onChange={(e) => set({ empty: e.target.value === 'lisa' })}>
+          <option value="imagen">La misma imagen (se ve al revés)</option>
+          <option value="lisa">Lisa, del color del canto</option>
+        </select>
+      </label>
+      <p className="muted small">
+        {f.image
+          ? `La «Profundidad» es el grosor del rótulo y el «Color» pinta su canto. Con «Elevación» lo subes a una pared o fachada · ${(f.image.length / 1024).toFixed(0)} KB.`
+          : 'Adjunta un logotipo o dibujo: se le quita el fondo y queda como objeto con relieve.'}
+      </p>
+    </div>
+  );
+}
+
+/** Base redonda con picos: qué tubería lleva cada pico, su diámetro y si va en tramos o en rollo. */
+function StandEditor({ f, set }: { f: Furniture; set: (patch: Partial<Furniture>) => void }) {
+  const pegs = Math.max(1, Math.min(12, Math.round(f.shelves ?? 6)));
+  const cells = Array.from({ length: pegs }, (_, i) => f.cells?.[i] ?? '');
+  const cell = (material: string, d: number, coil: boolean) => (material ? `${material}:${d}${coil ? ':r' : ''}` : '');
+  const setPeg = (k: number, value: string) => set({ cells: cells.map((v, i) => (i === k ? value : v)) });
+  // pone todos los picos cargados en tramos o en rollo
+  const setAll = (coil: boolean) =>
+    set({
+      cells: cells.map((v) => {
+        const pipe = parsePipe(v);
+        return pipe ? cell(pipe.material.id, pipe.d, coil) : v;
+      }),
+    });
+  return (
+    <div className="cell-editor">
+      <Num
+        label="Picos"
+        value={pegs}
+        step={1}
+        min={1}
+        max={12}
+        unit=""
+        onChange={(n) => {
+          const m = Math.max(1, Math.min(12, Math.round(n)));
+          set({ shelves: m, cells: Array.from({ length: m }, (_, i) => cells[i] ?? '') });
+        }}
+      />
+      {cells.map((value, k) => {
+        const pipe = parsePipe(value);
+        return (
+          <div key={k} className="side-row">
+            <span className="muted small">
+              <i className="pipe-dot" style={{ background: pipe?.material.color }} /> Pico {k + 1}
+            </span>
+            <select value={pipe?.material.id ?? ''} onChange={(e) => setPeg(k, cell(e.target.value, pipe?.d ?? 0.05, !!pipe?.coil))} aria-label={`Tubería del pico ${k + 1}`}>
+              <option value="">Vacío</option>
+              {PIPE_MATERIALS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <div className="grid2">
+              <select value={pipe?.d ?? 0.05} disabled={!pipe} onChange={(e) => setPeg(k, cell(pipe!.material.id, Number(e.target.value), pipe!.coil))} aria-label={`Diámetro del pico ${k + 1}`}>
+                {PIPE_SIZES.map((s) => (
+                  <option key={s.d} value={s.d}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              <select value={pipe?.coil ? 'r' : ''} disabled={!pipe} onChange={(e) => setPeg(k, cell(pipe!.material.id, pipe!.d, e.target.value === 'r'))} aria-label={`Forma en el pico ${k + 1}`}>
+                <option value="">Pedacería (tramos)</option>
+                <option value="r">Rollo (circular)</option>
+              </select>
+            </div>
+          </div>
+        );
+      })}
+      <div className="row wrap">
+        <button className="secondary small" onClick={() => setAll(false)}>
+          Todo en tramos
+        </button>
+        <button className="secondary small" onClick={() => setAll(true)}>
+          Todo en rollos
+        </button>
+        <button className="secondary small" onClick={() => set({ cells: cells.map(() => '') })}>
+          Vaciar
+        </button>
+      </div>
+      <p className="muted small">
+        Cada pico guarda un tipo de tubería: en pedacería los tramos quedan de pie alrededor del pico; en rollo, ensartados en él. El ancho de la base es su diámetro y el alto, el del tramo más largo.
+      </p>
+    </div>
+  );
+}
+
 const SHELF_TYPES = new Set(['rack', 'estanteria_metal', 'cantilever']);
 const CELL_TYPES = new Set(['rack_custom', 'tarima_custom']);
 const BOX_COLORS = ['#c69c6d', '#ef4444', '#f59e0b', '#facc15', '#22c55e', '#3b82f6', '#8b5cf6', '#f8fafc', '#334155'];
@@ -293,6 +408,7 @@ function FurnitureProps({ f }: { f: Furniture }) {
       </label>
       {TEXT_TYPES.has(f.type) && <Text label="Texto del letrero / zona" value={f.label ?? ''} onChange={(label) => set({ label: label.toUpperCase() })} />}
       {AD_TYPES.has(f.type) && <AdImage f={f} set={set} />}
+      {f.type === 'anuncio_relieve' && <CutoutImage f={f} set={set} />}
       {f.type === 'barandal' && <Num label="Travesaños" value={f.shelves ?? 2} step={1} min={1} max={6} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />}
       {f.type === 'mueble_tapa' && (
         <label className="field">
@@ -317,6 +433,7 @@ function FurnitureProps({ f }: { f: Furniture }) {
       )}
       {CELL_TYPES.has(f.type) && <CellEditor f={f} set={set} />}
       {(f.type === 'rack_tubos' || f.type === 'rack_tubos_v') && <PipeEditor f={f} set={set} />}
+      {f.type === 'base_tubos' && <StandEditor f={f} set={set} />}
       {(f.type === 'rack' || f.type === 'rack_custom') && <p className="muted small">Capacidad: <b>{palletPositions(f)}</b> posiciones de pallet</p>}
       <label className="field">
         <span>Tipo (modelo 3D)</span>

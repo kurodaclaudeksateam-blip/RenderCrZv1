@@ -3,11 +3,12 @@ import { useCurrentLevel, useStore } from '../store';
 import Editor2D from './Editor2D';
 import PropertiesPanel from './PropertiesPanel';
 import { ADS_CATEGORY, FENCES_CATEGORY, CATALOG, CATEGORIES, OPENING_PRESETS, WALL_MATERIALS, type CatalogItem } from '../catalog';
-import { addFurniture, addLevel, copyLevel, pickOpening, pickWallMaterial, setLevelCount } from '../actions';
+import { addFurniture, addLevel, copyLevel, needsImage, pickOpening, pickWallMaterial, requestCutout, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
 import { NamesDialog } from './NamesDialog';
 import { SummaryDialog } from './SummaryDialog';
+import { CutoutDialog } from './CutoutDialog';
 import type { Tool } from '../types';
 
 const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = [
@@ -103,6 +104,7 @@ export default function EditorScreen() {
       {summary && <SummaryDialog project={project} onClose={() => setSummary(false)} />}
       {naming && <NamesDialog onClose={() => setNaming(false)} />}
       {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
+      <CutoutDialog />
       {(leftOpen || rightOpen) && <div className="scrim" onClick={() => { setLeftOpen(false); setRightOpen(false); }} />}
     </div>
   );
@@ -246,10 +248,12 @@ function CatalogButton({ c, onAdd }: { c: CatalogItem & { key: number }; onAdd: 
         e.dataTransfer.effectAllowed = 'copy';
       }}
       onClick={() => {
-        addFurniture(c);
+        // el rótulo con profundidad pide primero su imagen
+        if (needsImage(c)) requestCutout();
+        else addFurniture(c);
         onAdd();
       }}
-      title={`${c.label} — ${c.w}×${c.d} m. Clic para agregar o arrástralo al plano`}
+      title={needsImage(c) ? `${c.label}: adjunta una imagen, se le quita el fondo y queda como objeto con relieve` : `${c.label} — ${c.w}×${c.d} m. Clic para agregar o arrástralo al plano`}
     >
       <span className="ci-icon">{c.icon}</span>
       <span className="ci-label">{c.label}</span>
@@ -342,7 +346,9 @@ function AdsSection({ onAdd }: { onAdd: () => void }) {
           <CatalogButton key={c.key} c={c} onAdd={onAdd} />
         ))}
       </div>
-      <p className="muted small">Agrega un anuncio y, en sus propiedades, sube la imagen que rellena el letrero.</p>
+      <p className="muted small">
+        Agrega un anuncio y, en sus propiedades, sube la imagen que rellena el letrero. El <b>rótulo con profundidad</b> te pide la imagen al elegirlo, le quita el fondo y la deja como objeto con relieve.
+      </p>
     </Fold>
   );
 }

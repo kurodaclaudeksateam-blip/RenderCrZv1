@@ -2,6 +2,7 @@ import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, OPENING_PRESETS, W
 import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
+import { pickImage } from './cutout';
 import type { Furniture, Level, OpeningKind, Room, Vec2, WallMaterial, WallSide } from './types';
 
 /** Centro visible del editor 2D (lo actualiza el editor). */
@@ -9,7 +10,7 @@ export const editorView = { center: { x: 0, y: 0 } as Vec2 };
 
 const st = () => useStore.getState();
 
-export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center) {
+export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center, extra: Partial<Furniture> = {}) {
   const id = uid();
   st().mutate((_, level) => {
     level.furniture.push({
@@ -29,10 +30,25 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center) {
       ...(item.cells ? { cells: [...item.cells] } : {}),
       ...(item.cols ? { cols: item.cols } : {}),
       ...(item.rows ? { rows: item.rows } : {}),
+      ...extra,
     });
   });
   st().select({ kind: 'furniture', id });
   st().setTool('select');
+}
+
+/** El rótulo con profundidad no se agrega directo: antes pide la imagen a la que se le quita el fondo. */
+export const needsImage = (item: CatalogItem) => item.type === 'anuncio_relieve';
+
+/**
+ * Pide la imagen de un rótulo con profundidad y abre el diálogo que le quita el fondo.
+ * Desde un clic se abre de una vez el selector de archivos; al soltar sobre el plano
+ * (`ask` en false) el navegador no lo permite y la imagen se elige en el diálogo.
+ */
+export async function requestCutout(target: { pos?: Vec2; replaceId?: string } = {}, ask = true) {
+  if (!ask) return st().setCutout(target);
+  const file = await pickImage();
+  if (file) st().setCutout({ ...target, file });
 }
 
 export function catalogItem(key: string) {

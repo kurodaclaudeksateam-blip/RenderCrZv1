@@ -1,5 +1,6 @@
 import type { Furniture } from '../types';
 import { cellGrid, cellIndex } from '../geometry';
+import { parsePipe, pipeStandLayout } from '../catalog';
 
 /** Símbolo de planta de un mueble, en coordenadas locales centradas (metros). */
 export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
@@ -91,6 +92,7 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
     case 'anuncio_torre':
     case 'anuncio_cuadro':
     case 'anuncio_poste':
+    case 'anuncio_relieve':
       return (
         <g>
           <rect x={x0} y={y0} width={w} height={Math.max(d, 0.1)} fill={color} stroke={line} strokeWidth={sw} />
@@ -142,6 +144,29 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
               {f.cells?.[i] && <circle cx={x0 + (w * (i + 0.5)) / bays} cy={0} r={Math.min(w / bays, d) * 0.28} fill="none" stroke={line} strokeWidth={sw} />}
             </g>
           ))}
+        </g>
+      );
+    }
+    case 'base_tubos': {
+      // cada pico muestra su tubería: disco lleno si va en tramos, anillo si va en rollo
+      const { R, slot, pegs } = pipeStandLayout(f);
+      return (
+        <g>
+          <circle r={R} fill={color} fillOpacity={0.3} stroke={line} strokeWidth={sw * 1.6} />
+          {pegs.map((p, i) => {
+            const pipe = parsePipe(f.cells?.[i]);
+            return (
+              <g key={i}>
+                {pipe &&
+                  (pipe.coil ? (
+                    <circle cx={p.x} cy={p.y} r={slot * 0.7} fill="none" stroke={pipe.material.color} strokeWidth={slot * 0.4} />
+                  ) : (
+                    <circle cx={p.x} cy={p.y} r={slot * 0.62} fill={pipe.material.color} stroke={line} strokeWidth={sw * 0.6} />
+                  ))}
+                <circle cx={p.x} cy={p.y} r={Math.max(0.012, slot * 0.12)} fill={line} />
+              </g>
+            );
+          })}
         </g>
       );
     }
