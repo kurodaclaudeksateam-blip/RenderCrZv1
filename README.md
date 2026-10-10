@@ -19,7 +19,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - **Paredes a medida**: cada ambiente tiene su altura y grosor de pared, y cada tramo (lado) puede llevar otro material, otra altura o quedar sin pared. El botón *Agregar esquina* convierte un ambiente rectangular en irregular.
   - Sección **Cercos y barandales**: barandal a medida (amarillo, rojo, azul o gris, con travesaños y rodapié), barrera de protección, cercos de barrotes y de malla, y techo de malla metálica (una tapa horizontal que se coloca a la altura que se quiera).
   - **Mueble con tapa a medida** (tapa abierta o cerrada).
-  - **Asas de medida**: al seleccionar un objeto aparecen cuatro asas para estirar su largo y su fondo con el mouse.
+  - **Asas de medida**: al seleccionar (o tocar) un objeto aparecen ocho asas: las de los lados cambian una medida y las de las esquinas cambian largo y fondo a la vez; junto al objeto se ven sus medidas.
   - **Los objetos no se atraviesan** al moverlos (se desactiva en la configuración o manteniendo Alt).
   - **Imagen de piso**: cada ambiente puede llevar una imagen como textura, ajustada al ambiente o en mosaico.
   - **Rack vertical para tuberías**: los tubos van de pie en compartimentos, con base encajonada y tope superior con barandal.

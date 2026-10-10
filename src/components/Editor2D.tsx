@@ -45,7 +45,7 @@ type Drag =
   | { type: 'pan'; sx: number; sy: number; cam: Cam; moved: boolean }
   | { type: 'furniture'; id: string; off: Vec2; moved: boolean }
   | { type: 'rotate'; id: string; moved: boolean }
-  | { type: 'resize'; id: string; side: 'n' | 's' | 'e' | 'w'; moved: boolean }
+  | { type: 'resize'; id: string; side: string; moved: boolean }
   | { type: 'vertex'; roomId: string; index: number; moved: boolean }
   | { type: 'room'; id: string; start: Vec2; orig: Vec2[]; furn: { id: string; x: number; y: number }[]; moved: boolean }
   | { type: 'opening'; id: string; moved: boolean }
@@ -189,6 +189,8 @@ export default function Editor2D() {
   // alcance para atinarle a un muro: 0.6 m o 24 px, lo que sea mayor (con el plano alejado 0.6 m son muy pocos píxeles)
   const wallReach = Math.max(0.6, 24 * k);
   const openingPreset = useStore((st) => st.openingPreset);
+  // en pantallas táctiles las asas necesitan una zona de toque más grande
+  const coarsePointer = useMemo(() => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches, []);
   const avoidOverlap = useStore((st) => st.avoidOverlap);
   const openingHover = useMemo(() => {
     if ((tool !== 'door' && tool !== 'dock' && tool !== 'window') || !cursor) return null;
@@ -293,7 +295,7 @@ export default function Editor2D() {
       if (kind === 'rotate') {
         drag.current = { type: 'rotate', id, moved: false };
       } else if (kind === 'resize') {
-        drag.current = { type: 'resize', id, side: target!.dataset.side as 'n' | 's' | 'e' | 'w', moved: false };
+        drag.current = { type: 'resize', id, side: target!.dataset.side ?? '', moved: false };
       } else if (kind === 'vertex') {
         const index = Number(target!.dataset.index);
         if (e.altKey) removeVertex(id, index);
@@ -402,21 +404,21 @@ export default function Editor2D() {
       const sin = Math.sin(r);
       const lx = (raw.x - f.x) * cos + (raw.y - f.y) * sin;
       const ly = -(raw.x - f.x) * sin + (raw.y - f.y) * cos;
-      const horizontal = d.side === 'e' || d.side === 'w';
-      const sign = d.side === 'e' || d.side === 's' ? 1 : -1;
-      const old = horizontal ? f.w : f.d;
-      let size = Math.max(0.05, sign * (horizontal ? lx : ly) + old / 2);
-      if (snapOn) size = Math.max(gridSize, Math.round(size / gridSize) * gridSize);
-      const shift = (sign * (size - old)) / 2;
-      const dx = horizontal ? shift * cos : -shift * sin;
-      const dy = horizontal ? shift * sin : shift * cos;
+      // un asa de lado cambia una medida; una de esquina, largo y fondo a la vez
+      const sx = d.side.includes('e') ? 1 : d.side.includes('w') ? -1 : 0;
+      const sy = d.side.includes('s') ? 1 : d.side.includes('n') ? -1 : 0;
+      const fit = (size: number) => (snapOn ? Math.max(gridSize, Math.round(size / gridSize) * gridSize) : Math.max(0.05, size));
+      const w = sx ? fit(sx * lx + f.w / 2) : f.w;
+      const dd = sy ? fit(sy * ly + f.d / 2) : f.d;
+      const shiftX = (sx * (w - f.w)) / 2;
+      const shiftY = (sy * (dd - f.d)) / 2;
       mutate((_, l) => {
         const ff = l.furniture.find((x) => x.id === d.id);
         if (!ff) return;
-        if (horizontal) ff.w = size;
-        else ff.d = size;
-        ff.x += dx;
-        ff.y += dy;
+        ff.w = w;
+        ff.d = dd;
+        ff.x += shiftX * cos - shiftY * sin;
+        ff.y += shiftX * sin + shiftY * cos;
       }, false);
     } else if (d.type === 'rotate') {
       const f = level.furniture.find((x) => x.id === d.id);
@@ -691,36 +693,48 @@ export default function Editor2D() {
                 return (
                   <>
                     <line {...seg(base, h)} stroke="var(--accent)" strokeWidth={k * 1.5} />
-                    {/* asas para cambiar el largo y el fondo arrastrando */}
+                    {/* asas para cambiar medidas con el puntero: lados (una medida) y esquinas (largo y fondo) */}
                     {(
                       [
-                        ['e', selFurn.w / 2, 0],
-                        ['w', -selFurn.w / 2, 0],
-                        ['s', 0, selFurn.d / 2],
-                        ['n', 0, -selFurn.d / 2],
+                        ['e', 1, 0],
+                        ['w', -1, 0],
+                        ['s', 0, 1],
+                        ['n', 0, -1],
+                        ['ne', 1, -1],
+                        ['nw', -1, -1],
+                        ['se', 1, 1],
+                        ['sw', -1, 1],
                       ] as const
-                    ).map(([side, x, y]) => {
-                      const c = localToWorld(x, y, selFurn.x, selFurn.y, selFurn.rotation);
+                    ).map(([side, ax, ay]) => {
+                      const c = localToWorld((ax * selFurn.w) / 2, (ay * selFurn.d) / 2, selFurn.x, selFurn.y, selFurn.rotation);
+                      const corner = side.length === 2;
                       return (
-                        <rect
-                          key={side}
-                          data-kind="resize"
-                          data-id={selFurn.id}
-                          data-side={side}
-                          x={c.x - 5 * k}
-                          y={c.y - 5 * k}
-                          width={10 * k}
-                          height={10 * k}
-                          rx={2 * k}
-                          fill="var(--panel)"
-                          stroke="var(--accent)"
-                          strokeWidth={k * 2}
-                          className="hit grab"
-                        >
-                          <title>Arrastra para cambiar la medida</title>
-                        </rect>
+                        <g key={side} data-kind="resize" data-id={selFurn.id} data-side={side} className="hit grab">
+                          {/* zona amplia para atinarle con el dedo */}
+                          <circle cx={c.x} cy={c.y} r={(coarsePointer ? 20 : 11) * k} fill="transparent" />
+                          <rect
+                            x={c.x - 6 * k}
+                            y={c.y - 6 * k}
+                            width={12 * k}
+                            height={12 * k}
+                            rx={(corner ? 6 : 2) * k}
+                            fill={corner ? 'var(--accent)' : 'var(--panel)'}
+                            stroke="var(--accent)"
+                            strokeWidth={k * 2}
+                          />
+                          <title>{corner ? 'Arrastra para cambiar largo y fondo' : 'Arrastra para cambiar esta medida'}</title>
+                        </g>
                       );
                     })}
+                    {/* medidas actuales, junto al objeto */}
+                    {(() => {
+                      const p = localToWorld(0, selFurn.d / 2 + 16 * k, selFurn.x, selFurn.y, selFurn.rotation);
+                      return (
+                        <text x={p.x} y={p.y + 4 * k} fontSize={11 * k} textAnchor="middle" pointerEvents="none" className="size-tag">
+                          {fmt(selFurn.w)} × {fmt(selFurn.d)} m
+                        </text>
+                      );
+                    })()}
                     <circle data-kind="rotate" data-id={selFurn.id} cx={h.x} cy={h.y} r={7 * k} fill="var(--panel)" stroke="var(--accent)" strokeWidth={k * 2} className="hit grab" />
                     <text x={h.x} y={h.y + 3.5 * k} fontSize={10 * k} textAnchor="middle" pointerEvents="none" fill="var(--accent)">
                       ⟳
