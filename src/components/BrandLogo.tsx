@@ -28,12 +28,12 @@ export async function withWatermark(shotUrl: string): Promise<string> {
     c.height = shot.height;
     const g = c.getContext('2d')!;
     g.drawImage(shot, 0, 0);
-    const w = Math.round(Math.max(96, shot.width * 0.1));
+    const w = Math.round(Math.max(72, shot.width * 0.075));
     const h = Math.round((w * logo.height) / logo.width);
     const margin = Math.round(shot.width * 0.012);
     const x = shot.width - w - margin;
     const y = shot.height - h - margin;
-    g.globalAlpha = 0.9;
+    g.globalAlpha = 0.5;
     g.beginPath();
     if (g.roundRect) g.roundRect(x, y, w, h, w * 0.08);
     else g.rect(x, y, w, h);

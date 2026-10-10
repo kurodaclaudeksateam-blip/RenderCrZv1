@@ -265,7 +265,7 @@ kbd {
   position: absolute;
   left: 50%;
   top: 50%;
-  height: min(30vh, 280px);
+  height: min(22.5vh, 210px);
   border-radius: 20px;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 60px rgba(0, 0, 0, 0.65), 0 0 90px rgba(56, 189, 248, 0.35);
   opacity: 0;
@@ -275,7 +275,7 @@ kbd {
   user-select: none;
 }
 .intro-brand.show {
-  opacity: 1;
+  opacity: 0.5;
   transform: translate(-50%, -50%);
 }
 .intro-hud {
@@ -965,9 +965,9 @@ details summary {
   position: absolute;
   right: 16px;
   bottom: 16px;
-  width: clamp(84px, 10vw, 140px);
+  width: clamp(63px, 7.5vw, 105px);
   border-radius: 12px;
-  opacity: 0.85;
+  opacity: 0.5;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
   pointer-events: none;
   user-select: none;
