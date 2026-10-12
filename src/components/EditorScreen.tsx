@@ -3,7 +3,7 @@ import { useCurrentLevel, useStore } from '../store';
 import Editor2D from './Editor2D';
 import PropertiesPanel from './PropertiesPanel';
 import { ADS_CATEGORY, FENCES_CATEGORY, CATALOG, CATEGORIES, OPENING_PRESETS, WALL_MATERIALS, type CatalogItem } from '../catalog';
-import { addFurniture, addLevel, copyLevel, needsImage, pickOpening, pickWallMaterial, requestCutout, setLevelCount } from '../actions';
+import { addLevel, copyLevel, needsImage, pickOpening, pickWallMaterial, requestCutout, setLevelCount } from '../actions';
 import { downloadProject } from '../io';
 import { ShareDialog } from './ShareDialog';
 import { NamesDialog } from './NamesDialog';
@@ -250,10 +250,11 @@ function CatalogButton({ c, onAdd }: { c: CatalogItem & { key: number }; onAdd: 
       onClick={() => {
         // el rótulo con profundidad pide primero su imagen
         if (needsImage(c)) requestCutout();
-        else addFurniture(c);
+        // el objeto queda flotando en el puntero: un clic en el plano lo coloca
+        else useStore.getState().setPlacing(String(c.key));
         onAdd();
       }}
-      title={needsImage(c) ? `${c.label}: adjunta una imagen, se le quita el fondo y queda como objeto con relieve` : `${c.label} — ${c.w}×${c.d} m. Clic para agregar o arrástralo al plano`}
+      title={needsImage(c) ? `${c.label}: adjunta una imagen, se le quita el fondo y queda como objeto con relieve` : `${c.label} — ${c.w}×${c.d} m. Clic y luego toca el plano donde va, o arrástralo`}
     >
       <span className="ci-icon">{c.icon}</span>
       <span className="ci-label">{c.label}</span>

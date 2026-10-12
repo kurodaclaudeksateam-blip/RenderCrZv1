@@ -45,7 +45,7 @@ const PX = 50; // píxeles por metro con zoom 1
 
 type Drag =
   | { type: 'pan'; sx: number; sy: number; cam: Cam; moved: boolean }
-  | { type: 'furniture'; id: string; off: Vec2; moved: boolean }
+  | { type: 'furniture'; id: string; off: Vec2; moved: boolean; lastFree: Vec2; sticky?: boolean }
   | { type: 'rotate'; id: string; moved: boolean }
   | { type: 'resize'; id: string; side: string; moved: boolean }
   | { type: 'vertex'; roomId: string; index: number; moved: boolean }
@@ -227,6 +227,10 @@ export default function Editor2D() {
   // en pantallas táctiles las asas necesitan una zona de toque más grande
   const coarsePointer = useMemo(() => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches, []);
   const avoidOverlap = useStore((st) => st.avoidOverlap);
+  const placing = useStore((st) => st.placing);
+  const placingItem = placing !== null ? catalogItem(placing) : null;
+  // el objeto que se mueve está encima de otro: se marca en rojo y al soltarlo vuelve a un lugar libre
+  const [blocked, setBlocked] = useState(false);
   const openingHover = useMemo(() => {
     if ((tool !== 'door' && tool !== 'dock' && tool !== 'window') || !cursor) return null;
     return nearestEdge(level.rooms.filter((r) => r.hasWalls), cursor, wallReach);
@@ -273,6 +277,12 @@ export default function Editor2D() {
         return;
       }
       if (e.key === 'Escape') {
+        if (drag.current?.type === 'furniture' && drag.current.sticky) {
+          const carried = drag.current;
+          drag.current = null;
+          dropFurniture(carried);
+          return;
+        }
         select(null);
         setTool('select');
         return;
@@ -322,6 +332,26 @@ export default function Editor2D() {
     const raw = toWorld(e.clientX, e.clientY);
     if (e.button === 1 || spaceDown.current || tool === 'pan') return startPan(e);
 
+    // un objeto que viaja con el puntero (doble clic) se suelta con el siguiente clic
+    if (drag.current?.type === 'furniture' && drag.current.sticky) {
+      const carried = drag.current;
+      drag.current = null;
+      dropFurniture(carried);
+      return;
+    }
+    // objeto del catálogo flotando en el puntero: el clic lo coloca (con Shift se siguen colocando más)
+    if (placingItem) {
+      const pos = snapGrid(raw);
+      const ghost: Furniture = { id: '', type: placingItem.type, name: placingItem.label, x: pos.x, y: pos.y, rotation: 0, w: placingItem.w, d: placingItem.d, h: placingItem.h, elevation: placingItem.elevation ?? 0, color: placingItem.color };
+      if (avoidOverlap && !TABLETOP.has(placingItem.type) && collides(ghost, level.furniture)) {
+        useStore.getState().notify('Ese lugar está ocupado por otro objeto');
+        return;
+      }
+      addFurniture(placingItem, pos);
+      if (e.shiftKey) useStore.getState().setPlacing(placing);
+      return;
+    }
+
     const target = (e.target as Element).closest('[data-kind]') as SVGElement | null;
     const kind = target?.dataset.kind;
     const id = target?.dataset.id ?? '';
@@ -338,7 +368,7 @@ export default function Editor2D() {
       } else if (kind === 'furniture') {
         const f = level.furniture.find((x) => x.id === id)!;
         select({ kind: 'furniture', id });
-        drag.current = { type: 'furniture', id, off: sub(raw, v(f.x, f.y)), moved: false };
+        drag.current = { type: 'furniture', id, off: sub(raw, v(f.x, f.y)), moved: false, lastFree: v(f.x, f.y) };
       } else if (kind === 'opening') {
         select({ kind: 'opening', id });
         drag.current = { type: 'opening', id, moved: false };
@@ -405,25 +435,13 @@ export default function Editor2D() {
     d.moved = true;
 
     if (d.type === 'furniture') {
-      let p = snapGrid(sub(raw, d.off));
+      const p = snapGrid(sub(raw, d.off));
       const cur = level.furniture.find((x) => x.id === d.id);
-      // los objetos no se atraviesan: si el lugar está ocupado se desliza por un eje o se queda (Alt lo permite)
-      // (los de sobremesa sí pasan: van encima de mesas y escritorios)
-      if (cur && avoidOverlap && !e.altKey && !TABLETOP.has(cur.type) && !collides(cur, level.furniture)) {
-        const free = (q: Vec2) => !collides({ ...cur, x: q.x, y: q.y }, level.furniture);
-        if (!free(p)) {
-          // avanza hasta tocar al otro objeto y, desde ahí, se desliza por el eje que quede libre
-          let lo = 0;
-          let hi = 1;
-          for (let i = 0; i < 8; i++) {
-            const mid = (lo + hi) / 2;
-            if (free(v(cur.x + (p.x - cur.x) * mid, cur.y + (p.y - cur.y) * mid))) lo = mid;
-            else hi = mid;
-          }
-          const q = v(cur.x + (p.x - cur.x) * lo, cur.y + (p.y - cur.y) * lo);
-          p = free(v(p.x, q.y)) ? v(p.x, q.y) : free(v(q.x, p.y)) ? v(q.x, p.y) : q;
-        }
-      }
+      // el objeto sigue al puntero sin frenarse ni empujar a los demás; si queda encima de otro
+      // se avisa en rojo y al soltarlo regresa al último lugar libre (Alt permite encimarlo)
+      const over = !!cur && avoidOverlap && !e.altKey && !TABLETOP.has(cur.type) && collides({ ...cur, x: p.x, y: p.y }, level.furniture);
+      if (!over) d.lastFree = p;
+      if (over !== blocked) setBlocked(over);
       mutate((_, l) => {
         const f = l.furniture.find((x) => x.id === d.id);
         if (f) {
@@ -506,11 +524,27 @@ export default function Editor2D() {
     }
   };
 
+  /** Termina de mover un objeto: si quedó encima de otro vuelve al último lugar libre. */
+  const dropFurniture = (d: Extract<Drag, { type: 'furniture' }>) => {
+    const cur = useStore.getState().project?.levels.find((l) => l.id === level.id)?.furniture.find((x) => x.id === d.id);
+    if (cur && avoidOverlap && !TABLETOP.has(cur.type) && collides(cur, level.furniture) && (cur.x !== d.lastFree.x || cur.y !== d.lastFree.y)) {
+      mutate((_, l) => {
+        const f = l.furniture.find((x) => x.id === d.id);
+        if (f) Object.assign(f, { x: d.lastFree.x, y: d.lastFree.y });
+      }, false);
+      useStore.getState().notify('Ese lugar está ocupado: el objeto quedó en el último lugar libre (con Alt se puede encimar)');
+    }
+    setBlocked(false);
+    // al soltar una computadora queda apoyada en la mesa o escritorio que tenga debajo
+    if (d.moved) restOnSurface(d.id);
+  };
+
   const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     const d = drag.current;
+    // el objeto que se lleva con doble clic no se suelta al levantar el botón, sino con el siguiente clic
+    if (d?.type === 'furniture' && d.sticky) return;
     drag.current = null;
-    // al soltar una computadora queda apoyada en la mesa o escritorio que tenga debajo
-    if (d?.type === 'furniture' && d.moved) restOnSurface(d.id);
+    if (d?.type === 'furniture') dropFurniture(d);
     try {
       svgRef.current!.releasePointerCapture(e.pointerId);
     } catch {
@@ -535,6 +569,17 @@ export default function Editor2D() {
       addRoom(pts.length >= 3 ? pts : draft);
       setDraft([]);
       setTool('select');
+      return;
+    }
+    const furn = (e.target as Element).closest('[data-kind="furniture"]') as SVGElement | null;
+    if (tool === 'select' && furn) {
+      // «levanta» el objeto: sigue al puntero sin mantener presionado hasta el siguiente clic
+      const f = level.furniture.find((x) => x.id === furn.dataset.id);
+      if (!f) return;
+      checkpoint();
+      select({ kind: 'furniture', id: f.id });
+      drag.current = { type: 'furniture', id: f.id, off: sub(toWorld(e.clientX, e.clientY), v(f.x, f.y)), moved: true, lastFree: v(f.x, f.y), sticky: true };
+      force((n) => n + 1);
       return;
     }
     const target = (e.target as Element).closest('[data-kind="edge"]') as SVGElement | null;
@@ -716,7 +761,7 @@ export default function Editor2D() {
 
           {/* muebles */}
           {[...level.furniture].sort((a, b) => layer(a) - layer(b)).map((f) => (
-            <FurnitureItem key={f.id} f={f} k={k} selected={selection?.id === f.id} hit={tool === 'select'} />
+            <FurnitureItem key={f.id} f={f} k={k} selected={selection?.id === f.id} blocked={blocked && selection?.id === f.id} hit={tool === 'select' && !placingItem} />
           ))}
 
           {/* cotas y vértices del ambiente seleccionado */}
@@ -744,18 +789,28 @@ export default function Editor2D() {
                         ['sw', -1, 1],
                       ] as const
                     ).map(([side, ax, ay]) => {
-                      const c = localToWorld((ax * selFurn.w) / 2, (ay * selFurn.d) / 2, selFurn.x, selFurn.y, selFurn.rotation);
                       const corner = side.length === 2;
+                      // en objetos chicos las asas taparían el cuerpo y no dejarían moverlo:
+                      // las de lado solo salen si ese lado mide al menos 70 px, la zona de toque se encoge,
+                      // y si el objeto es muy pequeño queda una sola asa, por fuera de su esquina
+                      const wPx = selFurn.w / k;
+                      const dPx = selFurn.d / k;
+                      const tiny = Math.min(wPx, dPx) < 36;
+                      if (tiny ? side !== 'se' : !corner && (ax ? dPx : wPx) < 70) return null;
+                      const out = tiny ? 9 * k : 0;
+                      const c = localToWorld((ax * selFurn.w) / 2 + ax * out, (ay * selFurn.d) / 2 + ay * out, selFurn.x, selFurn.y, selFurn.rotation);
+                      const reach = tiny ? (coarsePointer ? 14 : 8) : Math.max(6, Math.min(coarsePointer ? 20 : 11, Math.min(wPx, dPx) / 4));
+                      const box = tiny ? 10 : Math.max(7, Math.min(12, Math.min(wPx, dPx) / 3));
                       return (
                         <g key={side} data-kind="resize" data-id={selFurn.id} data-side={side} className="hit grab">
                           {/* zona amplia para atinarle con el dedo */}
-                          <circle cx={c.x} cy={c.y} r={(coarsePointer ? 20 : 11) * k} fill="transparent" />
+                          <circle cx={c.x} cy={c.y} r={reach * k} fill="transparent" />
                           <rect
-                            x={c.x - 6 * k}
-                            y={c.y - 6 * k}
-                            width={12 * k}
-                            height={12 * k}
-                            rx={(corner ? 6 : 2) * k}
+                            x={c.x - (box / 2) * k}
+                            y={c.y - (box / 2) * k}
+                            width={box * k}
+                            height={box * k}
+                            rx={(corner ? box / 2 : 2) * k}
                             fill={corner ? 'var(--accent)' : 'var(--panel)'}
                             stroke="var(--accent)"
                             strokeWidth={k * 2}
@@ -781,6 +836,20 @@ export default function Editor2D() {
                 );
               })()}
             </g>
+          )}
+
+          {/* objeto del catálogo flotando en el puntero, listo para colocarlo con un clic */}
+          {placingItem && cursor && (
+            (() => {
+              const pos = snapGrid(cursor);
+              const ghost: Furniture = { id: 'ghost', type: placingItem.type, name: placingItem.label, x: pos.x, y: pos.y, rotation: 0, w: placingItem.w, d: placingItem.d, h: placingItem.h, elevation: placingItem.elevation ?? 0, color: placingItem.color };
+              const over = avoidOverlap && !TABLETOP.has(ghost.type) && collides(ghost, level.furniture);
+              return (
+                <g pointerEvents="none" opacity={0.75}>
+                  <FurnitureItem f={ghost} k={k} selected blocked={over} hit={false} />
+                </g>
+              );
+            })()
           )}
 
           {/* vista previa de puerta / ventana */}
@@ -844,7 +913,7 @@ export default function Editor2D() {
       </div>
 
       <div className="statusbar">
-        <span>{hint(tool, draft.length)}</span>
+        <span>{placingItem ? `Toca el plano para colocar «${placingItem.label}» · Shift+clic: colocar varios · Esc: cancelar` : hint(tool, draft.length)}</span>
         <span className="mono">{cursor ? `x ${fmt(cursor.x)} m · y ${fmt(cursor.y)} m` : ''}</span>
       </div>
     </div>
@@ -870,7 +939,7 @@ function hint(tool: string, n: number) {
     case 'pan':
       return 'Arrastra para desplazar el plano · Rueda para zoom';
     default:
-      return 'Arrastra muebles y ambientes · Doble clic en una arista: nuevo vértice · Alt+clic en vértice: borrar · R: girar · Supr: eliminar';
+      return 'Arrastra para mover · Doble clic en un objeto: lo lleva el puntero hasta el siguiente clic · Doble clic en una arista: nuevo vértice · R: girar · Supr: eliminar';
   }
 }
 
@@ -941,12 +1010,12 @@ function RoomHandles({ room, k }: { room: Room; k: number }) {
   );
 }
 
-function FurnitureItem({ f, k, selected, hit }: { f: Furniture; k: number; selected: boolean; hit: boolean }) {
+function FurnitureItem({ f, k, selected, blocked = false, hit }: { f: Furniture; k: number; selected: boolean; blocked?: boolean; hit: boolean }) {
   const showLabel = f.showName || (f.w / k > 46 && f.d / k > 22 && !OWN_LABEL.has(f.type));
   return (
     <g transform={`translate(${f.x} ${f.y}) rotate(${f.rotation})`} data-kind="furniture" data-id={f.id} className={hit ? 'hit grab' : ''}>
       <FurnitureSymbol f={f} k={k} />
-      {selected && <rect x={-f.w / 2 - 3 * k} y={-f.d / 2 - 3 * k} width={f.w + 6 * k} height={f.d + 6 * k} fill="none" stroke="var(--accent)" strokeWidth={k * 2} strokeDasharray={`${5 * k} ${3 * k}`} rx={3 * k} />}
+      {selected && <rect x={-f.w / 2 - 3 * k} y={-f.d / 2 - 3 * k} width={f.w + 6 * k} height={f.d + 6 * k} fill={blocked ? 'rgba(248, 113, 113, 0.25)' : 'none'} stroke={blocked ? 'var(--danger)' : 'var(--accent)'} strokeWidth={k * (blocked ? 3 : 2)} strokeDasharray={`${5 * k} ${3 * k}`} rx={3 * k} />}
       {showLabel && (
         <text y={3.5 * k} fontSize={f.showName ? 10 * k : Math.min(10 * k, f.d * 0.4)} textAnchor="middle" className="furn-label" pointerEvents="none" transform={`rotate(${-f.rotation})`}>
           {f.name}

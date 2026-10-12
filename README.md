@@ -20,7 +20,8 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - Sección **Cercos y barandales**: barandal a medida (amarillo, rojo, azul o gris, con travesaños y rodapié), barrera de protección, cercos de barrotes y de malla, y techo de malla metálica (una tapa horizontal que se coloca a la altura que se quiera).
   - **Mueble con tapa a medida** (tapa abierta o cerrada).
   - **Asas de medida**: al seleccionar (o tocar) un objeto aparecen ocho asas: las de los lados cambian una medida y las de las esquinas cambian largo y fondo a la vez; junto al objeto se ven sus medidas.
-  - **Los objetos no se atraviesan** al moverlos (se desactiva en la configuración o manteniendo Alt).
+  - **Colocar y mover fácil**: al elegir un objeto del catálogo queda flotando en el puntero y un clic lo coloca (Shift+clic coloca varios). Al arrastrar, el objeto sigue siempre al puntero sin empujar a los demás; con doble clic se «levanta» y viaja con el puntero hasta el siguiente clic.
+  - **Los objetos no se atraviesan**: si se suelta uno encima de otro se marca en rojo y regresa al último lugar libre (se desactiva en la configuración o manteniendo Alt).
   - **Imagen de piso**: cada ambiente puede llevar una imagen como textura, ajustada al ambiente o en mosaico.
   - **Rack vertical para tuberías**: los tubos van de pie en compartimentos, con base encajonada y tope superior con barandal.
   - **Rack para tuberías**: rack alargado de brazos; en cada nivel se elige la tubería (acero, galvanizado, cobre, PVC, CPVC, ABS, PPR, PEX rojo y azul, conduit, polietileno para gas o agua tratada) y su diámetro (de ½″ a 8″).

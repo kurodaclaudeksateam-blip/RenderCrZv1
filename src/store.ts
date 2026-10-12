@@ -22,6 +22,8 @@ interface EditorState {
   tool: Tool;
   /** puerta, marco o ventana elegida en «Puertas y marcos» para colocar sobre un muro */
   openingPreset: string | null;
+  /** objeto del catálogo (su clave) que va flotando en el puntero hasta que se coloca con un clic */
+  placing: string | null;
   /** material con el que se levantan los muros de los ambientes nuevos */
   wallMaterial: WallMaterial;
   gridSize: number;
@@ -43,6 +45,7 @@ interface EditorState {
   setTool: (t: Tool) => void;
   setWallMaterial: (m: WallMaterial) => void;
   setOpeningPreset: (id: string | null) => void;
+  setPlacing: (key: string | null) => void;
   setLevel: (id: string) => void;
   select: (s: Selection) => void;
   setGrid: (g: number) => void;
@@ -89,6 +92,7 @@ export const useStore = create<EditorState>((set, get) => ({
   tool: 'select',
   wallMaterial: 'liso',
   openingPreset: null,
+  placing: null,
   gridSize: readPref('grid', 0.1),
   snap: readPref('snap', true),
   showGhost: readPref('ghost', true),
@@ -106,9 +110,10 @@ export const useStore = create<EditorState>((set, get) => ({
   closeProject: () => set({ project: null, levelId: null, selection: null, past: [], future: [], screen: 'home', cutout: null }),
   setScreen: (screen) => set({ screen }),
   // las herramientas genéricas de puerta y ventana no llevan un tipo elegido
-  setTool: (tool) => set({ tool, openingPreset: null }),
+  setTool: (tool) => set({ tool, openingPreset: null, placing: null }),
   setWallMaterial: (wallMaterial) => set({ wallMaterial }),
   setOpeningPreset: (openingPreset) => set({ openingPreset }),
+  setPlacing: (placing) => set({ placing, tool: 'select', selection: null, openingPreset: null }),
   setLevel: (levelId) => set({ levelId, selection: null }),
   select: (selection) => set({ selection }),
   setGrid: (gridSize) => {
