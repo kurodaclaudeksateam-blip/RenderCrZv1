@@ -1724,3 +1724,48 @@ details summary {
   stroke-width: 3px;
   stroke-linejoin: round;
 }
+
+/* ---------- App instalada en iPhone y Android ---------- */
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* al mantener el dedo sobre botones o el plano no debe salir el menú de copiar ni seleccionarse texto */
+button,
+.plan,
+.viewer,
+.left-panel h3,
+.card-thumb {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.install-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 clamp(16px, 3vw, 48px) 12px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+}
+.install-hint img {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  flex: none;
+}
+.install-hint div {
+  flex: 1;
+  min-width: 0;
+}
+.install-hint p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}

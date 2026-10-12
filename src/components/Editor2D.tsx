@@ -145,8 +145,41 @@ export default function Editor2D() {
       const r = el.getBoundingClientRect();
       zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
     };
+    // dos dedos: pellizcar acerca o aleja el plano y arrastrar lo desplaza
+    let pinch: { d: number; x: number; y: number } | null = null;
+    const fingers = (e: TouchEvent) => {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const r = el.getBoundingClientRect();
+      return { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1, x: (a.clientX + b.clientX) / 2 - r.left, y: (a.clientY + b.clientY) / 2 - r.top };
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 2) return;
+      drag.current = null;
+      pinch = fingers(e);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !pinch) return;
+      e.preventDefault();
+      const now = fingers(e);
+      const dx = now.x - pinch.x;
+      const dy = now.y - pinch.y;
+      zoomAt(now.x, now.y, now.d / pinch.d);
+      setCam((c) => ({ ...c, x: c.x + dx, y: c.y + dy }));
+      pinch = now;
+    };
+    const onTouchEnd = () => (pinch = null);
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    el.addEventListener('touchcancel', onTouchEnd);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
   }, [zoomAt]);
 
   // --- coordenadas y ajuste -------------------------------------------------

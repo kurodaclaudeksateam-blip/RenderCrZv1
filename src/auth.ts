@@ -25,9 +25,18 @@ export async function rpc<T>(fn: string, args: Record<string, unknown>): Promise
   return (text ? JSON.parse(text) : null) as T;
 }
 
+/**
+ * Dónde se guarda la sesión: en el navegador dura lo que la pestaña; en la app instalada
+ * (iPhone, Android) se conserva al cerrarla, hasta que el servidor la venza a las 12 horas.
+ */
+function sessionStore(): Storage {
+  const installed = matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
+  return installed ? localStorage : sessionStorage;
+}
+
 export function sessionToken(): string | null {
   try {
-    return sessionStorage.getItem(SESSION_KEY);
+    return sessionStore().getItem(SESSION_KEY);
   } catch {
     return null;
   }
@@ -39,7 +48,7 @@ export function isAuthenticated() {
 
 export function logout() {
   try {
-    sessionStorage.removeItem(SESSION_KEY);
+    sessionStore().removeItem(SESSION_KEY);
   } catch {
     /* sin acceso */
   }
@@ -49,7 +58,7 @@ export async function verifyPassword(password: string): Promise<boolean> {
   const token = await rpc<string | null>('crz_iniciar_sesion', { p_password: password });
   if (!token) return false;
   try {
-    sessionStorage.setItem(SESSION_KEY, token);
+    sessionStore().setItem(SESSION_KEY, token);
   } catch {
     /* sin acceso */
   }

@@ -56,6 +56,17 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
   - Pisos con texturas procedurales (epóxico industrial, concreto, cerámica, madera, alfombra, mármol).
 - **Ejemplo incluido**: centro de distribución con 4 secciones de distinto tipo de pared (almacenaje, picking y empaque, recepción y despacho, oficinas y servicios), patio con jaula de malla y mezzanine. Usa todos los tipos de objeto del catálogo (salvo el rótulo con profundidad, que necesita una imagen) y las cuatro clases de puerta.
 
+## App instalable (iPhone, Android y escritorio)
+
+El sitio es una aplicación web instalable (PWA): tiene manifiesto (`public/manifest.webmanifest`), iconos y un service worker (`public/sw.js`) que guarda la app para abrirla aunque falle la conexión.
+
+- **iPhone / iPad**: abrir el sitio en **Safari**, tocar *Compartir* y luego *Agregar a pantalla de inicio*. Queda con su icono y abre a pantalla completa. En «Mis proyectos» aparece un aviso con estos pasos.
+- **Android / Chrome / Edge**: botón *Instalar* del aviso, o el menú del navegador.
+- En la app instalada la sesión se conserva al cerrarla (hasta 12 horas); en el navegador dura lo que la pestaña.
+- En el plano, con dos dedos se pellizca para acercar o alejar y se arrastra para desplazar.
+
+Una app nativa para la App Store (archivo `.ipa`) requiere compilar y firmar con una Mac, Xcode y una cuenta de Apple Developer; este repositorio no la incluye.
+
 ## Desarrollo
 
 ```bash

@@ -4,6 +4,7 @@ import { cloudInfo, persist, removeProject, syncProjects } from '../cloud';
 import { SessionExpired } from '../auth';
 import { ShareDialog } from './ShareDialog';
 import { TrashDialog } from './TrashDialog';
+import { InstallHint } from './InstallHint';
 import { useStore } from '../store';
 import { downloadProject, pickProjectFile } from '../io';
 import { bounds, uid } from '../geometry';
@@ -118,6 +119,8 @@ export default function HomeScreen({ onLogout }: { onLogout: () => void }) {
           </button>
         </div>
       </header>
+
+      <InstallHint />
 
       <section className="projects">
         <div className="projects-head">
