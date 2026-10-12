@@ -130,6 +130,8 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
       return <Barrier f={f} />;
     case 'mueble_tapa':
       return <LidBox f={f} />;
+    case 'computadora':
+      return <Computer f={f} />;
     case 'anuncio_torre':
     case 'anuncio_cuadro':
       return <LedAd f={f} />;
@@ -1209,6 +1211,30 @@ function Barrier({ f }: { f: Furniture }) {
   }
   for (const y of [h * 0.3, h - 0.14]) parts.push(<Bx key={`r${y}`} w={w} h={0.1} d={post * 0.7} y0={y} c={color} metal={0.3} rough={0.5} />);
   return <group>{parts}</group>;
+}
+
+/** Computadora todo en uno sobre una superficie: pantalla con base, teclado y mouse (el usuario queda al frente). */
+function Computer({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const back = -d / 2 + Math.min(0.1, d * 0.25);
+  const front = d / 2 - Math.min(0.1, d * 0.25);
+  const foot = Math.min(0.1, h * 0.25);
+  const screenH = h - foot;
+  return (
+    <group>
+      <Bx z={back} w={w * 0.36} h={0.012} d={Math.min(0.17, d * 0.4)} c={color} metal={0.6} rough={0.35} />
+      <Bx z={back} w={0.045} h={foot + 0.03} d={0.03} c={color} metal={0.6} rough={0.35} />
+      <Bx z={back} w={w * 0.94} h={screenH} d={0.022} y0={foot} c={color} metal={0.5} rough={0.4} />
+      {/* pantalla encendida, hacia el usuario */}
+      <mesh position={[0, foot + screenH / 2 + screenH * 0.03, back + 0.012]}>
+        <planeGeometry args={[w * 0.88, screenH * 0.82]} />
+        <meshStandardMaterial color="#0f172a" emissive="#60a5fa" emissiveIntensity={0.55} roughness={0.25} />
+      </mesh>
+      <Bx z={front} x={-w * 0.08} w={w * 0.68} h={0.016} d={Math.min(0.14, d * 0.32)} c="#f1f5f9" rough={0.6} />
+      <Bx z={front} x={-w * 0.08} w={w * 0.64} h={0.004} d={Math.min(0.11, d * 0.26)} y0={0.016} c="#cbd5e1" rough={0.7} />
+      <Soft p={[w * 0.4, 0.016, front]} s={[0.06, 0.032, 0.1]} c="#f1f5f9" r={0.014} />
+    </group>
+  );
 }
 
 /** Mueble o contenedor a medida con tapa; `empty` lo muestra con la tapa abierta. */

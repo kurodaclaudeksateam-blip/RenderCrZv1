@@ -497,6 +497,25 @@ export function solidsOverlap(a: Solid, b: Solid) {
   return true;
 }
 
+/** Objetos de sobremesa: al soltarlos se apoyan solos en la superficie que tengan debajo. */
+export const TABLETOP = new Set(['computadora']);
+
+/**
+ * Altura a la que queda apoyado un objeto de sobremesa: la cara superior del mueble
+ * (mesa, escritorio, mostrador…) que tiene debajo de su centro, o el piso si no hay ninguno.
+ */
+export function restingHeight<T extends Solid & { id: string }>(f: T, others: T[]) {
+  let top = 0;
+  for (const o of others) {
+    if (o.id === f.id || FLAT.has(o.type) || TABLETOP.has(o.type)) continue;
+    const surface = o.elevation + o.h;
+    // solo superficies de trabajo: más altas serían un rack o un muro
+    if (surface > 1.4 || surface <= top) continue;
+    if (pointInPolygon({ x: f.x, y: f.y }, corners(o, 0))) top = surface;
+  }
+  return Math.round(top * 100) / 100;
+}
+
 /** ¿El objeto chocaría con algún otro de la lista (sin contarse a sí mismo)? */
 export function collides<T extends Solid & { id: string }>(f: T, others: T[]) {
   return others.some((o) => o.id !== f.id && solidsOverlap(f, o));

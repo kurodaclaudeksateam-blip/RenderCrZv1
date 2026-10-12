@@ -38,7 +38,7 @@ Aplicación web para diseñar **almacenes y centros logísticos**: dibuja naves 
     - **Rótulo con profundidad**: al elegirlo pide una imagen (un logotipo o dibujo), le **quita el fondo** y la deja como objeto con relieve: la figura recortada, con el grosor que se indique y el canto del color que se elija. Se mueve, gira y eleva como cualquier objeto. El fondo se quita en el navegador (la imagen no se envía a ningún servicio): se borra el color que toca las orillas, se ajusta la tolerancia, se toca cualquier zona que sobre para borrarla y se pueden vaciar los huecos de las letras. Funciona mejor con fondos parejos.
     - **Zonas** de piso rotuladas: recepción, despacho, picking, cuarentena, devoluciones, pasillo peatonal.
     - **Seguridad**: extintores, conos, bolardos, cerco metálico blanco, cerco de malla metálica, malla divisoria, columnas.
-    - También oficina, servicios y mobiliario residencial.
+    - También oficina (incluye **computadora todo en uno** con teclado y mouse, que se apoya sola en la mesa o escritorio donde la sueltes), servicios y mobiliario residencial.
   - Cada objeto se mueve, gira, duplica y edita (medidas, color, elevación, texto y niveles de carga).
   - Indicadores por nivel: posiciones de pallet, m² en zonas y número de estructuras.
   - Niveles: indica cuántos tendrá el proyecto, la altura de cada uno, y **copia un nivel a otro** (a uno nuevo o sobre planta baja, nivel 1, etc.), completo o solo el contorno. El nivel inferior se muestra como guía.

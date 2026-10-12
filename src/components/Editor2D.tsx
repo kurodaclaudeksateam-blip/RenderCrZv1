@@ -6,6 +6,7 @@ import {
   area,
   bounds,
   collides,
+  TABLETOP,
   computeWalls,
   dist,
   fmt,
@@ -24,6 +25,7 @@ import {
 import {
   addFurniture,
   addOpening,
+  restOnSurface,
   addRoom,
   catalogItem,
   deleteSelection,
@@ -406,7 +408,8 @@ export default function Editor2D() {
       let p = snapGrid(sub(raw, d.off));
       const cur = level.furniture.find((x) => x.id === d.id);
       // los objetos no se atraviesan: si el lugar está ocupado se desliza por un eje o se queda (Alt lo permite)
-      if (cur && avoidOverlap && !e.altKey && !collides(cur, level.furniture)) {
+      // (los de sobremesa sí pasan: van encima de mesas y escritorios)
+      if (cur && avoidOverlap && !e.altKey && !TABLETOP.has(cur.type) && !collides(cur, level.furniture)) {
         const free = (q: Vec2) => !collides({ ...cur, x: q.x, y: q.y }, level.furniture);
         if (!free(p)) {
           // avanza hasta tocar al otro objeto y, desde ahí, se desliza por el eje que quede libre
@@ -506,6 +509,8 @@ export default function Editor2D() {
   const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
     const d = drag.current;
     drag.current = null;
+    // al soltar una computadora queda apoyada en la mesa o escritorio que tenga debajo
+    if (d?.type === 'furniture' && d.moved) restOnSurface(d.id);
     try {
       svgRef.current!.releasePointerCapture(e.pointerId);
     } catch {

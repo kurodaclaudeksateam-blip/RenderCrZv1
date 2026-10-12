@@ -131,6 +131,18 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           <path d={`M ${x0} ${y0} L ${-x0} ${-y0} M ${-x0} ${y0} L ${x0} ${-y0}`} stroke={line} strokeWidth={sw * 0.7} opacity={0.35} pointerEvents="none" />
         </g>
       );
+    case 'computadora': {
+      const zb = y0 + Math.min(0.1, d * 0.25);
+      const zf = -y0 - Math.min(0.1, d * 0.25);
+      return (
+        <g>
+          <rect x={x0} y={y0} width={w} height={d} fill="none" stroke={line} strokeWidth={sw * 0.6} strokeDasharray={`${2 * k} ${2 * k}`} opacity={0.5} />
+          <rect x={x0 * 0.94} y={zb - 0.02} width={w * 0.94} height={0.04} fill="#1e293b" stroke={line} strokeWidth={sw} />
+          <rect x={-w * 0.42} y={zf - 0.07} width={w * 0.68} height={0.14} rx={0.015} fill={color} stroke={line} strokeWidth={sw} />
+          <rect x={w * 0.37} y={zf - 0.05} width={0.06} height={0.1} rx={0.03} fill={color} stroke={line} strokeWidth={sw} />
+        </g>
+      );
+    }
     case 'mueble_tapa':
       return (
         <g>

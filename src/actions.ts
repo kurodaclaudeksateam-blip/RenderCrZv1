@@ -1,5 +1,5 @@
 import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, OPENING_PRESETS, WALL_MATERIALS, type OpeningPreset } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides } from './geometry';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides, restingHeight, TABLETOP } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
 import { pickImage } from './cutout';
@@ -33,6 +33,7 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center, e
       ...extra,
     });
   });
+  restOnSurface(id);
   st().select({ kind: 'furniture', id });
   st().setTool('select');
 }
@@ -385,10 +386,24 @@ export function moveFurnitureTo(id: string, point: Vec2): boolean {
   const x = Math.round(point.x * 100) / 100;
   const y = Math.round(point.y * 100) / 100;
   // no se deja caer dentro de otro objeto
-  if (st().avoidOverlap && collides({ ...cur, x, y }, level.furniture)) return false;
+  if (st().avoidOverlap && !TABLETOP.has(cur.type) && collides({ ...cur, x, y }, level.furniture)) return false;
   st().mutate((p) => {
     const f = p.levels.flatMap((l) => l.furniture).find((o) => o.id === id);
     if (f) Object.assign(f, { x, y });
   });
+  restOnSurface(id);
   return true;
+}
+
+/** Apoya un objeto de sobremesa (p. ej. una computadora) en la mesa o escritorio que tenga debajo. */
+export function restOnSurface(id: string) {
+  const level = st().project?.levels.find((l) => l.furniture.some((x) => x.id === id));
+  const f = level?.furniture.find((x) => x.id === id);
+  if (!level || !f || !TABLETOP.has(f.type)) return;
+  const elevation = restingHeight(f, level.furniture);
+  if (elevation === f.elevation) return;
+  st().mutate((p) => {
+    const item = p.levels.flatMap((l) => l.furniture).find((x) => x.id === id);
+    if (item) item.elevation = elevation;
+  }, false);
 }

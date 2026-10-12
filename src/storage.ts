@@ -343,6 +343,8 @@ export function sampleWarehouse(name: string): Project {
   const officeItems = [
     f('escritorio', 'Escritorio', 33, 21.2, 1.4, 0.7, 0.75, '#d6c4a8'),
     f('escritorio', 'Escritorio', 35.5, 21.2, 1.4, 0.7, 0.75, '#d6c4a8'),
+    f('computadora', 'Computadora', 33, 21.2, 0.6, 0.45, 0.45, '#e5e7eb', 0, { elevation: 0.75 }),
+    f('computadora', 'Computadora', 35.5, 21.2, 0.6, 0.45, 0.45, '#e5e7eb', 0, { elevation: 0.75 }),
     f('silla_oficina', 'Silla', 33, 22, 0.6, 0.6, 1.1, '#222222', 180),
     f('silla_oficina', 'Silla', 35.5, 22, 0.6, 0.6, 1.1, '#222222', 180),
     f('estante', 'Librero', 30.6, 22.6, 1, 0.35, 1.9, '#a67c52', 90),

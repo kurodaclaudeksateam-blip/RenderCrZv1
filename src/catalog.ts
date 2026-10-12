@@ -114,6 +114,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'ducha', label: 'Ducha', icon: '🚿', category: 'Servicios', w: 0.9, d: 0.9, h: 2.0, color: '#dbeafe' },
   { type: 'tina', label: 'Tina', icon: '🛁', category: 'Servicios', w: 1.7, d: 0.75, h: 0.55, color: '#ffffff' },
   { type: 'escritorio', label: 'Escritorio', icon: '🖥️', category: 'Oficina', w: 1.4, d: 0.7, h: 0.75, color: '#d6c4a8' },
+  { type: 'computadora', label: 'Computadora todo en uno', icon: '🖥️', category: 'Oficina', w: 0.6, d: 0.45, h: 0.45, color: '#e5e7eb', elevation: 0.75 },
   { type: 'silla_oficina', label: 'Silla oficina', icon: '🪑', category: 'Oficina', w: 0.6, d: 0.6, h: 1.1, color: '#222222' },
   { type: 'planta', label: 'Planta', icon: '🪴', category: 'Hogar', w: 0.5, d: 0.5, h: 1.2, color: '#3f8f4a' },
   { type: 'lampara', label: 'Lámpara pie', icon: '💡', category: 'Hogar', w: 0.4, d: 0.4, h: 1.6, color: '#f5deb3' },

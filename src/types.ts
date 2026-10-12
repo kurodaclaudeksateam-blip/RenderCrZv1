@@ -124,6 +124,7 @@ export type FurnitureType =
   | 'ducha'
   | 'tina'
   | 'escritorio'
+  | 'computadora'
   | 'silla_oficina'
   | 'planta'
   | 'lampara'
