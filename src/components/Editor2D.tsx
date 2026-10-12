@@ -763,7 +763,7 @@ export default function Editor2D() {
                     {(() => {
                       const p = localToWorld(0, selFurn.d / 2 + 16 * k, selFurn.x, selFurn.y, selFurn.rotation);
                       return (
-                        <text x={p.x} y={p.y + 4 * k} fontSize={11 * k} textAnchor="middle" pointerEvents="none" className="size-tag">
+                        <text x={p.x} y={p.y + 4 * k} fontSize={11 * k} strokeWidth={3 * k} textAnchor="middle" pointerEvents="none" className="size-tag">
                           {fmt(selFurn.w)} × {fmt(selFurn.d)} m
                         </text>
                       );

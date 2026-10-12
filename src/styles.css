@@ -1716,12 +1716,12 @@ details summary {
   vertical-align: -1px;
 }
 
+/* el grosor del borde va en el propio texto, en unidades del plano (aquí 1 px serían metros) */
 .plan .size-tag {
   fill: var(--accent);
   font-weight: 700;
   paint-order: stroke;
   stroke: #ffffff;
-  stroke-width: 3px;
   stroke-linejoin: round;
 }
 
