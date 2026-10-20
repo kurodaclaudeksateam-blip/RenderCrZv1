@@ -13,7 +13,7 @@ const zeroAsNeg = (round: (n: number) => number, n?: number) => (n === undefined
 type SideT = [(string | 0)?, number?, (string | 0)?] | 0;
 type RoomT = [string, number[], string, string, string, number, (string | 0)?, number?, number?, (SideT[] | 0)?, number?, number?];
 type OpeningT = [number, number, number, number, number, number, number, string?];
-type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?, number?, number?, number?, number?];
+type FurnT = [string, string, number, number, number, number, number, number, number, string, (string | 0)?, number?, number?, number?, number?, (string | 0)?, number?, number?, number?, number?, number?];
 type LevelT = [string, number, RoomT[], OpeningT[], FurnT[]];
 type ProjectT = [1, string, number, number, number, LevelT[], string[]?];
 
@@ -50,7 +50,7 @@ function pack(p: Project): ProjectT {
           .filter((o) => roomIndex.has(o.roomId))
           .map((o): OpeningT => [roomIndex.get(o.roomId)!, o.edge, r4(o.t), mm(o.width), mm(o.height), mm(o.sill), o.kind === 'window' ? 1 : 0, ...(o.door ? [o.door] : [])] as OpeningT),
         l.furniture.map((f): FurnT => {
-          const t: FurnT = [f.type, f.name, mm(f.x), mm(f.y), mm(f.rotation), mm(f.w), mm(f.d), mm(f.h), mm(f.elevation), f.color, f.label || 0, f.shelves ?? 0, f.empty ? 1 : 0, f.cols ?? 0, f.rows ?? 0, f.cells?.some(Boolean) ? f.cells.join(',') : 0, imageRef(f.image), f.showName ? 1 : 0, zeroAsNeg(r4, f.curve), zeroAsNeg(mm, f.flat)];
+          const t: FurnT = [f.type, f.name, mm(f.x), mm(f.y), mm(f.rotation), mm(f.w), mm(f.d), mm(f.h), mm(f.elevation), f.color, f.label || 0, f.shelves ?? 0, f.empty ? 1 : 0, f.cols ?? 0, f.rows ?? 0, f.cells?.some(Boolean) ? f.cells.join(',') : 0, imageRef(f.image), f.showName ? 1 : 0, zeroAsNeg(r4, f.curve), zeroAsNeg(mm, f.flat), mm(f.angle ?? 0)];
           while (t.length > 10 && !t[t.length - 1]) t.pop();
           return t;
         }),
@@ -104,6 +104,7 @@ function unpack(t: ProjectT, id: string): Project {
             ...(f[17] ? { showName: true } : {}),
             ...(f[18] ? { curve: Math.max(0, f[18]) } : {}),
             ...(f[19] ? { flat: Math.max(0, f[19]) } : {}),
+            ...(f[20] ? { angle: f[20] } : {}),
           }),
         ),
       };

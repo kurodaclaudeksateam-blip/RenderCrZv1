@@ -89,7 +89,8 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
         </g>
       );
     }
-    case 'rampa_tobogan': {
+    case 'rampa_tobogan':
+    case 'rampa_angulo': {
       // líneas de nivel cada 30 cm de altura: se juntan donde la curva es más empinada
       const prof = chuteProfile(f);
       const n = Math.max(2, Math.min(30, Math.round(f.h / 0.3)));

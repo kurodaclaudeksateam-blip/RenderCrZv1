@@ -51,6 +51,7 @@ export const CATALOG: CatalogItem[] = [
   { type: 'montacargas', label: 'Montacargas', icon: '🚜', category: 'Equipos', w: 1.2, d: 3.2, h: 2.2, color: '#facc15' },
   { type: 'rampa_curva', label: 'Rampa de descarga curva', icon: '↪️', category: 'Equipos', w: 6, d: 6, h: 1.2, color: '#9ca3af' },
   { type: 'rampa_tobogan', label: 'Tobogán de descarga entre niveles', icon: '🛝', category: 'Equipos', w: 0.9, d: 6.0, h: 3.0, color: '#d1d5db' },
+  { type: 'rampa_angulo', label: 'Rampa recta con ángulo entre niveles', icon: '📐', category: 'Equipos', w: 0.9, d: 6.0, h: 3.0, color: '#d1d5db' },
   { type: 'escalera_metal', label: 'Escalera metálica', icon: '🪜', category: 'Equipos', w: 1.0, d: 3.5, h: 3.0, color: '#facc15' },
   { type: 'escalera_vertical', label: 'Escalera vertical con pasamanos', icon: '🪜', category: 'Equipos', w: 0.6, d: 0.45, h: 3.0, color: '#facc15' },
   { type: 'escalera_jaula', label: 'Escalera vertical con jaula', icon: '🪜', category: 'Equipos', w: 0.75, d: 0.95, h: 6.0, color: '#facc15' },

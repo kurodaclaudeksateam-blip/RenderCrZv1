@@ -442,8 +442,8 @@ export function levelHeights(levels: Level[]) {
     if (!above) return l.height;
     let need = l.height;
     for (const f of l.furniture) {
-      // el tobogán llega justo al piso de arriba: no debe empujar la losa
-      if (f.type === 'rampa_tobogan') continue;
+      // los toboganes llegan justo al piso de arriba: no deben empujar la losa
+      if (isChute(f.type)) continue;
       const top = f.elevation + f.h + CLEARANCE;
       if (top <= need) continue;
       // cuenta si el centro o cualquier esquina del objeto queda bajo la losa de arriba
@@ -466,19 +466,53 @@ export function levelElevations(levels: Level[]) {
 
 export const SLAB = 0.15;
 
+/** Toboganes que unen dos niveles: el curvo y el recto con ángulo. */
+export const isChute = (type: string) => type === 'rampa_tobogan' || type === 'rampa_angulo';
+
 /**
  * Perfil del tobogán de descarga, igual en el plano, en 3D y en el recorrido: altura sobre su
  * base a `s` metros del arranque (0 = abajo, al frente; d = arriba, al fondo). Abajo va un tramo
  * plano, luego la curva sube y arriba remata plano para apoyarse en el piso del nivel superior.
  */
-export function chuteProfile(f: { d: number; h: number; curve?: number; flat?: number }) {
+export function chuteProfile(f: { type?: string; d: number; h: number; curve?: number; flat?: number; angle?: number }) {
   const lip = Math.min(0.3, f.d * 0.1);
+  if (f.type === 'rampa_angulo') return angledProfile(f, lip);
   const flat = Math.max(0, Math.min(f.flat ?? 1.2, f.d - lip - 0.5));
   const run = Math.max(0.1, f.d - lip - flat);
   // 0 → pendiente recta; 1 → arranca casi plana y termina empinada
   const p = 1 + 2.5 * Math.max(0, Math.min(1, f.curve ?? 0.6));
   const at = (s: number) => (s <= flat ? 0 : s >= flat + run ? f.h : f.h * ((s - flat) / run) ** p);
-  return { lip, flat, run, at };
+  return { lip, flat, run, at, angle: 0, radius: 0 };
+}
+
+/**
+ * Rampa recta con ángulo: baja recta desde arriba con el ángulo indicado y abajo la une al piso
+ * un arco tangente cuyo radio se ajusta solo al largo disponible (lo más suave que quepa dejando
+ * el tramo plano mínimo). Si el largo no alcanza para ese ángulo, el ángulo sube lo necesario.
+ */
+function angledProfile(f: { d: number; h: number; flat?: number; angle?: number }, lip: number) {
+  const top = Math.max(0.2, f.d - lip);
+  const minFlat = Math.max(0, Math.min(f.flat ?? 0.8, top - 0.2));
+  const max = (80 * Math.PI) / 180;
+  let angle = Math.min(max, ((f.angle ?? 45) * Math.PI) / 180);
+  // sube el ángulo lo justo para que quepa una curva de al menos un tercio de la bajada
+  while (angle < max && top - f.h / Math.tan(angle) - minFlat < (0.35 * f.h) / Math.sin(angle)) angle += Math.PI / 720;
+  angle = Math.min(max, angle);
+  const tan = Math.tan(angle);
+  // la recta corta el piso en s0; el arco ocupa T a cada lado de ese vértice
+  const s0 = top - f.h / tan;
+  const slope = f.h / Math.sin(angle);
+  const T = Math.max(0, Math.min(s0 - minFlat, slope * 0.85));
+  const radius = T / Math.tan(angle / 2);
+  const c0 = s0 - T;
+  const c1 = s0 + T * Math.cos(angle);
+  const at = (s: number) => {
+    if (s <= c0) return 0;
+    if (s >= top) return f.h;
+    if (s < c1) return radius - Math.sqrt(Math.max(0, radius * radius - (s - c0) ** 2));
+    return Math.min(f.h, tan * (s - s0));
+  };
+  return { lip, flat: c0, run: top - c0, at, angle: (angle * 180) / Math.PI, radius };
 }
 
 /** Altura que debe tener un objeto del nivel `index` para llegar al piso del nivel de arriba. */

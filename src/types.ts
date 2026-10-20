@@ -77,6 +77,7 @@ export type FurnitureType =
   | 'malla'
   | 'rampa_curva'
   | 'rampa_tobogan'
+  | 'rampa_angulo'
   | 'escalera_vertical'
   | 'escalera_jaula'
   | 'rack_custom'
@@ -167,6 +168,8 @@ export interface Furniture {
   /** tobogán: curvatura 0 (recto) .. 1 (curva cerrada) y largo del tramo plano de abajo */
   curve?: number;
   flat?: number;
+  /** rampa recta: ángulo de la bajada en grados (la curva de abajo se ajusta sola) */
+  angle?: number;
 }
 
 export interface Level {

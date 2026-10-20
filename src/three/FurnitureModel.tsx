@@ -114,6 +114,7 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
     case 'rampa_curva':
       return <CurvedRamp f={f} />;
     case 'rampa_tobogan':
+    case 'rampa_angulo':
       return <ChuteRamp f={f} />;
     case 'escalera_metal':
       return <MetalStairs f={f} />;
@@ -1026,7 +1027,7 @@ function CurvedRamp({ f }: { f: Furniture }) {
  */
 function ChuteRamp({ f }: { f: Furniture }) {
   const { w, d, h, color, elevation } = f;
-  const prof = useMemo(() => chuteProfile(f), [d, h, f.curve, f.flat]);
+  const prof = useMemo(() => chuteProfile(f), [f.type, d, h, f.curve, f.flat, f.angle]);
   const N = 48;
   const t = 0.04;
   const lipH = 0.08;
