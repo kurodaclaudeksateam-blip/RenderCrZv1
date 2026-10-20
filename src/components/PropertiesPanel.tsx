@@ -1,6 +1,6 @@
 import { useCurrentLevel, useStore } from '../store';
 import { useState } from 'react';
-import { area, cellGrid, cellIndex, dist, fmt, levelHeights, perimeter } from '../geometry';
+import { area, cellGrid, cellIndex, chuteProfile, dist, floorAboveHeight, fmt, levelHeights, perimeter } from '../geometry';
 import { CATALOG, DOOR_STYLES, FLOOR_MATERIALS, PIPE_MATERIALS, PIPE_SIZES, WALL_MATERIALS, isFence, parsePipe } from '../catalog';
 import { addCorner, deleteSelection, duplicateSelection, requestCutout, rotateSelection, setWallSide, updateFurniture } from '../actions';
 import type { DoorStyle, FloorMaterial, Furniture, Level, Opening, Project, Room, WallMaterial } from '../types';
@@ -393,6 +393,34 @@ function Actions({ rotate = false, duplicate = true }: { rotate?: boolean; dupli
   );
 }
 
+/** Tobogán: largo, alto, curva y tramo plano; y ajuste del alto para llegar al piso de arriba. */
+function ChuteEditor({ f, set }: { f: Furniture; set: (p: Partial<Furniture>) => void }) {
+  const project = useStore((s) => s.project)!;
+  const level = useCurrentLevel()!;
+  const index = project.levels.indexOf(level);
+  const hasAbove = index >= 0 && index + 1 < project.levels.length;
+  const target = hasAbove ? floorAboveHeight(project.levels, index, f.elevation) : 0;
+  const aligned = hasAbove && Math.abs(f.h - target) < 0.005;
+  return (
+    <>
+      <div className="grid2">
+        <Num label="Largo" value={f.d} min={1} onChange={(d) => set({ d })} />
+        <Num label="Alto (arriba)" value={f.h} min={0.1} onChange={(h) => set({ h })} />
+        <Num label="Curvatura" value={Math.round((f.curve ?? 0.6) * 100)} step={5} min={0} max={100} unit="%" onChange={(n) => set({ curve: n / 100 })} />
+        <Num label="Tramo plano abajo" value={chuteProfile(f).flat} min={0} onChange={(flat) => set({ flat })} />
+      </div>
+      {hasAbove ? (
+        <button className={aligned ? 'secondary small' : 'small'} disabled={aligned} onClick={() => set({ h: target })} title="El remate de arriba queda a ras del piso del nivel superior">
+          {aligned ? '✓ Alineado con' : '⤒ Alinear con'} el piso de {project.levels[index + 1].name} ({fmt(target, 2)} m)
+        </button>
+      ) : (
+        <p className="muted small">Agrega un nivel arriba para alinear el tobogán con su piso.</p>
+      )}
+      <p className="tip">0 % es una pendiente recta; 100 % arranca casi plana y termina empinada. El remate de arriba (al fondo) se apoya en el piso del nivel superior; con «Elevación» se sube la salida de abajo.</p>
+    </>
+  );
+}
+
 function FurnitureProps({ f }: { f: Furniture }) {
   const set = (patch: Partial<Furniture>) => updateFurniture(f.id, patch);
   const cat = CATALOG.find((c) => c.type === f.type);
@@ -409,6 +437,7 @@ function FurnitureProps({ f }: { f: Furniture }) {
       {TEXT_TYPES.has(f.type) && <Text label="Texto del letrero / zona" value={f.label ?? ''} onChange={(label) => set({ label: label.toUpperCase() })} />}
       {AD_TYPES.has(f.type) && <AdImage f={f} set={set} />}
       {f.type === 'anuncio_relieve' && <CutoutImage f={f} set={set} />}
+      {f.type === 'rampa_tobogan' && <ChuteEditor f={f} set={set} />}
       {f.type === 'barandal' && <Num label="Travesaños" value={f.shelves ?? 2} step={1} min={1} max={6} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />}
       {f.type === 'mueble_tapa' && (
         <label className="field">

@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { Billboard, RoundedBox } from '@react-three/drei';
 import type { Furniture } from '../types';
-import { cellGrid, cellIndex } from '../geometry';
+import { cellGrid, cellIndex, chuteProfile } from '../geometry';
 import { parsePipe, pipeStandLayout } from '../catalog';
 import { CUTOUT_ALPHA, cutoutAsset, imageTexture, loadCutout, textTexture } from './textures';
 
@@ -113,6 +113,8 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
       return <CustomPallet f={f} />;
     case 'rampa_curva':
       return <CurvedRamp f={f} />;
+    case 'rampa_tobogan':
+      return <ChuteRamp f={f} />;
     case 'escalera_metal':
       return <MetalStairs f={f} />;
     case 'escalera_vertical':
@@ -1012,6 +1014,74 @@ function CurvedRamp({ f }: { f: Furniture }) {
           {i > 0 && <Beam a={[posts[i - 1].x, posts[i - 1].y + 1, posts[i - 1].z]} b={[p.x, p.y + 1, p.z]} t={0.06} c="#facc15" />}
           {i > 0 && <Beam a={[posts[i - 1].x, posts[i - 1].y + 0.5, posts[i - 1].z]} b={[p.x, p.y + 0.5, p.z]} t={0.04} c="#facc15" />}
         </group>
+      ))}
+    </group>
+  );
+}
+
+/**
+ * Tobogán de descarga: plano abajo al frente, sube en curva hacia el fondo y remata plano arriba.
+ * Lleva canto lateral con postes y pasamanos bajo, y patas al piso donde la lámina queda en el aire
+ * (el remate de arriba se apoya en el nivel superior).
+ */
+function ChuteRamp({ f }: { f: Furniture }) {
+  const { w, d, h, color, elevation } = f;
+  const prof = useMemo(() => chuteProfile(f), [d, h, f.curve, f.flat]);
+  const N = 48;
+  const t = 0.04;
+  const lipH = 0.08;
+  const geo = useMemo(() => {
+    const pos: number[] = [];
+    const quad = (a: number[], b: number[], c: number[], e: number[]) => pos.push(...a, ...b, ...c, ...a, ...c, ...e);
+    const P = (x: number, i: number, dy: number) => {
+      const s = (d * i) / N;
+      return [x, prof.at(s) + dy, d / 2 - s];
+    };
+    const L = -w / 2;
+    const R = w / 2;
+    for (let i = 0; i < N; i++) {
+      quad(P(L, i, 0), P(R, i, 0), P(R, i + 1, 0), P(L, i + 1, 0)); // lámina
+      quad(P(L, i + 1, -t), P(R, i + 1, -t), P(R, i, -t), P(L, i, -t)); // bajo la lámina
+      for (const x of [L, R]) quad(P(x, i, -t), P(x, i + 1, -t), P(x, i + 1, lipH), P(x, i, lipH)); // cantos laterales
+    }
+    quad(P(L, 0, -t), P(R, 0, -t), P(R, 0, 0), P(L, 0, 0)); // frente
+    quad(P(R, N, -t), P(L, N, -t), P(L, N, 0), P(R, N, 0)); // remate
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    return g;
+  }, [w, d, prof]);
+  const steel = shade(color, 0.7);
+  const railH = 0.3;
+  const posts = Math.max(2, Math.round(d / 0.6) + 1);
+  const at = (i: number, n: number) => {
+    const s = (d * i) / (n - 1);
+    return { s, y: prof.at(s), z: d / 2 - s };
+  };
+  const rail = Array.from({ length: posts }, (_, i) => at(i, posts));
+  // patas cada ~1.5 m donde la lámina va en el aire; el remate se apoya arriba
+  const legCount = Math.max(2, Math.round(d / 1.5) + 1);
+  const legs = Array.from({ length: legCount }, (_, i) => at(i, legCount)).filter((p) => p.s < d - prof.lip - 0.05 && p.y + elevation > 0.15);
+  return (
+    <group>
+      <mesh geometry={geo} castShadow receiveShadow>
+        <meshStandardMaterial color={color} roughness={0.55} metalness={0.35} side={THREE.DoubleSide} />
+      </mesh>
+      {[-w / 2, w / 2].map((x) => (
+        <group key={x}>
+          {rail.map((p, i) => (
+            <group key={i}>
+              <Bx x={x} z={p.z} w={0.03} h={railH} d={0.03} y0={p.y} c={color} metal={0.5} rough={0.4} />
+              {i > 0 && <Beam a={[x, rail[i - 1].y + railH, rail[i - 1].z]} b={[x, p.y + railH, p.z]} t={0.035} c={color} />}
+            </group>
+          ))}
+          {legs.map((p, i) => (
+            <Bx key={`l${i}`} x={x * 0.9} z={p.z} w={0.06} h={p.y + elevation - t} d={0.06} y0={-elevation} c={steel} metal={0.5} rough={0.45} />
+          ))}
+        </group>
+      ))}
+      {legs.map((p, i) => (
+        <Beam key={`c${i}`} a={[-w * 0.45, Math.min(0.25, p.y + elevation - t) - elevation, p.z]} b={[w * 0.45, Math.min(0.25, p.y + elevation - t) - elevation, p.z]} t={0.04} c={steel} />
       ))}
     </group>
   );

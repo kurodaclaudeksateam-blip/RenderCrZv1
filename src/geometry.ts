@@ -442,6 +442,8 @@ export function levelHeights(levels: Level[]) {
     if (!above) return l.height;
     let need = l.height;
     for (const f of l.furniture) {
+      // el tobogán llega justo al piso de arriba: no debe empujar la losa
+      if (f.type === 'rampa_tobogan') continue;
       const top = f.elevation + f.h + CLEARANCE;
       if (top <= need) continue;
       // cuenta si el centro o cualquier esquina del objeto queda bajo la losa de arriba
@@ -463,6 +465,26 @@ export function levelElevations(levels: Level[]) {
 }
 
 export const SLAB = 0.15;
+
+/**
+ * Perfil del tobogán de descarga, igual en el plano, en 3D y en el recorrido: altura sobre su
+ * base a `s` metros del arranque (0 = abajo, al frente; d = arriba, al fondo). Abajo va un tramo
+ * plano, luego la curva sube y arriba remata plano para apoyarse en el piso del nivel superior.
+ */
+export function chuteProfile(f: { d: number; h: number; curve?: number; flat?: number }) {
+  const lip = Math.min(0.3, f.d * 0.1);
+  const flat = Math.max(0, Math.min(f.flat ?? 1.2, f.d - lip - 0.5));
+  const run = Math.max(0.1, f.d - lip - flat);
+  // 0 → pendiente recta; 1 → arranca casi plana y termina empinada
+  const p = 1 + 2.5 * Math.max(0, Math.min(1, f.curve ?? 0.6));
+  const at = (s: number) => (s <= flat ? 0 : s >= flat + run ? f.h : f.h * ((s - flat) / run) ** p);
+  return { lip, flat, run, at };
+}
+
+/** Altura que debe tener un objeto del nivel `index` para llegar al piso del nivel de arriba. */
+export function floorAboveHeight(levels: Level[], index: number, elevation: number) {
+  return Math.max(0.1, levelHeights(levels)[index] + SLAB - elevation);
+}
 
 // ---------------------------------------------------------------------------
 // Objetos que no se atraviesan

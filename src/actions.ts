@@ -1,5 +1,5 @@
 import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, OPENING_PRESETS, WALL_MATERIALS, type OpeningPreset } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides, restingHeight, TABLETOP } from './geometry';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides, restingHeight, TABLETOP, floorAboveHeight } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
 import { pickImage } from './cutout';
@@ -12,7 +12,10 @@ const st = () => useStore.getState();
 
 export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center, extra: Partial<Furniture> = {}) {
   const id = uid();
-  st().mutate((_, level) => {
+  st().mutate((project, level) => {
+    // el tobogán nace a la medida del piso de arriba, si lo hay
+    const index = project.levels.indexOf(level);
+    const chute = item.type === 'rampa_tobogan' && index + 1 < project.levels.length ? { h: floorAboveHeight(project.levels, index, item.elevation ?? 0) } : {};
     level.furniture.push({
       id,
       type: item.type,
@@ -30,6 +33,7 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center, e
       ...(item.cells ? { cells: [...item.cells] } : {}),
       ...(item.cols ? { cols: item.cols } : {}),
       ...(item.rows ? { rows: item.rows } : {}),
+      ...chute,
       ...extra,
     });
   });

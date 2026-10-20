@@ -1,5 +1,5 @@
 import type { Furniture } from '../types';
-import { cellGrid, cellIndex } from '../geometry';
+import { cellGrid, cellIndex, chuteProfile } from '../geometry';
 import { parsePipe, pipeStandLayout } from '../catalog';
 
 /** Símbolo de planta de un mueble, en coordenadas locales centradas (metros). */
@@ -86,6 +86,28 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           />
           <path d={`M ${x0 + w * 0.72} ${-y0 - d * 0.06} A ${w * 0.72} ${d * 0.72} 0 0 0 ${x0 + w * 0.06} ${-y0 - d * 0.72}`} fill="none" stroke={line} strokeWidth={sw * 1.4} strokeDasharray={`${4 * k} ${3 * k}`} />
           <path d={`M ${x0 + w * 0.06 - 0.22} ${-y0 - d * 0.72 + 0.3} L ${x0 + w * 0.06} ${-y0 - d * 0.72} L ${x0 + w * 0.06 + 0.22} ${-y0 - d * 0.72 + 0.3}`} fill="none" stroke={line} strokeWidth={sw * 1.4} />
+        </g>
+      );
+    }
+    case 'rampa_tobogan': {
+      // líneas de nivel cada 30 cm de altura: se juntan donde la curva es más empinada
+      const prof = chuteProfile(f);
+      const n = Math.max(2, Math.min(30, Math.round(f.h / 0.3)));
+      const marks: number[] = [];
+      for (let i = 1, s = 0; i < n; i++) {
+        while (s < d && prof.at(s) < (f.h * i) / n) s += 0.02;
+        marks.push(-y0 - s);
+      }
+      return (
+        <g>
+          {base}
+          <rect x={x0} y={y0} width={w} height={prof.lip} fill={line} fillOpacity={0.25} />
+          {prof.flat > 0 && <line x1={x0} x2={-x0} y1={-y0 - prof.flat} y2={-y0 - prof.flat} stroke={line} strokeWidth={sw} strokeDasharray={`${3 * k} ${2 * k}`} />}
+          {marks.map((y, i) => (
+            <line key={i} x1={x0} x2={-x0} y1={y} y2={y} stroke={line} strokeWidth={sw * 0.7} />
+          ))}
+          {[x0, -x0].map((x) => <line key={x} x1={x} x2={x} y1={y0} y2={-y0} stroke={line} strokeWidth={sw * 2.5} />)}
+          <path d={`M 0 ${-y0 - 0.2} V ${y0 + prof.lip + 0.1} M ${-w * 0.2} ${y0 + prof.lip + 0.35} L 0 ${y0 + prof.lip + 0.1} L ${w * 0.2} ${y0 + prof.lip + 0.35}`} stroke={line} strokeWidth={sw * 1.4} fill="none" />
         </g>
       );
     }

@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Sky } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from '../store';
-import { area, bounds, computeWalls, interiorPoint, levelElevations, levelHeights, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
+import { area, bounds, chuteProfile, computeWalls, interiorPoint, levelElevations, levelHeights, localToWorld, pointInPolygon, projectOnSegment } from '../geometry';
 import { LevelMesh, type BuildClock } from './Building';
 import type { Project, Vec2 } from '../types';
 import { EditPanel, type MoveTarget, type Pick } from './EditPanel';
@@ -15,7 +15,7 @@ import { BrandLogo, withWatermark } from '../components/BrandLogo';
 type Mode = 'orbit' | 'walk';
 
 /** Objetos que no bloquean el recorrido. */
-const NON_BLOCKING = new Set(['zona', 'alfombra', 'letrero', 'escalera', 'escalera_metal', 'rampa_curva', 'planta', 'lampara', 'cono']);
+const NON_BLOCKING = new Set(['zona', 'alfombra', 'letrero', 'escalera', 'escalera_metal', 'rampa_curva', 'rampa_tobogan', 'planta', 'lampara', 'cono']);
 
 function Ground() {
   const map = useMemo(() => {
@@ -200,7 +200,7 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
       // altura sobre el piso del nivel y avance (0 abajo, 1 arriba) si el punto cae sobre una escalera o rampa
       const climb = (index: number) => {
         for (const f of levels[index].furniture) {
-          if (f.type !== 'escalera' && f.type !== 'escalera_metal' && f.type !== 'rampa_curva') continue;
+          if (f.type !== 'escalera' && f.type !== 'escalera_metal' && f.type !== 'rampa_curva' && f.type !== 'rampa_tobogan') continue;
           const r = (f.rotation * Math.PI) / 180;
           const dx = x - f.x;
           const dz = z - f.y;
@@ -214,6 +214,10 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
             const rr = Math.hypot(u, v);
             if (rr < 0.45 || rr > 1) continue;
             t = Math.atan2(v, u) / (Math.PI / 2);
+          }
+          if (f.type === 'rampa_tobogan') {
+            const y = chuteProfile(f).at(f.d / 2 - ly);
+            return { t, h: f.elevation + y, top: f.elevation + f.h };
           }
           return { t, h: f.elevation + t * f.h, top: f.elevation + f.h };
         }

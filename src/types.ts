@@ -76,6 +76,7 @@ export type FurnitureType =
   | 'bascula'
   | 'malla'
   | 'rampa_curva'
+  | 'rampa_tobogan'
   | 'escalera_vertical'
   | 'escalera_jaula'
   | 'rack_custom'
@@ -163,6 +164,9 @@ export interface Furniture {
   image?: string;
   /** muestra un rótulo con el nombre sobre el objeto */
   showName?: boolean;
+  /** tobogán: curvatura 0 (recto) .. 1 (curva cerrada) y largo del tramo plano de abajo */
+  curve?: number;
+  flat?: number;
 }
 
 export interface Level {
