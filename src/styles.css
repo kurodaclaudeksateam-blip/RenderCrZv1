@@ -21,6 +21,8 @@
   --wall: #1f2937;
   --glass: #bae6fd;
   --ghost: #64748b;
+  /* losa de arriba que cargan las columnas metálicas */
+  --slab: #ea580c;
   --hatch: #cbd5e1;
   --furn-line: #334155;
   --thumb-line: #0f172a;

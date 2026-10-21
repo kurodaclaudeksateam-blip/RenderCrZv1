@@ -451,10 +451,16 @@ function ColumnEditor({ f, set }: { f: Furniture; set: (p: Partial<Furniture>) =
   const [spacing, setSpacing] = useState(6);
   const index = project.levels.indexOf(level);
   const hasAbove = index + 1 < project.levels.length;
+  // las sugerencias se toman de la losa de arriba; sin ambientes arriba, del techo de este nivel
+  const slabAbove = !!project.levels[index + 1]?.rooms.length;
   const target = columnHeight(project.levels, index, f.elevation);
   const aligned = Math.abs(f.h - target) < 0.005;
-  // las sugerencias son del objeto elegido: se quitan al dejar de editarlo
-  useEffect(() => () => useStore.getState().setColumnHints(null), [f.id]);
+  // al elegir la columna se sugieren solos los lugares libres; se quitan al dejar de editarla
+  useEffect(() => {
+    suggestColumns(f, spacing);
+    return () => useStore.getState().setColumnHints(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.id]);
   const toggle = (match: (i: number) => boolean, on: boolean) => hints && setColumnHints(hints.map((h, i) => (match(i) ? { ...h, on } : h)));
   const kinds = (['esquina', 'orilla', 'centro'] as const).filter((k) => hints?.some((h) => h.kind === k));
   const chosen = hints?.filter((h) => h.on).length ?? 0;
@@ -471,19 +477,32 @@ function ColumnEditor({ f, set }: { f: Furniture; set: (p: Partial<Furniture>) =
         {aligned ? '✓ Llega a' : '⤒ Ajustar a'} {hasAbove ? `la losa de ${project.levels[index + 1].name}` : 'el techo del nivel'} ({fmt(target, 2)} m)
       </button>
       <h3>Dónde ponerlas</h3>
+      <p className="muted small">
+        En el plano se ve en naranja {slabAbove ? `la losa de ${project.levels[index + 1].name}` : 'el techo de este nivel'}, que es lo que cargan las columnas.
+      </p>
+      <Num
+        label="Separación máxima"
+        value={spacing}
+        step={0.5}
+        min={1}
+        max={20}
+        onChange={(n) => {
+          setSpacing(n);
+          if (hints) suggestColumns(f, n);
+        }}
+      />
       {!hints ? (
         <>
-          <Num label="Separación máxima" value={spacing} step={0.5} min={1} max={20} onChange={setSpacing} />
           <button
             className="secondary small"
             onClick={() => {
               const n = suggestColumns(f, spacing);
-              if (!n) notify(level.rooms.length || hasAbove ? 'Ya hay columnas en todos los lugares sugeridos' : 'Primero dibuja un ambiente');
+              if (!n) notify(level.rooms.length || slabAbove ? 'Ya hay columnas en todos los lugares sugeridos' : 'Primero dibuja un ambiente en este nivel o en el de arriba');
             }}
           >
             💡 Sugerir lugares
           </button>
-          <p className="tip">Al mover una columna se acomoda sola en esquinas, orillas y centros de los ambientes{hasAbove ? ' del nivel de arriba' : ''} (Alt la suelta libre).</p>
+          <p className="tip">Al mover una columna se acomoda sola en esquinas, orillas y centros de {slabAbove ? 'la losa de arriba' : 'los ambientes'} (Alt la suelta libre).</p>
         </>
       ) : (
         <>

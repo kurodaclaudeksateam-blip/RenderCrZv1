@@ -65,7 +65,7 @@ export function suggestColumns(f: Furniture, spacing: number) {
   const size = Math.max(f.w, f.d);
   const taken = level.furniture.filter((o) => isSteelColumn(o.type) || o.type === 'columna');
   const spots = columnSpotsFor(size, spacing).filter((s) => !taken.some((o) => Math.hypot(o.x - s.x, o.y - s.y) < Math.max(0.4, size)));
-  st().setColumnHints(spots.map((s) => ({ ...s, on: true })));
+  st().setColumnHints(spots.length ? spots.map((s) => ({ ...s, on: true })) : null);
   return spots.length;
 }
 

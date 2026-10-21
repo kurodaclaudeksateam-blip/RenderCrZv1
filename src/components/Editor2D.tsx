@@ -640,6 +640,12 @@ export default function Editor2D() {
   const selRoom = selection?.kind === 'room' ? level.rooms.find((r) => r.id === selection.id) : undefined;
   const selFurn = selection?.kind === 'furniture' ? level.furniture.find((f) => f.id === selection.id) : undefined;
 
+  // lado de la columna metálica elegida o que se está colocando (null si no hay)
+  const columnSize =
+    selFurn && isSteelColumn(selFurn.type) ? Math.max(selFurn.w, selFurn.d) : placingItem && isSteelColumn(placingItem.type) ? Math.max(placingItem.w, placingItem.d) : null;
+  const aboveLevel = project.levels[levelIndex + 1];
+  const slab = aboveLevel?.rooms.length ? { rooms: aboveLevel.rooms, label: `Losa de ${aboveLevel.name}` } : { rooms: level.rooms, label: 'Techo de este nivel' };
+
   const cursorClass =
     tool === 'pan' || drag.current?.type === 'pan' ? 'cur-grab' : tool === 'select' ? 'cur-default' : 'cur-cross';
 
@@ -860,13 +866,29 @@ export default function Editor2D() {
             </g>
           )}
 
+          {/* con una columna metálica elegida o en la mano: la losa de arriba que carga, en transparente */}
+          {(columnSize !== null || columnHints) && (
+            <g pointerEvents="none">
+              {slab.rooms.map((r) => {
+                const c = interiorPoint(r.points);
+                return (
+                  <g key={r.id}>
+                    <polygon points={pts(r.points)} fill="var(--slab)" fillOpacity={0.28} stroke="var(--slab)" strokeWidth={k * 2.5} strokeDasharray={`${10 * k} ${5 * k}`} />
+                    <text x={c.x} y={c.y - 26 * k} fontSize={12 * k} strokeWidth={3 * k} textAnchor="middle" className="size-tag" style={{ fill: 'var(--slab)' }}>
+                      {slab.label}{r.name ? ` · ${r.name}` : ''}
+                    </text>
+                  </g>
+                );
+              })}
+              {/* al colocar, puntos guía donde conviene ponerla */}
+              {!columnHints && placingItem && columnSize !== null &&
+                columnSpotsFor(columnSize, 6).map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={Math.max(0.12, 5 * k)} fill="var(--slab)" fillOpacity={0.8} />)}
+            </g>
+          )}
+
           {/* lugares sugeridos para columnas: marcados en color, desmarcados solo con contorno */}
           {columnHints && (
             <g>
-              {/* la losa de arriba que cargan las columnas */}
-              {project.levels[levelIndex + 1]?.rooms.map((r) => (
-                <polygon key={r.id} points={pts(r.points)} fill="var(--accent)" fillOpacity={0.06} stroke="var(--accent)" strokeWidth={k * 1.5} strokeDasharray={`${8 * k} ${4 * k}`} pointerEvents="none" />
-              ))}
               {columnHints.map((h, i) => {
                 const s = Math.max(0.25, selFurn ? Math.max(selFurn.w, selFurn.d) : 0.2) + 0.1;
                 return (
