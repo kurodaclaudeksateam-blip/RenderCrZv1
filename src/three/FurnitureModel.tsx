@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { Billboard, RoundedBox } from '@react-three/drei';
 import type { Furniture } from '../types';
-import { cellGrid, cellIndex, chuteProfile } from '../geometry';
+import { cellGrid, cellIndex, chuteProfile, steelSection } from '../geometry';
 import { parsePipe, pipeStandLayout } from '../catalog';
 import { CUTOUT_ALPHA, cutoutAsset, imageTexture, loadCutout, textTexture } from './textures';
 
@@ -116,6 +116,9 @@ function Model({ f, ceil }: { f: Furniture; ceil?: number }) {
     case 'rampa_tobogan':
     case 'rampa_angulo':
       return <ChuteRamp f={f} />;
+    case 'columna_h':
+    case 'columna_u':
+      return <SteelColumn f={f} />;
     case 'escalera_metal':
       return <MetalStairs f={f} />;
     case 'escalera_vertical':
@@ -1084,6 +1087,37 @@ function ChuteRamp({ f }: { f: Furniture }) {
       {legs.map((p, i) => (
         <Beam key={`c${i}`} a={[-w * 0.45, Math.min(0.25, p.y + elevation - t) - elevation, p.z]} b={[w * 0.45, Math.min(0.25, p.y + elevation - t) - elevation, p.z]} t={0.04} c={steel} />
       ))}
+    </group>
+  );
+}
+
+/**
+ * Columna metálica vertical: perfil H (dos patines a lo ancho y alma al centro) o U (alma al
+ * fondo y dos patines hacia el frente), con placa de anclaje abajo y placa de remate arriba.
+ */
+function SteelColumn({ f }: { f: Furniture }) {
+  const { w, d, h, color } = f;
+  const { tf, tw } = steelSection(f);
+  const plate = 0.015;
+  const body = Math.max(0.05, h - plate * 2);
+  const m = { c: color, metal: 0.6, rough: 0.4 };
+  return (
+    <group>
+      <Bx w={w + 0.1} h={plate} d={d + 0.1} c={shade(color, 0.75)} metal={0.5} rough={0.5} />
+      <Bx w={w + 0.04} h={plate} d={d + 0.04} y0={h - plate} c={shade(color, 0.75)} metal={0.5} rough={0.5} />
+      {f.type === 'columna_h' ? (
+        <>
+          <Bx z={-d / 2 + tf / 2} w={w} h={body} d={tf} y0={plate} {...m} />
+          <Bx z={d / 2 - tf / 2} w={w} h={body} d={tf} y0={plate} {...m} />
+          <Bx w={tw} h={body} d={d - tf * 2} y0={plate} {...m} />
+        </>
+      ) : (
+        <>
+          <Bx z={-d / 2 + tw / 2} w={w} h={body} d={tw} y0={plate} {...m} />
+          <Bx x={-w / 2 + tf / 2} z={tw / 2} w={tf} h={body} d={d - tw} y0={plate} {...m} />
+          <Bx x={w / 2 - tf / 2} z={tw / 2} w={tf} h={body} d={d - tw} y0={plate} {...m} />
+        </>
+      )}
     </group>
   );
 }

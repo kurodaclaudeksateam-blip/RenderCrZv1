@@ -1,5 +1,5 @@
 import { CATALOG, ROOM_COLORS, type CatalogItem, doorForWall, OPENING_PRESETS, WALL_MATERIALS, type OpeningPreset } from './catalog';
-import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides, restingHeight, TABLETOP, floorAboveHeight, isChute } from './geometry';
+import { DOOR_DEFAULT, WINDOW_DEFAULT, dist, uid, nearestEdge, wallSide, collides, restingHeight, TABLETOP, floorAboveHeight, isChute, isSteelColumn, columnHeight, columnSpots } from './geometry';
 import { newLevel } from './storage';
 import { useStore } from './store';
 import { pickImage } from './cutout';
@@ -16,6 +16,8 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center, e
     // el tobogán nace a la medida del piso de arriba, si lo hay
     const index = project.levels.indexOf(level);
     const chute = isChute(item.type) && index + 1 < project.levels.length ? { h: floorAboveHeight(project.levels, index, item.elevation ?? 0) } : {};
+    // la columna metálica nace tocando la losa de arriba (o el techo del nivel)
+    if (isSteelColumn(item.type)) Object.assign(chute, { h: columnHeight(project.levels, index, item.elevation ?? 0) });
     level.furniture.push({
       id,
       type: item.type,
@@ -43,7 +45,44 @@ export function addFurniture(item: CatalogItem, pos: Vec2 = editorView.center, e
 }
 
 /** El rótulo con profundidad no se agrega directo: antes pide la imagen a la que se le quita el fondo. */
-export const needsImage = (item: CatalogItem) => item.type === 'anuncio_relieve';
+/**
+ * Lugares para columnas en el nivel actual: bajo los ambientes del nivel de arriba (la losa que
+ * hay que cargar) o, si no hay nivel encima, bajo los del propio nivel.
+ */
+export function columnSpotsFor(size: number, spacing: number) {
+  const { project, levelId } = st();
+  if (!project) return [];
+  const index = Math.max(0, project.levels.findIndex((l) => l.id === levelId));
+  const above = project.levels[index + 1];
+  const rooms = above?.rooms.length ? above.rooms : project.levels[index].rooms;
+  return columnSpots(rooms, size, spacing);
+}
+
+/** Sugiere columnas (todas marcadas) donde todavía no hay una. */
+export function suggestColumns(f: Furniture, spacing: number) {
+  const level = st().project?.levels.find((l) => l.id === st().levelId) ?? st().project?.levels[0];
+  if (!level) return 0;
+  const size = Math.max(f.w, f.d);
+  const taken = level.furniture.filter((o) => isSteelColumn(o.type) || o.type === 'columna');
+  const spots = columnSpotsFor(size, spacing).filter((s) => !taken.some((o) => Math.hypot(o.x - s.x, o.y - s.y) < Math.max(0.4, size)));
+  st().setColumnHints(spots.map((s) => ({ ...s, on: true })));
+  return spots.length;
+}
+
+/** Coloca una columna igual a `f` en cada lugar sugerido que quedó marcado. */
+export function placeColumns(f: Furniture) {
+  const hints = st().columnHints?.filter((h) => h.on) ?? [];
+  if (!hints.length) return 0;
+  st().mutate((project, level) => {
+    const h = columnHeight(project.levels, project.levels.indexOf(level), f.elevation);
+    const n = level.furniture.filter((o) => o.type === f.type).length;
+    hints.forEach((p, i) => level.furniture.push({ ...f, id: uid(), name: `${f.name.replace(/ \d+$/, '')} ${n + i + 1}`, x: p.x, y: p.y, h }));
+  });
+  st().setColumnHints(null);
+  return hints.length;
+}
+
+export const needsImage =(item: CatalogItem) => item.type === 'anuncio_relieve';
 
 /**
  * Pide la imagen de un rótulo con profundidad y abre el diálogo que le quita el fondo.

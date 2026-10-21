@@ -12,6 +12,7 @@ import {
   fmt,
   interiorPoint,
   inwardNormal,
+  isSteelColumn,
   localToWorld,
   mul,
   nearestEdge,
@@ -28,6 +29,7 @@ import {
   restOnSurface,
   addRoom,
   catalogItem,
+  columnSpotsFor,
   deleteSelection,
   duplicateSelection,
   editorView,
@@ -73,6 +75,7 @@ export default function Editor2D() {
   const gridSize = useStore((s) => s.gridSize);
   const snapOn = useStore((s) => s.snap);
   const showGhost = useStore((s) => s.showGhost);
+  const columnHints = useStore((s) => s.columnHints);
   const { select, mutate, checkpoint, setTool, undo, redo } = useStore.getState();
 
   const [size, setSize] = useState({ w: 800, h: 600 });
@@ -211,6 +214,21 @@ export default function Editor2D() {
     return snapGrid(p);
   };
 
+  // las columnas metálicas se acomodan en esquinas, orillas y centros (y en los lugares sugeridos)
+  const snapColumn = (p: Vec2, size: number): Vec2 => {
+    const spots: Vec2[] = [...columnSpotsFor(size, 6), ...(useStore.getState().columnHints ?? [])];
+    let best: Vec2 | null = null;
+    let bd = Math.max(0.3, 16 * k);
+    for (const q of spots) {
+      const d = dist(p, q);
+      if (d < bd) {
+        bd = d;
+        best = q;
+      }
+    }
+    return best ? v(best.x, best.y) : snapGrid(p);
+  };
+
   const angleLock = (from: Vec2, p: Vec2): Vec2 => {
     const d = sub(p, from);
     const L = Math.hypot(d.x, d.y);
@@ -341,7 +359,7 @@ export default function Editor2D() {
     }
     // objeto del catálogo flotando en el puntero: el clic lo coloca (con Shift se siguen colocando más)
     if (placingItem) {
-      const pos = snapGrid(raw);
+      const pos = isSteelColumn(placingItem.type) && !e.altKey ? snapColumn(raw, Math.max(placingItem.w, placingItem.d)) : snapGrid(raw);
       const ghost: Furniture = { id: '', type: placingItem.type, name: placingItem.label, x: pos.x, y: pos.y, rotation: 0, w: placingItem.w, d: placingItem.d, h: placingItem.h, elevation: placingItem.elevation ?? 0, color: placingItem.color };
       if (avoidOverlap && !TABLETOP.has(placingItem.type) && collides(ghost, level.furniture)) {
         useStore.getState().notify('Ese lugar está ocupado por otro objeto');
@@ -357,7 +375,11 @@ export default function Editor2D() {
     const id = target?.dataset.id ?? '';
 
     if (tool === 'select') {
-      if (kind === 'rotate') {
+      if (kind === 'hint') {
+        const i = Number(target!.dataset.index);
+        const hints = useStore.getState().columnHints;
+        if (hints) useStore.getState().setColumnHints(hints.map((h, j) => (j === i ? { ...h, on: !h.on } : h)));
+      } else if (kind === 'rotate') {
         drag.current = { type: 'rotate', id, moved: false };
       } else if (kind === 'resize') {
         drag.current = { type: 'resize', id, side: target!.dataset.side ?? '', moved: false };
@@ -435,8 +457,8 @@ export default function Editor2D() {
     d.moved = true;
 
     if (d.type === 'furniture') {
-      const p = snapGrid(sub(raw, d.off));
       const cur = level.furniture.find((x) => x.id === d.id);
+      const p = cur && isSteelColumn(cur.type) && !e.altKey ? snapColumn(sub(raw, d.off), Math.max(cur.w, cur.d)) : snapGrid(sub(raw, d.off));
       // el objeto sigue al puntero sin frenarse ni empujar a los demás; si queda encima de otro
       // se avisa en rojo y al soltarlo regresa al último lugar libre (Alt permite encimarlo)
       const over = !!cur && avoidOverlap && !e.altKey && !TABLETOP.has(cur.type) && collides({ ...cur, x: p.x, y: p.y }, level.furniture);
@@ -838,10 +860,34 @@ export default function Editor2D() {
             </g>
           )}
 
+          {/* lugares sugeridos para columnas: marcados en color, desmarcados solo con contorno */}
+          {columnHints && (
+            <g>
+              {/* la losa de arriba que cargan las columnas */}
+              {project.levels[levelIndex + 1]?.rooms.map((r) => (
+                <polygon key={r.id} points={pts(r.points)} fill="var(--accent)" fillOpacity={0.06} stroke="var(--accent)" strokeWidth={k * 1.5} strokeDasharray={`${8 * k} ${4 * k}`} pointerEvents="none" />
+              ))}
+              {columnHints.map((h, i) => {
+                const s = Math.max(0.25, selFurn ? Math.max(selFurn.w, selFurn.d) : 0.2) + 0.1;
+                return (
+                  <g key={i} data-kind="hint" data-index={i} className="hit grab">
+                    <circle cx={h.x} cy={h.y} r={Math.max(s, 12 * k)} fill="transparent" />
+                    <rect x={h.x - s / 2} y={h.y - s / 2} width={s} height={s} rx={s * 0.15} fill={h.on ? 'var(--accent)' : 'none'} fillOpacity={0.45} stroke="var(--accent)" strokeWidth={k * 1.5} strokeDasharray={h.on ? undefined : `${3 * k} ${2 * k}`} />
+                    {h.on && (
+                      <text x={h.x} y={h.y + 4 * k} fontSize={11 * k} textAnchor="middle" pointerEvents="none" fill="var(--accent)">
+                        ✓
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          )}
+
           {/* objeto del catálogo flotando en el puntero, listo para colocarlo con un clic */}
           {placingItem && cursor && (
             (() => {
-              const pos = snapGrid(cursor);
+              const pos = isSteelColumn(placingItem.type) ? snapColumn(cursor, Math.max(placingItem.w, placingItem.d)) : snapGrid(cursor);
               const ghost: Furniture = { id: 'ghost', type: placingItem.type, name: placingItem.label, x: pos.x, y: pos.y, rotation: 0, w: placingItem.w, d: placingItem.d, h: placingItem.h, elevation: placingItem.elevation ?? 0, color: placingItem.color };
               const over = avoidOverlap && !TABLETOP.has(ghost.type) && collides(ghost, level.furniture);
               return (

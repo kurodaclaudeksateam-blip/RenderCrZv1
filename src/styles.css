@@ -846,6 +846,24 @@ kbd {
   align-items: center;
   gap: 8px;
 }
+.props h3 {
+  font-size: 13px;
+  margin: 6px 0 0;
+}
+/* lugares sugeridos para columnas: lista con casillas que no estira el panel */
+.hint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.hint-list .check {
+  font-size: 12px;
+}
 .props-icon {
   width: 30px;
   height: 30px;

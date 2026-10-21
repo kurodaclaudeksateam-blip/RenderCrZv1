@@ -132,6 +132,8 @@ export type FurnitureType =
   | 'lampara'
   | 'escalera'
   | 'columna'
+  | 'columna_h'
+  | 'columna_u'
   | 'caja';
 
 export interface Furniture {

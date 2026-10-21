@@ -1,5 +1,5 @@
 import type { Furniture } from '../types';
-import { cellGrid, cellIndex, chuteProfile } from '../geometry';
+import { cellGrid, cellIndex, chuteProfile, steelSection } from '../geometry';
 import { parsePipe, pipeStandLayout } from '../catalog';
 
 /** Símbolo de planta de un mueble, en coordenadas locales centradas (metros). */
@@ -86,6 +86,30 @@ export function FurnitureSymbol({ f, k }: { f: Furniture; k: number }) {
           />
           <path d={`M ${x0 + w * 0.72} ${-y0 - d * 0.06} A ${w * 0.72} ${d * 0.72} 0 0 0 ${x0 + w * 0.06} ${-y0 - d * 0.72}`} fill="none" stroke={line} strokeWidth={sw * 1.4} strokeDasharray={`${4 * k} ${3 * k}`} />
           <path d={`M ${x0 + w * 0.06 - 0.22} ${-y0 - d * 0.72 + 0.3} L ${x0 + w * 0.06} ${-y0 - d * 0.72} L ${x0 + w * 0.06 + 0.22} ${-y0 - d * 0.72 + 0.3}`} fill="none" stroke={line} strokeWidth={sw * 1.4} />
+        </g>
+      );
+    }
+    case 'columna_h':
+    case 'columna_u': {
+      // planta del perfil a escala, sobre la huella de la placa de anclaje
+      const { tf: t, tw } = steelSection(f);
+      const steel = { fill: color, stroke: line, strokeWidth: sw * 0.5 };
+      return (
+        <g>
+          <rect x={x0 - 0.05} y={y0 - 0.05} width={w + 0.1} height={d + 0.1} fill="none" stroke={line} strokeWidth={sw * 0.6} strokeDasharray={`${2 * k} ${2 * k}`} />
+          {f.type === 'columna_h' ? (
+            <>
+              <rect x={x0} y={y0} width={w} height={t} {...steel} />
+              <rect x={x0} y={-y0 - t} width={w} height={t} {...steel} />
+              <rect x={-tw / 2} y={y0 + t} width={tw} height={d - t * 2} {...steel} />
+            </>
+          ) : (
+            <>
+              <rect x={x0} y={y0} width={w} height={tw} {...steel} />
+              <rect x={x0} y={y0 + tw} width={t} height={d - tw} {...steel} />
+              <rect x={-x0 - t} y={y0 + tw} width={t} height={d - tw} {...steel} />
+            </>
+          )}
         </g>
       );
     }

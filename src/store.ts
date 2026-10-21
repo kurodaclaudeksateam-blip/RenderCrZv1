@@ -1,8 +1,13 @@
 import { create } from 'zustand';
 import type { Level, Project, Selection, Tool, Vec2, WallMaterial } from './types';
 import { persist } from './cloud';
+import type { ColumnSpot } from './geometry';
 
 export type Screen = 'home' | 'editor' | 'viewer';
+
+export interface ColumnHint extends ColumnSpot {
+  on: boolean;
+}
 
 /** Rótulo con profundidad en preparación: se le quita el fondo a la imagen antes de colocarlo. */
 export interface CutoutRequest {
@@ -38,6 +43,9 @@ interface EditorState {
   avoidOverlap: boolean;
   toast: string | null;
   cutout: CutoutRequest | null;
+  /** lugares sugeridos para columnas metálicas; `on` = marcado para colocar */
+  columnHints: ColumnHint[] | null;
+  setColumnHints: (h: ColumnHint[] | null) => void;
 
   openProject: (p: Project, screen?: Screen) => void;
   closeProject: () => void;
@@ -104,17 +112,19 @@ export const useStore = create<EditorState>((set, get) => ({
   avoidOverlap: readPref('avoidOverlap', true),
   toast: null,
   cutout: null,
+  columnHints: null,
+  setColumnHints: (columnHints) => set({ columnHints }),
 
   openProject: (p, screen = 'editor') =>
     set({ project: p, levelId: p.levels[0]?.id ?? null, selection: null, tool: 'select', past: [], future: [], dirty: false, savedAt: p.updatedAt, screen }),
-  closeProject: () => set({ project: null, levelId: null, selection: null, past: [], future: [], screen: 'home', cutout: null }),
+  closeProject: () => set({ project: null, levelId: null, selection: null, past: [], future: [], screen: 'home', cutout: null, columnHints: null }),
   setScreen: (screen) => set({ screen }),
   // las herramientas genéricas de puerta y ventana no llevan un tipo elegido
   setTool: (tool) => set({ tool, openingPreset: null, placing: null }),
   setWallMaterial: (wallMaterial) => set({ wallMaterial }),
   setOpeningPreset: (openingPreset) => set({ openingPreset }),
   setPlacing: (placing) => set({ placing, tool: 'select', selection: null, openingPreset: null }),
-  setLevel: (levelId) => set({ levelId, selection: null }),
+  setLevel: (levelId) => set({ levelId, selection: null, columnHints: null }),
   select: (selection) => set({ selection }),
   setGrid: (gridSize) => {
     writePref('grid', gridSize);

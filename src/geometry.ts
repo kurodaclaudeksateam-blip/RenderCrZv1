@@ -443,7 +443,7 @@ export function levelHeights(levels: Level[]) {
     let need = l.height;
     for (const f of l.furniture) {
       // los toboganes llegan justo al piso de arriba: no deben empujar la losa
-      if (isChute(f.type)) continue;
+      if (isChute(f.type) || isSteelColumn(f.type)) continue;
       const top = f.elevation + f.h + CLEARANCE;
       if (top <= need) continue;
       // cuenta si el centro o cualquier esquina del objeto queda bajo la losa de arriba
@@ -513,6 +513,82 @@ function angledProfile(f: { d: number; h: number; flat?: number; angle?: number 
     return Math.min(f.h, tan * (s - s0));
   };
   return { lip, flat: c0, run: top - c0, at, angle: (angle * 180) / Math.PI, radius };
+}
+
+/** Columnas metálicas de perfil H o U: llegan a la losa de arriba (o al techo del nivel). */
+export const isSteelColumn = (type: string) => type === 'columna_h' || type === 'columna_u';
+
+/** Espesores del perfil H (IPR) o U (polín): patín `tf` y alma `tw`, iguales en el plano y en 3D. */
+export function steelSection(f: { w: number; d: number }) {
+  const tf = Math.max(0.006, Math.min(f.w, f.d) * 0.08);
+  return { tf, tw: Math.max(0.005, tf * 0.7) };
+}
+
+/** Alto de una columna del nivel `index` para tocar la losa de arriba, o el techo si no hay nivel encima. */
+export function columnHeight(levels: Level[], index: number, elevation = 0) {
+  return Math.max(0.1, levelHeights(levels)[index] - elevation);
+}
+
+export type ColumnSpotKind = 'esquina' | 'orilla' | 'centro';
+export interface ColumnSpot {
+  x: number;
+  y: number;
+  kind: ColumnSpotKind;
+}
+
+/**
+ * Lugares para columnas bajo los ambientes dados: esquinas, puntos repartidos en cada orilla
+ * (a no más de `spacing` metros) y una retícula interior con la misma separación. Se meten
+ * hacia adentro medio lado de columna para que queden a paño de la orilla.
+ */
+export function columnSpots(rooms: { points: Vec2[] }[], size: number, spacing: number): ColumnSpot[] {
+  const out: ColumnSpot[] = [];
+  const push = (p: Vec2, kind: ColumnSpotKind) => {
+    if (!out.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < Math.max(0.3, size))) out.push({ x: p.x, y: p.y, kind });
+  };
+  const sp = Math.max(1, spacing);
+  const half = size / 2;
+  for (const r of rooms) {
+    const P = r.points;
+    const n = P.length;
+    if (n < 3) continue;
+    const inside = (q: Vec2) => pointInPolygon(q, P);
+    // normal de cada arista que apunta hacia dentro del ambiente
+    const inward = P.map((a, i) => {
+      const b = P[(i + 1) % n];
+      const L = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / L;
+      const ny = (b.x - a.x) / L;
+      const mid = v((a.x + b.x) / 2, (a.y + b.y) / 2);
+      return inside(v(mid.x + nx * 0.01, mid.y + ny * 0.01)) ? v(nx, ny) : v(-nx, -ny);
+    });
+    P.forEach((p, i) => {
+      const a = inward[i];
+      const b = inward[(i - 1 + n) % n];
+      const q = v(p.x + (a.x + b.x) * half, p.y + (a.y + b.y) * half);
+      push(inside(q) ? q : p, 'esquina');
+    });
+    P.forEach((a, i) => {
+      const b = P[(i + 1) % n];
+      const L = Math.hypot(b.x - a.x, b.y - a.y);
+      const parts = Math.ceil(L / sp - 1e-6);
+      const nrm = inward[i];
+      for (let j = 1; j < parts; j++) {
+        const t = j / parts;
+        push(v(a.x + (b.x - a.x) * t + nrm.x * half, a.y + (b.y - a.y) * t + nrm.y * half), 'orilla');
+      }
+    });
+    const bb = bounds(P);
+    const nx = Math.ceil((bb.maxX - bb.minX) / sp - 1e-6);
+    const ny = Math.ceil((bb.maxY - bb.minY) / sp - 1e-6);
+    for (let i = 1; i < nx; i++) {
+      for (let j = 1; j < ny; j++) {
+        const q = v(bb.minX + ((bb.maxX - bb.minX) * i) / nx, bb.minY + ((bb.maxY - bb.minY) * j) / ny);
+        if (inside(q)) push(q, 'centro');
+      }
+    }
+  }
+  return out;
 }
 
 /** Altura que debe tener un objeto del nivel `index` para llegar al piso del nivel de arriba. */

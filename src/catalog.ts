@@ -93,6 +93,8 @@ export const CATALOG: CatalogItem[] = [
   { type: 'techo_malla', label: 'Techo de malla metálica', icon: '🕸️', category: 'Cercos', w: 4.0, d: 3.0, h: 0.05, color: '#cbd5e1', elevation: 2.4 },
   { type: 'malla', label: 'Malla divisoria', icon: '🚧', category: 'Cercos', w: 3.0, d: 0.06, h: 2.4, color: '#facc15' },
   { type: 'columna', label: 'Columna', icon: '▮', category: 'Seguridad', w: 0.4, d: 0.4, h: 7.0, color: '#d4d4d4' },
+  { type: 'columna_h', label: 'Columna metálica H (IPR)', icon: 'Ⓗ', category: 'Seguridad', w: 0.2, d: 0.2, h: 3.0, color: '#64748b' },
+  { type: 'columna_u', label: 'Columna metálica U (polín)', icon: 'Ⓤ', category: 'Seguridad', w: 0.15, d: 0.1, h: 3.0, color: '#64748b' },
   { type: 'sofa', label: 'Sofá', icon: '🛋️', category: 'Hogar', w: 2.1, d: 0.9, h: 0.85, color: '#6b7a8f' },
   { type: 'sillon', label: 'Sillón', icon: '💺', category: 'Hogar', w: 0.9, d: 0.85, h: 0.85, color: '#a0785a' },
   { type: 'mesa_centro', label: 'Mesa de centro', icon: '▭', category: 'Hogar', w: 1.1, d: 0.6, h: 0.42, color: '#8b5e3c' },

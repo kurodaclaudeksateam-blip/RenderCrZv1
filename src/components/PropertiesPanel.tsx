@@ -1,8 +1,8 @@
 import { useCurrentLevel, useStore } from '../store';
-import { useState } from 'react';
-import { area, cellGrid, cellIndex, chuteProfile, dist, floorAboveHeight, fmt, isChute, levelHeights, perimeter } from '../geometry';
+import { useEffect, useState } from 'react';
+import { area, cellGrid, cellIndex, chuteProfile, columnHeight, dist, floorAboveHeight, fmt, isChute, isSteelColumn, levelHeights, perimeter, type ColumnSpotKind } from '../geometry';
 import { CATALOG, DOOR_STYLES, FLOOR_MATERIALS, PIPE_MATERIALS, PIPE_SIZES, WALL_MATERIALS, isFence, parsePipe } from '../catalog';
-import { addCorner, deleteSelection, duplicateSelection, requestCutout, rotateSelection, setWallSide, updateFurniture } from '../actions';
+import { addCorner, deleteSelection, duplicateSelection, placeColumns, requestCutout, rotateSelection, setWallSide, suggestColumns, updateFurniture } from '../actions';
 import type { DoorStyle, FloorMaterial, Furniture, Level, Opening, Project, Room, WallMaterial } from '../types';
 
 /** Campo numérico que confirma con Enter o al salir. */
@@ -437,6 +437,89 @@ function ChuteEditor({ f, set }: { f: Furniture; set: (p: Partial<Furniture>) =>
   );
 }
 
+const SPOT_LABEL: Record<ColumnSpotKind, string> = { esquina: 'Esquinas', orilla: 'Orillas', centro: 'Centros' };
+
+/**
+ * Columna metálica: perfil, alto a la losa de arriba y sugerencias de dónde poner más. Las
+ * sugeridas se ven en el plano; se marcan o desmarcan (aquí o tocándolas) y se colocan las marcadas.
+ */
+function ColumnEditor({ f, set }: { f: Furniture; set: (p: Partial<Furniture>) => void }) {
+  const project = useStore((s) => s.project)!;
+  const level = useCurrentLevel()!;
+  const hints = useStore((s) => s.columnHints);
+  const { setColumnHints, notify } = useStore.getState();
+  const [spacing, setSpacing] = useState(6);
+  const index = project.levels.indexOf(level);
+  const hasAbove = index + 1 < project.levels.length;
+  const target = columnHeight(project.levels, index, f.elevation);
+  const aligned = Math.abs(f.h - target) < 0.005;
+  // las sugerencias son del objeto elegido: se quitan al dejar de editarlo
+  useEffect(() => () => useStore.getState().setColumnHints(null), [f.id]);
+  const toggle = (match: (i: number) => boolean, on: boolean) => hints && setColumnHints(hints.map((h, i) => (match(i) ? { ...h, on } : h)));
+  const kinds = (['esquina', 'orilla', 'centro'] as const).filter((k) => hints?.some((h) => h.kind === k));
+  const chosen = hints?.filter((h) => h.on).length ?? 0;
+  return (
+    <>
+      <label className="field">
+        <span>Perfil</span>
+        <select value={f.type} onChange={(e) => set({ type: e.target.value as Furniture['type'] })}>
+          <option value="columna_h">H · IPR (dos patines y alma)</option>
+          <option value="columna_u">U · polín / canal</option>
+        </select>
+      </label>
+      <button className={aligned ? 'secondary small' : 'small'} disabled={aligned} onClick={() => set({ h: target })} title="La columna llega justo a la losa de arriba">
+        {aligned ? '✓ Llega a' : '⤒ Ajustar a'} {hasAbove ? `la losa de ${project.levels[index + 1].name}` : 'el techo del nivel'} ({fmt(target, 2)} m)
+      </button>
+      <h3>Dónde ponerlas</h3>
+      {!hints ? (
+        <>
+          <Num label="Separación máxima" value={spacing} step={0.5} min={1} max={20} onChange={setSpacing} />
+          <button
+            className="secondary small"
+            onClick={() => {
+              const n = suggestColumns(f, spacing);
+              if (!n) notify(level.rooms.length || hasAbove ? 'Ya hay columnas en todos los lugares sugeridos' : 'Primero dibuja un ambiente');
+            }}
+          >
+            💡 Sugerir lugares
+          </button>
+          <p className="tip">Al mover una columna se acomoda sola en esquinas, orillas y centros de los ambientes{hasAbove ? ' del nivel de arriba' : ''} (Alt la suelta libre).</p>
+        </>
+      ) : (
+        <>
+          <p className="muted small">
+            <b>{chosen}</b> de {hints.length} marcadas. Toca un lugar en el plano para marcarlo o quitarlo.
+          </p>
+          {kinds.map((k) => {
+            const all = hints.filter((h) => h.kind === k);
+            const on = all.filter((h) => h.on).length;
+            return (
+              <label key={k} className="check">
+                <input type="checkbox" checked={on === all.length} ref={(el) => void (el && (el.indeterminate = on > 0 && on < all.length))} onChange={(e) => toggle((i) => hints[i].kind === k, e.target.checked)} />
+                {SPOT_LABEL[k]} ({on}/{all.length})
+              </label>
+            );
+          })}
+          <div className="hint-list">
+            {hints.map((h, i) => (
+              <label key={i} className="check small">
+                <input type="checkbox" checked={h.on} onChange={(e) => toggle((j) => j === i, e.target.checked)} />
+                {SPOT_LABEL[h.kind].slice(0, -1)} · {fmt(h.x, 2)}, {fmt(h.y, 2)}
+              </label>
+            ))}
+          </div>
+          <div className="row wrap">
+            <button className="small" disabled={!chosen} onClick={() => notify(`Se colocaron ${placeColumns(f)} columnas; muévelas a tu gusto`)}>
+              ✓ Colocar {chosen}
+            </button>
+            <button className="secondary small" onClick={() => setColumnHints(null)}>Cancelar</button>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 function FurnitureProps({ f }: { f: Furniture }) {
   const set = (patch: Partial<Furniture>) => updateFurniture(f.id, patch);
   const cat = CATALOG.find((c) => c.type === f.type);
@@ -454,6 +537,7 @@ function FurnitureProps({ f }: { f: Furniture }) {
       {AD_TYPES.has(f.type) && <AdImage f={f} set={set} />}
       {f.type === 'anuncio_relieve' && <CutoutImage f={f} set={set} />}
       {isChute(f.type) && <ChuteEditor f={f} set={set} />}
+      {isSteelColumn(f.type) && <ColumnEditor f={f} set={set} />}
       {f.type === 'barandal' && <Num label="Travesaños" value={f.shelves ?? 2} step={1} min={1} max={6} unit="" onChange={(n) => set({ shelves: Math.round(n) })} />}
       {f.type === 'mueble_tapa' && (
         <label className="field">
@@ -717,7 +801,22 @@ function ProjectProps({ project, level }: { project: Project; level: Level }) {
         <span className="props-icon">🏠</span> Nivel actual
       </h2>
       <Text label="Nombre del nivel" value={level.name} onChange={(name) => mutate((_, l) => void (l.name = name))} />
-      <Num label="Altura de piso a techo" value={level.height} min={2} max={30} onChange={(height) => mutate((_, l) => void (l.height = height))} />
+      <Num
+        label="Altura de piso a techo"
+        value={level.height}
+        min={2}
+        max={30}
+        onChange={(height) =>
+          mutate((p, l) => {
+            // las columnas metálicas que tocaban la losa la siguen tocando
+            const i = p.levels.indexOf(l);
+            const before = columnHeight(p.levels, i);
+            l.height = height;
+            const after = columnHeight(p.levels, i);
+            for (const f of l.furniture) if (isSteelColumn(f.type) && Math.abs(f.elevation + f.h - before) < 0.01) f.h = Math.max(0.1, after - f.elevation);
+          })
+        }
+      />
       {realHeight > level.height && (
         <p className="muted small">
           En 3D este nivel mide <b>{fmt(realHeight)} m</b>: tiene objetos más altos que quedan debajo del nivel superior, y la losa de arriba se coloca por encima de ellos.
