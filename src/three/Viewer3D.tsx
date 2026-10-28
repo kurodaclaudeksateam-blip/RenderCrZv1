@@ -11,6 +11,19 @@ import { moveFurnitureTo, moveOpeningTo } from '../actions';
 import { WalkControls, walkInput } from './WalkControls';
 import { grassTexture } from './textures';
 import { BrandLogo, withWatermark } from '../components/BrandLogo';
+import { Effects, SkyEnvironment } from './Effects';
+
+const HQ_KEY = 'crz-hq';
+/** En celulares arranca en calidad normal; lo elegido se recuerda. */
+function initialHq() {
+  try {
+    const saved = localStorage.getItem(HQ_KEY);
+    if (saved !== null) return saved === '1';
+  } catch {
+    /* sin almacenamiento */
+  }
+  return !window.matchMedia('(pointer: coarse)').matches;
+}
 
 type Mode = 'orbit' | 'walk';
 
@@ -32,7 +45,7 @@ function Ground() {
   );
 }
 
-function SunLight({ cx, cz, size }: { cx: number; cz: number; size: number }) {
+function SunLight({ cx, cz, size, intensity = 2.4 }: { cx: number; cz: number; size: number; intensity?: number }) {
   const ref = useRef<THREE.DirectionalLight>(null);
   useEffect(() => {
     const l = ref.current;
@@ -45,7 +58,7 @@ function SunLight({ cx, cz, size }: { cx: number; cz: number; size: number }) {
     <directionalLight
       ref={ref}
       position={[cx + s * 0.8, s * 1.4, cz + s * 0.5]}
-      intensity={2.4}
+      intensity={intensity}
       castShadow
       shadow-mapSize-width={2048}
       shadow-mapSize-height={2048}
@@ -74,14 +87,15 @@ function FirstFrame({ onReady }: { onReady: () => void }) {
 }
 
 /** Expone una función para capturar la imagen del lienzo. */
-function Snapshot({ onReady }: { onReady: (fn: () => string) => void }) {
+function Snapshot({ onReady, composed }: { onReady: (fn: () => string) => void; composed: boolean }) {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     onReady(() => {
-      gl.render(scene, camera);
+      // con post-procesado el último cuadro ya está compuesto; volver a dibujar lo borraría
+      if (!composed) gl.render(scene, camera);
       return gl.domElement.toDataURL('image/png');
     });
-  }, [gl, scene, camera, onReady]);
+  }, [gl, scene, camera, onReady, composed]);
   return null;
 }
 
@@ -166,6 +180,15 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   const [maxLevel, setMaxLevel] = useState(levels.length - 1);
   const [walkLevel, setWalkLevel] = useState(Math.max(0, levels.findIndex((l) => l.id === editorLevelId)));
   const [shadows, setShadows] = useState(true);
+  const [hq, setHqState] = useState(initialHq);
+  const setHq = (v: boolean) => {
+    setHqState(v);
+    try {
+      localStorage.setItem(HQ_KEY, v ? '1' : '0');
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
   const [xray, setXray] = useState(false);
   const [editing, setEditing] = useState(false);
   const [pick, setPick] = useState<Pick | null>(null);
@@ -422,17 +445,19 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
   return (
     <div className={`viewer mode-${mode}`}>
       <Canvas
-        key={mode}
+        key={`${mode}-${hq}`}
         shadows={shadows}
-        dpr={[1, 2]}
-        gl={{ preserveDrawingBuffer: true, antialias: true }}
+        dpr={hq ? [1, 1.5] : [1, 2]}
+        // en alta calidad el tone mapping lo hace el post-procesado
+        gl={{ preserveDrawingBuffer: true, antialias: !hq, toneMapping: hq ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping }}
         camera={{ fov: mode === 'walk' ? 70 : 50, near: mode === 'walk' ? 0.05 : 0.1, far: 1000, position: orbitCam }}
       >
         <Suspense fallback={null}>
           <Sky sunPosition={[80, 50, 40]} turbidity={6} rayleigh={1.2} />
-          <ambientLight intensity={mode === 'walk' ? 0.75 : 0.5} />
-          <hemisphereLight args={['#dbeafe', '#6b7c4b', 0.7]} />
-          <SunLight cx={cx} cz={cz} size={size} />
+          {hq && <SkyEnvironment />}
+          <ambientLight intensity={(mode === 'walk' ? 0.75 : 0.5) * (hq ? 0.35 : 1)} />
+          <hemisphereLight args={['#dbeafe', '#6b7c4b', hq ? 0.35 : 0.7]} />
+          <SunLight cx={cx} cz={cz} size={size} intensity={hq ? 3.2 : 2.4} />
           <Ground />
           {levels.map((l, i) =>
             mode === 'walk' || i <= maxLevel ? (
@@ -457,7 +482,8 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
           ) : (
             <WalkControls auto={tour} start={tour ? { ...start, yaw: start.yaw + (Math.random() - 0.5) * 1.4 } : start} eyeY={elevations[walkLevel] + 1.62} segments={walkSegments} solids={walkSolids} collisions={collisions} ground={walkGround} onLevel={onWalkLevel} onLockChange={onLockChange} />
           )}
-          <Snapshot onReady={onSnapReady} />
+          {hq && <Effects walk={mode === 'walk'} />}
+          <Snapshot onReady={onSnapReady} composed={hq} />
           <FirstFrame onReady={onFirstFrame} />
         </Suspense>
       </Canvas>
@@ -561,6 +587,9 @@ export default function Viewer3D({ project: given, shared = false }: { project?:
         )}
         <label className="inline check hide-sm">
           <input type="checkbox" checked={shadows} onChange={(e) => setShadows(e.target.checked)} /> Sombras
+        </label>
+        <label className="inline check" title="Oclusión ambiental, reflejos del cielo y resplandor de anuncios. Desactívalo si va lento.">
+          <input type="checkbox" checked={hq} onChange={(e) => setHq(e.target.checked)} /> ✨ <span className="hide-sm">Realista</span>
         </label>
         <button className="secondary" onClick={screenshot} title="Descargar captura PNG">
           📷

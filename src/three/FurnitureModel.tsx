@@ -1170,7 +1170,8 @@ function LedFace({ f, w, h, y, z, back }: { f: Furniture; w: number; h: number; 
   return (
     <mesh position={[0, y, z]} rotation={[0, back ? Math.PI : 0, 0]}>
       <planeGeometry args={[w, h]} />
-      <meshStandardMaterial map={map} emissiveMap={map} emissive="#ffffff" emissiveIntensity={0.9} roughness={0.4} toneMapped={false} />
+      {/* pantalla: no la afecta la luz; algo arriba de 1 para que resplandezca en la vista realista */}
+      <meshBasicMaterial map={map} color={[1.25, 1.25, 1.25]} toneMapped={false} />
     </mesh>
   );
 }
